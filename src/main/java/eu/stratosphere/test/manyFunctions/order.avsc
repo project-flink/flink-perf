@@ -1,0 +1,16 @@
+
+{"namespace": "eu.stratosphere.test.manyFunctions",
+ "type": "record",
+ "name": "Order",
+ "fields": [
+     {"name": "o_orderkey", "type": "int"},
+     {"name": "o_custkey",  "type": "int"},
+     {"name": "o_orderstatus",  "type": "string"},
+     {"name": "o_totalprice",  "type": "float"},
+     {"name": "o_orderdate",  "type": "string"},
+     {"name": "o_orderpriority",  "type": "string"},
+     {"name": "o_clerk",  "type": "string"},
+     {"name": "o_shipproprity",  "type": "int"},
+     {"name": "o_comment",  "type": "string"}
+ ]
+}
