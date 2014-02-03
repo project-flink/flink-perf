@@ -11,8 +11,8 @@
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>stratosphere-testjob</artifactId>
-	<name>stratosphere-testjob</name>
+	<artifactId>testjob</artifactId>
+	<name>testjob</name>
 
 	<packaging>jar</packaging>
 
