@@ -6,8 +6,6 @@
 .project
 .version.properties
 filter.properties
-logs.zip
-stratosphere-tests/tmp
 target
 tmp
 *.class
