@@ -1,6 +1,7 @@
 package eu.stratosphere.test.testPlan;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.Iterator;
 import java.util.Scanner;
@@ -31,6 +32,7 @@ import eu.stratosphere.api.java.record.functions.MapFunction;
 import eu.stratosphere.api.java.record.functions.ReduceFunction;
 import eu.stratosphere.api.java.record.io.CsvInputFormat;
 import eu.stratosphere.api.java.record.io.CsvOutputFormat;
+import eu.stratosphere.api.java.record.io.FileOutputFormat;
 import eu.stratosphere.api.java.record.io.TextInputFormat;
 import eu.stratosphere.api.java.record.io.avro.AvroInputFormat;
 import eu.stratosphere.api.java.record.operators.CoGroupOperator;
@@ -42,6 +44,8 @@ import eu.stratosphere.client.LocalExecutor;
 import eu.stratosphere.compiler.PactCompiler;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.hadoopcompat.HadoopDataSource;
+import eu.stratosphere.hadoopcompat.datatypes.WritableWrapper;
+import eu.stratosphere.hadoopcompat.datatypes.WritableWrapperConverter;
 import eu.stratosphere.nephele.client.JobExecutionResult;
 import eu.stratosphere.types.BooleanValue;
 import eu.stratosphere.types.DoubleValue;
@@ -515,16 +519,19 @@ public class LargeTestPlan implements Program, ProgramDescription {
 		
 		// BEGIN TEST 8 - HadoopDataSource with SequenceFile
 		JobConf jobConf = new JobConf();
+		FileInputFormat.addInputPath(jobConf, new Path(sequenceFileInputPath));
 		//  with Stratosphere type converter
 		HadoopDataSource hdsrc = new HadoopDataSource(new SequenceFileInputFormat<LongWritable, Text>(), jobConf, "Sequencefile");
-		FileInputFormat.addInputPath(jobConf, new Path(sequenceFileInputPath));
-		
 		MapOperator checkHDsrc = MapOperator.builder(CheckHadoop.class).input(hdsrc).name("Check HDSrc output").build();
+		
+		HadoopDataSource hdsrcWrapperConverter = new HadoopDataSource(new SequenceFileInputFormat<LongWritable, Text>(), jobConf, "Sequencefile", new WritableWrapperConverter());
+		MapOperator checkHDsrcWrapperConverter = MapOperator.builder(CheckHadoopWrapper.class).input(hdsrcWrapperConverter).name("Check HDSrc output").build();
 		// END: TEST 8
 
 		// don't use this for serious output. 
-		FileDataSink fakeSink = new FileDataSink(CsvOutputFormat.class, "file:///tmp/fakeOut", "fake out");
+		FileDataSink fakeSink = new FileDataSink(FailOutOutputFormat.class, "file:///tmp/fakeOut", "fake out");
 		fakeSink.addInput(checkHDsrc);
+		fakeSink.addInput(checkHDsrcWrapperConverter);
 		
 		Plan p = new Plan(test7Sink, "FullTest");
 		p.addDataSink(test1Sink);
@@ -549,6 +556,15 @@ public class LargeTestPlan implements Program, ProgramDescription {
 				PactCompiler.HINT_LOCAL_STRATEGY_MERGE);
 	}
 
+	
+	public static class FailOutOutputFormat extends FileOutputFormat {
+		@Override
+		public void writeRecord(Record record) throws IOException {
+			throw new RuntimeException("it is not expected to write anything to that sink. Possible bug?");
+		}
+		
+	}
+	
 	public static class CheckHadoop extends MapFunction {
 		private static final long serialVersionUID = 1L;
 		LongCounter cnt;
@@ -563,6 +579,26 @@ public class LargeTestPlan implements Program, ProgramDescription {
 			LongValue key = record.getField(0, LongValue.class);
 			StringValue val = record.getField(1, StringValue.class);
 			if(Long.toString(key.getValue()).equals( val.getValue().split("-")[0])) {
+				throw new RuntimeException("KV typle's key does not match with value");
+			}
+			// we do not collect the output!
+		}
+	}
+	
+	public static class CheckHadoopWrapper extends MapFunction {
+		private static final long serialVersionUID = 1L;
+		LongCounter cnt;
+		@Override
+		public void open(Configuration parameters) throws Exception {
+			super.open(parameters);
+			cnt = getRuntimeContext().getLongCounter("Hadoop Sequencefile KV Counter (Wrapper)");
+		}
+		@Override
+		public void map(Record record, Collector<Record> out) throws Exception {
+			cnt.add(1L);
+			LongWritable key = (LongWritable) record.getField(0, WritableWrapper.class).value();
+			Text value = (Text) record.getField(1, WritableWrapper.class).value();
+			if(Long.toString(key.get()).equals( value.toString().split("-")[0])) {
 				throw new RuntimeException("KV typle's key does not match with value");
 			}
 			// we do not collect the output!
