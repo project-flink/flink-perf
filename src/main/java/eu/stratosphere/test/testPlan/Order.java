@@ -3,7 +3,7 @@
  * 
  * DO NOT EDIT DIRECTLY
  */
-package eu.stratosphere.test.manyFunctions;  
+package eu.stratosphere.test.testPlan;  
 @SuppressWarnings("all")
 @org.apache.avro.specific.AvroGenerated
 public class Order extends org.apache.avro.specific.SpecificRecordBase implements org.apache.avro.specific.SpecificRecord {
@@ -210,18 +210,18 @@ public class Order extends org.apache.avro.specific.SpecificRecordBase implement
   }
 
   /** Creates a new Order RecordBuilder */
-  public static eu.stratosphere.test.manyFunctions.Order.Builder newBuilder() {
-    return new eu.stratosphere.test.manyFunctions.Order.Builder();
+  public static eu.stratosphere.test.testPlan.Order.Builder newBuilder() {
+    return new eu.stratosphere.test.testPlan.Order.Builder();
   }
   
   /** Creates a new Order RecordBuilder by copying an existing Builder */
-  public static eu.stratosphere.test.manyFunctions.Order.Builder newBuilder(eu.stratosphere.test.manyFunctions.Order.Builder other) {
-    return new eu.stratosphere.test.manyFunctions.Order.Builder(other);
+  public static eu.stratosphere.test.testPlan.Order.Builder newBuilder(eu.stratosphere.test.testPlan.Order.Builder other) {
+    return new eu.stratosphere.test.testPlan.Order.Builder(other);
   }
   
   /** Creates a new Order RecordBuilder by copying an existing Order instance */
-  public static eu.stratosphere.test.manyFunctions.Order.Builder newBuilder(eu.stratosphere.test.manyFunctions.Order other) {
-    return new eu.stratosphere.test.manyFunctions.Order.Builder(other);
+  public static eu.stratosphere.test.testPlan.Order.Builder newBuilder(eu.stratosphere.test.testPlan.Order other) {
+    return new eu.stratosphere.test.testPlan.Order.Builder(other);
   }
   
   /**
@@ -242,11 +242,11 @@ public class Order extends org.apache.avro.specific.SpecificRecordBase implement
 
     /** Creates a new Builder */
     private Builder() {
-      super(eu.stratosphere.test.manyFunctions.Order.SCHEMA$);
+      super(eu.stratosphere.test.testPlan.Order.SCHEMA$);
     }
     
     /** Creates a Builder by copying an existing Builder */
-    private Builder(eu.stratosphere.test.manyFunctions.Order.Builder other) {
+    private Builder(eu.stratosphere.test.testPlan.Order.Builder other) {
       super(other);
       if (isValidValue(fields()[0], other.o_orderkey)) {
         this.o_orderkey = data().deepCopy(fields()[0].schema(), other.o_orderkey);
@@ -287,8 +287,8 @@ public class Order extends org.apache.avro.specific.SpecificRecordBase implement
     }
     
     /** Creates a Builder by copying an existing Order instance */
-    private Builder(eu.stratosphere.test.manyFunctions.Order other) {
-            super(eu.stratosphere.test.manyFunctions.Order.SCHEMA$);
+    private Builder(eu.stratosphere.test.testPlan.Order other) {
+            super(eu.stratosphere.test.testPlan.Order.SCHEMA$);
       if (isValidValue(fields()[0], other.o_orderkey)) {
         this.o_orderkey = data().deepCopy(fields()[0].schema(), other.o_orderkey);
         fieldSetFlags()[0] = true;
@@ -333,7 +333,7 @@ public class Order extends org.apache.avro.specific.SpecificRecordBase implement
     }
     
     /** Sets the value of the 'o_orderkey' field */
-    public eu.stratosphere.test.manyFunctions.Order.Builder setOOrderkey(int value) {
+    public eu.stratosphere.test.testPlan.Order.Builder setOOrderkey(int value) {
       validate(fields()[0], value);
       this.o_orderkey = value;
       fieldSetFlags()[0] = true;
@@ -346,7 +346,7 @@ public class Order extends org.apache.avro.specific.SpecificRecordBase implement
     }
     
     /** Clears the value of the 'o_orderkey' field */
-    public eu.stratosphere.test.manyFunctions.Order.Builder clearOOrderkey() {
+    public eu.stratosphere.test.testPlan.Order.Builder clearOOrderkey() {
       fieldSetFlags()[0] = false;
       return this;
     }
@@ -357,7 +357,7 @@ public class Order extends org.apache.avro.specific.SpecificRecordBase implement
     }
     
     /** Sets the value of the 'o_custkey' field */
-    public eu.stratosphere.test.manyFunctions.Order.Builder setOCustkey(int value) {
+    public eu.stratosphere.test.testPlan.Order.Builder setOCustkey(int value) {
       validate(fields()[1], value);
       this.o_custkey = value;
       fieldSetFlags()[1] = true;
@@ -370,7 +370,7 @@ public class Order extends org.apache.avro.specific.SpecificRecordBase implement
     }
     
     /** Clears the value of the 'o_custkey' field */
-    public eu.stratosphere.test.manyFunctions.Order.Builder clearOCustkey() {
+    public eu.stratosphere.test.testPlan.Order.Builder clearOCustkey() {
       fieldSetFlags()[1] = false;
       return this;
     }
@@ -381,7 +381,7 @@ public class Order extends org.apache.avro.specific.SpecificRecordBase implement
     }
     
     /** Sets the value of the 'o_orderstatus' field */
-    public eu.stratosphere.test.manyFunctions.Order.Builder setOOrderstatus(java.lang.CharSequence value) {
+    public eu.stratosphere.test.testPlan.Order.Builder setOOrderstatus(java.lang.CharSequence value) {
       validate(fields()[2], value);
       this.o_orderstatus = value;
       fieldSetFlags()[2] = true;
@@ -394,7 +394,7 @@ public class Order extends org.apache.avro.specific.SpecificRecordBase implement
     }
     
     /** Clears the value of the 'o_orderstatus' field */
-    public eu.stratosphere.test.manyFunctions.Order.Builder clearOOrderstatus() {
+    public eu.stratosphere.test.testPlan.Order.Builder clearOOrderstatus() {
       o_orderstatus = null;
       fieldSetFlags()[2] = false;
       return this;
@@ -406,7 +406,7 @@ public class Order extends org.apache.avro.specific.SpecificRecordBase implement
     }
     
     /** Sets the value of the 'o_totalprice' field */
-    public eu.stratosphere.test.manyFunctions.Order.Builder setOTotalprice(float value) {
+    public eu.stratosphere.test.testPlan.Order.Builder setOTotalprice(float value) {
       validate(fields()[3], value);
       this.o_totalprice = value;
       fieldSetFlags()[3] = true;
@@ -419,7 +419,7 @@ public class Order extends org.apache.avro.specific.SpecificRecordBase implement
     }
     
     /** Clears the value of the 'o_totalprice' field */
-    public eu.stratosphere.test.manyFunctions.Order.Builder clearOTotalprice() {
+    public eu.stratosphere.test.testPlan.Order.Builder clearOTotalprice() {
       fieldSetFlags()[3] = false;
       return this;
     }
@@ -430,7 +430,7 @@ public class Order extends org.apache.avro.specific.SpecificRecordBase implement
     }
     
     /** Sets the value of the 'o_orderdate' field */
-    public eu.stratosphere.test.manyFunctions.Order.Builder setOOrderdate(java.lang.CharSequence value) {
+    public eu.stratosphere.test.testPlan.Order.Builder setOOrderdate(java.lang.CharSequence value) {
       validate(fields()[4], value);
       this.o_orderdate = value;
       fieldSetFlags()[4] = true;
@@ -443,7 +443,7 @@ public class Order extends org.apache.avro.specific.SpecificRecordBase implement
     }
     
     /** Clears the value of the 'o_orderdate' field */
-    public eu.stratosphere.test.manyFunctions.Order.Builder clearOOrderdate() {
+    public eu.stratosphere.test.testPlan.Order.Builder clearOOrderdate() {
       o_orderdate = null;
       fieldSetFlags()[4] = false;
       return this;
@@ -455,7 +455,7 @@ public class Order extends org.apache.avro.specific.SpecificRecordBase implement
     }
     
     /** Sets the value of the 'o_orderpriority' field */
-    public eu.stratosphere.test.manyFunctions.Order.Builder setOOrderpriority(java.lang.CharSequence value) {
+    public eu.stratosphere.test.testPlan.Order.Builder setOOrderpriority(java.lang.CharSequence value) {
       validate(fields()[5], value);
       this.o_orderpriority = value;
       fieldSetFlags()[5] = true;
@@ -468,7 +468,7 @@ public class Order extends org.apache.avro.specific.SpecificRecordBase implement
     }
     
     /** Clears the value of the 'o_orderpriority' field */
-    public eu.stratosphere.test.manyFunctions.Order.Builder clearOOrderpriority() {
+    public eu.stratosphere.test.testPlan.Order.Builder clearOOrderpriority() {
       o_orderpriority = null;
       fieldSetFlags()[5] = false;
       return this;
@@ -480,7 +480,7 @@ public class Order extends org.apache.avro.specific.SpecificRecordBase implement
     }
     
     /** Sets the value of the 'o_clerk' field */
-    public eu.stratosphere.test.manyFunctions.Order.Builder setOClerk(java.lang.CharSequence value) {
+    public eu.stratosphere.test.testPlan.Order.Builder setOClerk(java.lang.CharSequence value) {
       validate(fields()[6], value);
       this.o_clerk = value;
       fieldSetFlags()[6] = true;
@@ -493,7 +493,7 @@ public class Order extends org.apache.avro.specific.SpecificRecordBase implement
     }
     
     /** Clears the value of the 'o_clerk' field */
-    public eu.stratosphere.test.manyFunctions.Order.Builder clearOClerk() {
+    public eu.stratosphere.test.testPlan.Order.Builder clearOClerk() {
       o_clerk = null;
       fieldSetFlags()[6] = false;
       return this;
@@ -505,7 +505,7 @@ public class Order extends org.apache.avro.specific.SpecificRecordBase implement
     }
     
     /** Sets the value of the 'o_shipproprity' field */
-    public eu.stratosphere.test.manyFunctions.Order.Builder setOShipproprity(int value) {
+    public eu.stratosphere.test.testPlan.Order.Builder setOShipproprity(int value) {
       validate(fields()[7], value);
       this.o_shipproprity = value;
       fieldSetFlags()[7] = true;
@@ -518,7 +518,7 @@ public class Order extends org.apache.avro.specific.SpecificRecordBase implement
     }
     
     /** Clears the value of the 'o_shipproprity' field */
-    public eu.stratosphere.test.manyFunctions.Order.Builder clearOShipproprity() {
+    public eu.stratosphere.test.testPlan.Order.Builder clearOShipproprity() {
       fieldSetFlags()[7] = false;
       return this;
     }
@@ -529,7 +529,7 @@ public class Order extends org.apache.avro.specific.SpecificRecordBase implement
     }
     
     /** Sets the value of the 'o_comment' field */
-    public eu.stratosphere.test.manyFunctions.Order.Builder setOComment(java.lang.CharSequence value) {
+    public eu.stratosphere.test.testPlan.Order.Builder setOComment(java.lang.CharSequence value) {
       validate(fields()[8], value);
       this.o_comment = value;
       fieldSetFlags()[8] = true;
@@ -542,7 +542,7 @@ public class Order extends org.apache.avro.specific.SpecificRecordBase implement
     }
     
     /** Clears the value of the 'o_comment' field */
-    public eu.stratosphere.test.manyFunctions.Order.Builder clearOComment() {
+    public eu.stratosphere.test.testPlan.Order.Builder clearOComment() {
       o_comment = null;
       fieldSetFlags()[8] = false;
       return this;

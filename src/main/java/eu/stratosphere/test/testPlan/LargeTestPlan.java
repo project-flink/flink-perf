@@ -1,4 +1,4 @@
-package eu.stratosphere.test.manyFunctions;
+package eu.stratosphere.test.testPlan;
 
 import java.io.File;
 import java.io.PrintWriter;
@@ -8,11 +8,19 @@ import java.util.Scanner;
 import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.specific.SpecificDatumWriter;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapred.FileInputFormat;
+import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.mapred.SequenceFileInputFormat;
 
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.Program;
 import eu.stratosphere.api.common.ProgramDescription;
 import eu.stratosphere.api.common.accumulators.IntCounter;
+import eu.stratosphere.api.common.accumulators.LongCounter;
 import eu.stratosphere.api.common.operators.DeltaIteration;
 import eu.stratosphere.api.common.operators.FileDataSink;
 import eu.stratosphere.api.common.operators.FileDataSource;
@@ -33,17 +41,19 @@ import eu.stratosphere.api.java.record.operators.ReduceOperator;
 import eu.stratosphere.client.LocalExecutor;
 import eu.stratosphere.compiler.PactCompiler;
 import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.hadoopcompat.HadoopDataSource;
 import eu.stratosphere.nephele.client.JobExecutionResult;
 import eu.stratosphere.types.BooleanValue;
 import eu.stratosphere.types.DoubleValue;
 import eu.stratosphere.types.FloatValue;
 import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.LongValue;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.Collector;
-import eu.stratosphere.test.manyFunctions.Order;
+import eu.stratosphere.test.testPlan.Order;
 
-public class ManyFunctions implements Program, ProgramDescription {
+public class LargeTestPlan implements Program, ProgramDescription {
 
 	public static String customer;
 	public static String lineitem;
@@ -57,10 +67,11 @@ public class ManyFunctions implements Program, ProgramDescription {
 	public static String outputOrderKeysPath;
 	public static String outputOrderAvroPath;
 	public static String ordersPath;
+	public static String sequenceFileInputPath;
 
 	public static void main(String[] args) throws Exception {
 
-		ManyFunctions manyFunctionsTest = new ManyFunctions();
+		LargeTestPlan manyFunctionsTest = new LargeTestPlan();
 
 		// generate only avro file
 		if (args.length == 2) {
@@ -146,7 +157,7 @@ public class ManyFunctions implements Program, ProgramDescription {
 	@Override
 	public Plan getPlan(String... args) {
 
-		if (args.length < 7) {
+		if (args.length < 8) {
 			this.getDescription();
 			return null;
 		}
@@ -157,7 +168,8 @@ public class ManyFunctions implements Program, ProgramDescription {
 		orders = args[3];
 		region = args[4];
 		orderAvroFile = args[5];
-		outputTableDirectory = args[6];
+		sequenceFileInputPath = args[6];
+		outputTableDirectory = args[7];
 
 		// Read TPC-H data from .tbl-files		
 		// (supplier, part and partsupp not implemented yet)
@@ -500,7 +512,20 @@ public class ManyFunctions implements Program, ProgramDescription {
 				.fieldDelimiter('|').field(IntValue.class, 0);
 
 		// END: TEST 7		
+		
+		// BEGIN TEST 8 - HadoopDataSource with SequenceFile
+		JobConf jobConf = new JobConf();
+		//  with Stratosphere type converter
+		HadoopDataSource hdsrc = new HadoopDataSource(new SequenceFileInputFormat<LongWritable, Text>(), jobConf, "Sequencefile");
+		FileInputFormat.addInputPath(jobConf, new Path(sequenceFileInputPath));
+		
+		MapOperator checkHDsrc = MapOperator.builder(CheckHadoop.class).input(hdsrc).name("Check HDSrc output").build();
+		// END: TEST 8
 
+		// don't use this for serious output. 
+		FileDataSink fakeSink = new FileDataSink(CsvOutputFormat.class, "file:///tmp/fakeOut", "fake out");
+		fakeSink.addInput(checkHDsrc);
+		
 		Plan p = new Plan(test7Sink, "FullTest");
 		p.addDataSink(test1Sink);
 		p.addDataSink(test2Sink);
@@ -509,6 +534,7 @@ public class ManyFunctions implements Program, ProgramDescription {
 		p.addDataSink(test5Sink);
 		p.addDataSink(test6Sink);
 		p.addDataSink(resultKR);
+		p.addDataSink(fakeSink);
 		return p;
 	}
 
@@ -523,6 +549,26 @@ public class ManyFunctions implements Program, ProgramDescription {
 				PactCompiler.HINT_LOCAL_STRATEGY_MERGE);
 	}
 
+	public static class CheckHadoop extends MapFunction {
+		private static final long serialVersionUID = 1L;
+		LongCounter cnt;
+		@Override
+		public void open(Configuration parameters) throws Exception {
+			super.open(parameters);
+			cnt = getRuntimeContext().getLongCounter("Hadoop Sequencefile KV Counter");
+		}
+		@Override
+		public void map(Record record, Collector<Record> out) throws Exception {
+			cnt.add(1L);
+			LongValue key = record.getField(0, LongValue.class);
+			StringValue val = record.getField(1, StringValue.class);
+			if(Long.toString(key.getValue()).equals( val.getValue().split("-")[0])) {
+				throw new RuntimeException("KV typle's key does not match with value");
+			}
+			// we do not collect the output!
+		}
+	}
+	
 	// Joins the fields of two record into one record
 	public static class JoinFields extends JoinFunction {
 
