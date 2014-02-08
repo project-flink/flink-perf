@@ -223,10 +223,10 @@ public class ManyFunctions implements Program, ProgramDescription {
 
 		// Split the customers by regions
 		MapOperator customersInAmerica = MapOperator
-				.builder(FilterRegionAmerica.class)
+				.builder(new FilterRegion("AMERICA"))
 				.input(customerWithNationRegion).build();
 		MapOperator customersInEurope = MapOperator
-				.builder(FilterRegionEurope.class)
+				.builder(new FilterRegion("EUROPE"))
 				.input(customerWithNationRegion).build();
 		MapOperator customersInOtherRegions = MapOperator
 				.builder(FilterRegionOthers.class)
@@ -367,7 +367,7 @@ public class ManyFunctions implements Program, ProgramDescription {
 				.fieldDelimiter('|').field(IntValue.class, 0);
 
 		// Union all customers WITH orders from previous test with all customers WITHOUT orders
-		MapOperator unionCustomers = MapOperator.builder(DummyMapper.class)
+		MapOperator unionCustomers = MapOperator.builder(IdentityMapper.class)
 				.input(customerKeysWithNoOrders, testCustomerIdentity2).build();
 
 		// Filter for customers keys of test 1
@@ -552,10 +552,13 @@ public class ManyFunctions implements Program, ProgramDescription {
 	}
 
 	// Filter for region "AMERICA"
-	public static class FilterRegionAmerica extends MapFunction {
+	public static class FilterRegion extends MapFunction {
 
 		private IntCounter numLines = new IntCounter();
-
+		final String regionName;
+		public FilterRegion(String rN) {
+			this.regionName = rN;
+		}
 		@Override
 		public void open(Configuration parameters) throws Exception {
 			super.open(parameters);
@@ -565,9 +568,8 @@ public class ManyFunctions implements Program, ProgramDescription {
 
 		@Override
 		public void map(Record record, Collector<Record> out) throws Exception {
-
 			if (record.getField(13, StringValue.class).toString()
-					.equals("AMERICA")) {
+					.equals(regionName)) {
 				out.collect(record);
 				this.numLines.add(1);
 			}
@@ -575,29 +577,6 @@ public class ManyFunctions implements Program, ProgramDescription {
 
 	}
 
-	// Filter for region "EUROPE"
-	public static class FilterRegionEurope extends MapFunction {
-
-		private IntCounter numLines = new IntCounter();
-
-		@Override
-		public void open(Configuration parameters) throws Exception {
-			super.open(parameters);
-			getRuntimeContext().addAccumulator("count-europe-customers",
-					this.numLines);
-		}
-
-		@Override
-		public void map(Record record, Collector<Record> out) throws Exception {
-			if (record.getField(13, StringValue.class).toString()
-					.equals("EUROPE")) {
-				out.collect(record);
-				this.numLines.add(1);
-			}
-
-		}
-
-	}
 
 	// Filter for regions other than "AMERICA" and "EUROPE"
 	public static class FilterRegionOthers extends MapFunction {
@@ -931,13 +910,11 @@ public class ManyFunctions implements Program, ProgramDescription {
 	}
 
 	// Dummy mapper. For testing purposes.
-	public static class DummyMapper extends MapFunction {
-
+	public static class IdentityMapper extends MapFunction {
 		@Override
 		public void map(Record record, Collector<Record> out) throws Exception {
 			out.collect(record);
 		}
-
 	}
 
 }
