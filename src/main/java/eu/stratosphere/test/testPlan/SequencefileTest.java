@@ -1,0 +1,54 @@
+package eu.stratosphere.test.testPlan;
+
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapred.FileInputFormat;
+import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.mapred.SequenceFileInputFormat;
+
+import eu.stratosphere.api.common.Plan;
+import eu.stratosphere.api.common.Program;
+import eu.stratosphere.api.common.accumulators.AccumulatorHelper;
+import eu.stratosphere.api.common.operators.FileDataSink;
+import eu.stratosphere.api.java.record.operators.MapOperator;
+import eu.stratosphere.client.LocalExecutor;
+import eu.stratosphere.hadoopcompat.HadoopDataSource;
+import eu.stratosphere.hadoopcompat.datatypes.WritableWrapperConverter;
+import eu.stratosphere.nephele.client.JobExecutionResult;
+import eu.stratosphere.test.testPlan.LargeTestPlan.CheckHadoop;
+import eu.stratosphere.test.testPlan.LargeTestPlan.CheckHadoopWrapper;
+import eu.stratosphere.test.testPlan.LargeTestPlan.FailOutOutputFormat;
+
+public class SequencefileTest implements Program {
+
+	@Override
+	public Plan getPlan(String... args) {
+		String sequenceFileInputPath = args[0];
+		
+		JobConf jobConf = new JobConf();
+		FileInputFormat.addInputPath(jobConf, new Path(sequenceFileInputPath));
+		//  with Stratosphere type converter
+		HadoopDataSource hdsrc = new HadoopDataSource(new SequenceFileInputFormat<LongWritable, Text>(), jobConf, "Sequencefile");
+		MapOperator checkHDsrc = MapOperator.builder(CheckHadoop.class).input(hdsrc).name("Check HDSrc output").build();
+		
+		HadoopDataSource hdsrcWrapperConverter = new HadoopDataSource(new SequenceFileInputFormat<LongWritable, Text>(), jobConf, "Sequencefile", new WritableWrapperConverter());
+		MapOperator checkHDsrcWrapperConverter = MapOperator.builder(CheckHadoopWrapper.class).input(hdsrcWrapperConverter).name("Check HDSrc output").build();
+		// END: TEST 8
+
+		// don't use this for serious output. 
+		FileDataSink fakeSink = new FileDataSink(FailOutOutputFormat.class, "file:///tmp/fakeOut", "fake out");
+		fakeSink.addInput(checkHDsrc);
+		fakeSink.addInput(checkHDsrcWrapperConverter);
+		
+		Plan p = new Plan(fakeSink, "Sequencefile Test");
+		return p;
+	}
+
+	public static void main(String[] args) throws Exception {
+		SequencefileTest sqT = new SequencefileTest();
+		JobExecutionResult res = LocalExecutor.execute(sqT.getPlan("/home/robert/Projekte/ozone/testjob/data/seq"));
+		System.err.println("Result:\n"+AccumulatorHelper.getResultsFormated(res.getAllAccumulatorResults()));
+	}
+
+}

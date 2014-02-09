@@ -578,7 +578,7 @@ public class LargeTestPlan implements Program, ProgramDescription {
 			cnt.add(1L);
 			LongValue key = record.getField(0, LongValue.class);
 			StringValue val = record.getField(1, StringValue.class);
-			if(Long.toString(key.getValue()).equals( val.getValue().split("-")[0])) {
+			if(!Long.toString(key.getValue()).equals( val.getValue().split("-")[0])) {
 				throw new RuntimeException("KV typle's key does not match with value");
 			}
 			// we do not collect the output!
@@ -598,7 +598,9 @@ public class LargeTestPlan implements Program, ProgramDescription {
 			cnt.add(1L);
 			LongWritable key = (LongWritable) record.getField(0, WritableWrapper.class).value();
 			Text value = (Text) record.getField(1, WritableWrapper.class).value();
-			if(Long.toString(key.get()).equals( value.toString().split("-")[0])) {
+			String k = Long.toString(key.get());
+			String v = value.toString().split("-")[0];
+			if(!k.equals( v)) {
 				throw new RuntimeException("KV typle's key does not match with value");
 			}
 			// we do not collect the output!

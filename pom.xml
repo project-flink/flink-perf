@@ -4,17 +4,21 @@
 
 	<modelVersion>4.0.0</modelVersion>
 
-	<parent>
-		<groupId>eu.stratosphere</groupId>
-		<artifactId>stratosphere</artifactId>
-		<version>0.5-SNAPSHOT</version>
-		<relativePath>..</relativePath>
-	</parent>
-
+	<groupId>eu.stratosphere</groupId>
+	<version>0.1-SNAPSHOT</version>
 	<artifactId>testjob</artifactId>
 	<name>testjob</name>
 
 	<packaging>jar</packaging>
+
+  <repositories>
+	<repository>
+	  <id>snapshots-repo</id>
+	  <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+	  <releases><enabled>false</enabled></releases>
+	  <snapshots><enabled>true</enabled></snapshots>
+	</repository>
+   </repositories>
 
 	<properties>
      <stratosphere.version>0.5-SNAPSHOT</stratosphere.version>
@@ -66,6 +70,7 @@
 		<dependency>
 			<groupId>org.apache.hadoop</groupId>
 			<artifactId>hadoop-core</artifactId>
+			<version>1.2.1</version>
 		</dependency>
 		<dependency>
 			<groupId>commons-lang</groupId>
