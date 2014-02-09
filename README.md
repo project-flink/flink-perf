@@ -24,9 +24,9 @@ Generate data using `./generateTPCH.sh`
 2. Generate Sequencefile
 
 ```
-java -cp <path to JAR>.jar eu.stratosphere.test.testPlan.SequenceFileGenerator outFIle 10000 15
-<path to JAR> is usually target/
+java -cp target/testjob-0.1-SNAPSHOT.jar eu.stratosphere.test.testPlan.SequenceFileGenerator SeqOut 1000000 15
 ```
+(45 MB)
 
 
 ## Execute Plan
