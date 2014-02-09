@@ -25,6 +25,7 @@ public class SequencefileTest implements Program {
 	@Override
 	public Plan getPlan(String... args) {
 		String sequenceFileInputPath = args[0];
+		int dop = Integer.parseInt(args[1]);
 		
 		JobConf jobConf = new JobConf();
 		FileInputFormat.addInputPath(jobConf, new Path(sequenceFileInputPath));
@@ -32,7 +33,7 @@ public class SequencefileTest implements Program {
 		HadoopDataSource hdsrc = new HadoopDataSource(new SequenceFileInputFormat<LongWritable, Text>(), jobConf, "Sequencefile");
 		MapOperator checkHDsrc = MapOperator.builder(CheckHadoop.class).input(hdsrc).name("Check HDSrc output").build();
 		
-		HadoopDataSource hdsrcWrapperConverter = new HadoopDataSource(new SequenceFileInputFormat<LongWritable, Text>(), jobConf, "Sequencefile", new WritableWrapperConverter());
+		HadoopDataSource hdsrcWrapperConverter = new HadoopDataSource(new SequenceFileInputFormat<LongWritable, Text>(), jobConf, "Sequencefile (WritableWrapper)", new WritableWrapperConverter());
 		MapOperator checkHDsrcWrapperConverter = MapOperator.builder(CheckHadoopWrapper.class).input(hdsrcWrapperConverter).name("Check HDSrc output").build();
 		// END: TEST 8
 
@@ -42,6 +43,7 @@ public class SequencefileTest implements Program {
 		fakeSink.addInput(checkHDsrcWrapperConverter);
 		
 		Plan p = new Plan(fakeSink, "Sequencefile Test");
+		p.setDefaultParallelism(dop);
 		return p;
 	}
 

@@ -44,10 +44,10 @@ public class SequenceFileGenerator {
             for (int i = 0; i < kvCount; i ++) { 
                 key.set(i);
                 value.set(i+"-"+RandomStringUtils.randomNumeric(strlen));
-                writer.append( key, value); } 
-        } finally 
-        { IOUtils.closeStream( writer); 
-        } 
+                writer.append( key, value); 
+            }
+        } finally { 
+        	IOUtils.closeStream( writer); 
+        }
 	}
-
 }
