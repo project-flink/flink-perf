@@ -20,9 +20,8 @@ import eu.stratosphere.test.testPlan.LargeTestPlan.CheckHadoop;
 import eu.stratosphere.test.testPlan.LargeTestPlan.CheckHadoopWrapper;
 import eu.stratosphere.test.testPlan.LargeTestPlan.FailOutOutputFormat;
 
-public class SequencefileTest implements Program {
+public class SequenceFileTest implements Program {
 
-	@Override
 	public Plan getPlan(String... args) {
 		String sequenceFileInputPath = args[0];
 		int dop = Integer.parseInt(args[1]);
@@ -48,8 +47,8 @@ public class SequencefileTest implements Program {
 	}
 
 	public static void main(String[] args) throws Exception {
-		SequencefileTest sqT = new SequencefileTest();
-		JobExecutionResult res = LocalExecutor.execute(sqT.getPlan("/home/robert/Projekte/ozone/testjob/data/seq"));
+		SequenceFileTest sqT = new SequenceFileTest();
+		JobExecutionResult res = LocalExecutor.execute(sqT.getPlan("/home/twalthr/repo/test/seq"));
 		System.err.println("Result:\n"+AccumulatorHelper.getResultsFormated(res.getAllAccumulatorResults()));
 	}
 

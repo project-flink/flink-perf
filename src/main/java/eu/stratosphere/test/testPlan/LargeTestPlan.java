@@ -10,7 +10,6 @@ import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.specific.SpecificDatumWriter;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.FileInputFormat;
@@ -55,7 +54,6 @@ import eu.stratosphere.types.LongValue;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.Collector;
-import eu.stratosphere.test.testPlan.Order;
 
 public class LargeTestPlan implements Program, ProgramDescription {
 
@@ -66,16 +64,18 @@ public class LargeTestPlan implements Program, ProgramDescription {
 	public static String region;
 	public static String orderAvroFile;
 	public static String outputTableDirectory;
+	public static String sequenceFileInput;
+
+	// paths (without file:// or hdfs://)
 	public static String outputAccumulatorsPath;
-	public static String outputKeylessReducerPath2;
+	public static String outputKeylessReducerPath;
 	public static String outputOrderKeysPath;
 	public static String outputOrderAvroPath;
 	public static String ordersPath;
-	public static String sequenceFileInputPath;
 
 	public static void main(String[] args) throws Exception {
 
-		LargeTestPlan manyFunctionsTest = new LargeTestPlan();
+		LargeTestPlan largeTestPlan = new LargeTestPlan();
 
 		// generate only avro file
 		if (args.length == 2) {
@@ -84,34 +84,44 @@ public class LargeTestPlan implements Program, ProgramDescription {
 		}
 		// for testing purposes
 		// path = standard java File path
-		else if (args.length >= 11) {
+		else if (args.length >= 12) {
+			// Examples for testing
+			// file:///home/twalthr/repo/test/stratosphere-fulltest/TPC-H/generated_SF0.001/customer.tbl 
+			// file:///home/twalthr/repo/test/stratosphere-fulltest/TPC-H/generated_SF0.001/lineitem.tbl 
+			// file:///home/twalthr/repo/test/stratosphere-fulltest/TPC-H/generated_SF0.001/nation.tbl 
+			// file:///home/twalthr/repo/test/stratosphere-fulltest/TPC-H/generated_SF0.001/orders.tbl 
+			// file:///home/twalthr/repo/test/stratosphere-fulltest/TPC-H/generated_SF0.001/region.tbl 
+			// file:///home/twalthr/repo/test/stratosphere-fulltest/out/ordersAvro.avro 
+			// file:///home/twalthr/repo/test/seq
+			// file:///home/twalthr/repo/test/stratosphere-fulltest/out 
+			// /home/twalthr/repo/test/stratosphere-fulltest/TPC-H/generated_SF0.001/orders.tbl 
+			// /home/twalthr/repo/test/stratosphere-fulltest/out/intermediate-accumulator.txt 
+			// /home/twalthr/repo/test/stratosphere-fulltest/out/intermediate-keylessreducer.txt 
+			// /home/twalthr/repo/test/stratosphere-fulltest/out/ordersAvro.avro
 			customer = args[0];
 			lineitem = args[1];
 			nation = args[2];
 			orders = args[3];
 			region = args[4];
 			orderAvroFile = args[5];
-			outputTableDirectory = args[6];
+			sequenceFileInput = args[6];
+			outputTableDirectory = args[7];
 			// paths (without file:// or hdfs://)
-			ordersPath = args[7];
-			outputAccumulatorsPath = args[8];
-			outputKeylessReducerPath2 = args[9];
-			outputOrderKeysPath = args[10];
+			ordersPath = args[8];
+			outputAccumulatorsPath = args[9];
+			outputKeylessReducerPath = args[10];
 			outputOrderAvroPath = args[11];
 		}
 		// error
 		else {
-			System.err.println(manyFunctionsTest.getDescription());
+			System.err.println(largeTestPlan.getDescription());
 			System.exit(1);
 		}
 
 		// Generate file for avro test
-		DatumWriter<Order> orderDatumWriter = new SpecificDatumWriter<Order>(
-				Order.class);
-		DataFileWriter<Order> dataFileWriter = new DataFileWriter<Order>(
-				orderDatumWriter);
-		dataFileWriter.create(Order.getClassSchema(), new File(
-				outputOrderAvroPath));
+		DatumWriter<Order> orderDatumWriter = new SpecificDatumWriter<Order>(Order.class);
+		DataFileWriter<Order> dataFileWriter = new DataFileWriter<Order>(orderDatumWriter);
+		dataFileWriter.create(Order.getClassSchema(), new File(outputOrderAvroPath));
 		Scanner s = new Scanner(new File(ordersPath));
 		while (s.hasNextLine()) {
 			@SuppressWarnings("resource")
@@ -135,7 +145,7 @@ public class LargeTestPlan implements Program, ProgramDescription {
 		dataFileWriter.close();
 
 		// Create plan and execute
-		Plan plan = manyFunctionsTest.getPlan();
+		Plan plan = largeTestPlan.getPlan();
 
 		JobExecutionResult result = LocalExecutor.execute(plan);
 
@@ -146,140 +156,99 @@ public class LargeTestPlan implements Program, ProgramDescription {
 		out.close();
 
 		// BEGIN: TEST 8
-		int counter = (Integer) result
-				.getAccumulatorResult("count-rest-customers");
-		Scanner scanner = new Scanner(new File(outputKeylessReducerPath2));
+		int counter = (Integer) result.getAccumulatorResult("count-rest-customers");
+		Scanner scanner = new Scanner(new File(outputKeylessReducerPath));
 		int counter2 = scanner.nextInt();
 		scanner.close();
 
 		if (counter != counter2)
-			throw new Exception(
-					"TEST 8 FAILED: Keyless Reducer and Accumulator count different");
+			throw new Exception("TEST 8 FAILED: Keyless Reducer and Accumulator count different");
 		// END: TEST 8
 	}
 
 	@Override
 	public Plan getPlan(String... args) {
 
-		if (args.length < 8) {
+		if (args.length < 8 && customer == null) {
 			this.getDescription();
 			return null;
 		}
-
-		customer = args[0];
-		lineitem = args[1];
-		nation = args[2];
-		orders = args[3];
-		region = args[4];
-		orderAvroFile = args[5];
-		sequenceFileInputPath = args[6];
-		outputTableDirectory = args[7];
+		else if(args.length == 8) {
+			customer = args[0];
+			lineitem = args[1];
+			nation = args[2];
+			orders = args[3];
+			region = args[4];
+			orderAvroFile = args[5];
+			sequenceFileInput = args[6];
+			outputTableDirectory = args[7];
+		}		
 
 		// Read TPC-H data from .tbl-files		
 		// (supplier, part and partsupp not implemented yet)
-		FileDataSource customerSource = new FileDataSource(
-				new CsvInputFormat(), customer, "customer");
-		CsvInputFormat.configureRecordFormat(customerSource)
-				.recordDelimiter('\n').fieldDelimiter('|')
-				.field(IntValue.class, 0).field(StringValue.class, 1)
-				.field(StringValue.class, 2).field(IntValue.class, 3)
-				.field(StringValue.class, 4).field(DoubleValue.class, 5)
-				.field(StringValue.class, 6).field(StringValue.class, 7);
+		FileDataSource customerSource = new FileDataSource(new CsvInputFormat(), customer, "customer");
+		CsvInputFormat.configureRecordFormat(customerSource).recordDelimiter('\n').fieldDelimiter('|').field(IntValue.class, 0)
+				.field(StringValue.class, 1).field(StringValue.class, 2).field(IntValue.class, 3).field(StringValue.class, 4)
+				.field(DoubleValue.class, 5).field(StringValue.class, 6).field(StringValue.class, 7);
 
-		FileDataSource lineitemSource = new FileDataSource(
-				new CsvInputFormat(), lineitem, "lineitem");
-		CsvInputFormat.configureRecordFormat(lineitemSource)
-				.recordDelimiter('\n').fieldDelimiter('|')
-				.field(IntValue.class, 0).field(IntValue.class, 1)
-				.field(IntValue.class, 2).field(IntValue.class, 3)
-				.field(IntValue.class, 4).field(FloatValue.class, 5)
-				.field(FloatValue.class, 6).field(FloatValue.class, 7)
-				.field(StringValue.class, 8).field(StringValue.class, 9)
-				.field(StringValue.class, 10).field(StringValue.class, 11)
-				.field(StringValue.class, 12).field(StringValue.class, 13)
-				.field(StringValue.class, 14).field(StringValue.class, 15);
+		FileDataSource lineitemSource = new FileDataSource(new CsvInputFormat(), lineitem, "lineitem");
+		CsvInputFormat.configureRecordFormat(lineitemSource).recordDelimiter('\n').fieldDelimiter('|').field(IntValue.class, 0)
+				.field(IntValue.class, 1).field(IntValue.class, 2).field(IntValue.class, 3).field(IntValue.class, 4)
+				.field(FloatValue.class, 5).field(FloatValue.class, 6).field(FloatValue.class, 7).field(StringValue.class, 8)
+				.field(StringValue.class, 9).field(StringValue.class, 10).field(StringValue.class, 11).field(StringValue.class, 12)
+				.field(StringValue.class, 13).field(StringValue.class, 14).field(StringValue.class, 15);
 
-		FileDataSource nationSource = new FileDataSource(new CsvInputFormat(),
-				nation, "nation");
-		CsvInputFormat.configureRecordFormat(nationSource)
-				.recordDelimiter('\n').fieldDelimiter('|')
-				.field(IntValue.class, 0).field(StringValue.class, 1)
-				.field(IntValue.class, 2).field(StringValue.class, 3);
+		FileDataSource nationSource = new FileDataSource(new CsvInputFormat(), nation, "nation");
+		CsvInputFormat.configureRecordFormat(nationSource).recordDelimiter('\n').fieldDelimiter('|').field(IntValue.class, 0)
+				.field(StringValue.class, 1).field(IntValue.class, 2).field(StringValue.class, 3);
 
-		FileDataSource ordersSource = new FileDataSource(new CsvInputFormat(),
-				orders, "orders");
-		CsvInputFormat.configureRecordFormat(ordersSource)
-				.recordDelimiter('\n').fieldDelimiter('|')
-				.field(IntValue.class, 0).field(IntValue.class, 1)
-				.field(StringValue.class, 2).field(FloatValue.class, 3)
-				.field(StringValue.class, 4).field(StringValue.class, 5)
-				.field(StringValue.class, 6).field(IntValue.class, 7)
-				.field(StringValue.class, 8);
+		FileDataSource ordersSource = new FileDataSource(new CsvInputFormat(), orders, "orders");
+		CsvInputFormat.configureRecordFormat(ordersSource).recordDelimiter('\n').fieldDelimiter('|').field(IntValue.class, 0)
+				.field(IntValue.class, 1).field(StringValue.class, 2).field(FloatValue.class, 3).field(StringValue.class, 4)
+				.field(StringValue.class, 5).field(StringValue.class, 6).field(IntValue.class, 7).field(StringValue.class, 8);
 
-		FileDataSource regionSource = new FileDataSource(new CsvInputFormat(),
-				region, "region");
-		CsvInputFormat.configureRecordFormat(regionSource)
-				.recordDelimiter('\n').fieldDelimiter('|')
-				.field(IntValue.class, 0).field(StringValue.class, 1)
-				.field(StringValue.class, 2);
+		FileDataSource regionSource = new FileDataSource(new CsvInputFormat(), region, "region");
+		CsvInputFormat.configureRecordFormat(regionSource).recordDelimiter('\n').fieldDelimiter('|').field(IntValue.class, 0)
+				.field(StringValue.class, 1).field(StringValue.class, 2);
 
 		// BEGIN: TEST 1 - Usage of Join, Map, KeylessReducer, CsvOutputFormat, CoGroup
 
 		// Join fields of customer and nation
-		JoinOperator customerWithNation = JoinOperator
-				.builder(JoinFields.class, IntValue.class, 3, 0)
-				.input1(customerSource).input2(nationSource).build();
+		JoinOperator customerWithNation = JoinOperator.builder(JoinFields.class, IntValue.class, 3, 0).input1(customerSource)
+				.input2(nationSource).build();
 		joinQuickFix(customerWithNation);
 
 		// Join fields of customerWithNation and region
-		JoinOperator customerWithNationRegion = JoinOperator
-				.builder(JoinFields.class, IntValue.class, 10, 0)
-				.input1(customerWithNation).input2(regionSource).build();
+		JoinOperator customerWithNationRegion = JoinOperator.builder(JoinFields.class, IntValue.class, 10, 0).input1(customerWithNation)
+				.input2(regionSource).build();
 		joinQuickFix(customerWithNationRegion);
 
 		// Split the customers by regions
-		MapOperator customersInAmerica = MapOperator
-				.builder(new FilterRegion("AMERICA"))
-				.input(customerWithNationRegion).build();
-		MapOperator customersInEurope = MapOperator
-				.builder(new FilterRegion("EUROPE"))
-				.input(customerWithNationRegion).build();
-		MapOperator customersInOtherRegions = MapOperator
-				.builder(FilterRegionOthers.class)
-				.input(customerWithNationRegion).build();
+		MapOperator customersInAmerica = MapOperator.builder(new FilterRegion("AMERICA")).input(customerWithNationRegion).build();
+		MapOperator customersInEurope = MapOperator.builder(new FilterRegion("EUROPE")).input(customerWithNationRegion).build();
+		MapOperator customersInOtherRegions = MapOperator.builder(FilterRegionOthers.class).input(customerWithNationRegion).build();
 
 		// Count customers of other regions
-		ReduceOperator countCustomersOfOtherRegion = ReduceOperator
-				.builder(ReduceCounter.class).input(customersInOtherRegions)
-				.build();
+		ReduceOperator countCustomersOfOtherRegion = ReduceOperator.builder(ReduceCounter.class).input(customersInOtherRegions).build();
 
 		// Save keyless reducer results
-		FileDataSink resultKR = new FileDataSink(new CsvOutputFormat(),
-				outputTableDirectory + "/KeylessReducer.tbl");
+		FileDataSink resultKR = new FileDataSink(new CsvOutputFormat(), outputTableDirectory + "/KeylessReducer.tbl");
 		resultKR.addInput(countCustomersOfOtherRegion);
-		CsvOutputFormat.configureRecordFormat(resultKR).recordDelimiter('\n')
-				.fieldDelimiter('|').field(IntValue.class, 0);
+		CsvOutputFormat.configureRecordFormat(resultKR).recordDelimiter('\n').fieldDelimiter('|').field(IntValue.class, 0);
 
 		// Union again and filter customer fields
-		MapOperator unionOfRegions = MapOperator
-				.builder(FilterCustomerFields.class)
-				.input(customersInAmerica, customersInEurope,
-						customersInOtherRegions).build();
+		MapOperator unionOfRegions = MapOperator.builder(FilterCustomerFields.class)
+				.input(customersInAmerica, customersInEurope, customersInOtherRegions).build();
 
 		// Save test results to disk
-		FileDataSink test1Sink = new FileDataSink(new CsvOutputFormat(),
-				outputTableDirectory + "/Test1.tbl");
+		FileDataSink test1Sink = new FileDataSink(new CsvOutputFormat(), outputTableDirectory + "/Test1.tbl");
 		test1Sink.addInput(unionOfRegions);
-		CsvOutputFormat.configureRecordFormat(test1Sink).recordDelimiter('\n')
-				.fieldDelimiter('|').field(IntValue.class, 0)
-				.field(StringValue.class, 1).field(StringValue.class, 2)
-				.field(IntValue.class, 3).field(StringValue.class, 4)
-				.field(DoubleValue.class, 5).field(StringValue.class, 6)
-				.field(StringValue.class, 7);
+		CsvOutputFormat.configureRecordFormat(test1Sink).recordDelimiter('\n').fieldDelimiter('|').field(IntValue.class, 0)
+				.field(StringValue.class, 1).field(StringValue.class, 2).field(IntValue.class, 3).field(StringValue.class, 4)
+				.field(DoubleValue.class, 5).field(StringValue.class, 6).field(StringValue.class, 7);
 
 		// Test: Compare to input source
-		CoGroupOperator testCustomerIdentity1 = CoGroupOperator
-				.builder(CoGroupTestIdentity.class, IntValue.class, 0, 0)
+		CoGroupOperator testCustomerIdentity1 = CoGroupOperator.builder(CoGroupTestIdentity.class, IntValue.class, 0, 0)
 				.input1(customerSource).input2(unionOfRegions).build();
 
 		// END: TEST 1
@@ -287,38 +256,29 @@ public class LargeTestPlan implements Program, ProgramDescription {
 		// BEGIN: TEST 2 - Usage of Join, Reduce, Map, Cross, CoGroup
 
 		// Collect customers keys from customers that ever placed orders
-		JoinOperator customersWithOrders = JoinOperator
-				.builder(CollectCustomerKeysWithOrders.class, IntValue.class,
-						0, 0).input1(lineitemSource).input2(ordersSource)
-				.build();
+		JoinOperator customersWithOrders = JoinOperator.builder(CollectCustomerKeysWithOrders.class, IntValue.class, 0, 0)
+				.input1(lineitemSource).input2(ordersSource).build();
 		joinQuickFix(customersWithOrders);
-		ReduceOperator removeDuplicates = ReduceOperator
-				.builder(RemoveDuplicates.class, IntValue.class, 0)
-				.input(customersWithOrders).build();
+		ReduceOperator removeDuplicates = ReduceOperator.builder(RemoveDuplicates.class, IntValue.class, 0).input(customersWithOrders)
+				.build();
 
 		// Cross LineItems and Orders
-		CrossOperator lineitemsWithOrders = CrossOperator
-				.builder(CrossJoinFields.class).input1(lineitemSource)
-				.input2(ordersSource).build();
+		CrossOperator lineitemsWithOrders = CrossOperator.builder(CrossJoinFields.class).input1(lineitemSource).input2(ordersSource)
+				.build();
 
 		// Filter customer key
-		MapOperator customerKeyWithOrders2 = MapOperator
-				.builder(FilterCustomerKeyFromLineItemsOrders.class)
-				.input(lineitemsWithOrders).build();
-		ReduceOperator removeDuplicates2 = ReduceOperator
-				.builder(RemoveDuplicates.class, IntValue.class, 0)
-				.input(customerKeyWithOrders2).build();
+		MapOperator customerKeyWithOrders2 = MapOperator.builder(FilterCustomerKeyFromLineItemsOrders.class).input(lineitemsWithOrders)
+				.build();
+		ReduceOperator removeDuplicates2 = ReduceOperator.builder(RemoveDuplicates.class, IntValue.class, 0).input(customerKeyWithOrders2)
+				.build();
 
 		// Save test results to disk
-		FileDataSink test2Sink = new FileDataSink(new CsvOutputFormat(),
-				outputTableDirectory + "/Test2.tbl");
+		FileDataSink test2Sink = new FileDataSink(new CsvOutputFormat(), outputTableDirectory + "/Test2.tbl");
 		test2Sink.addInput(removeDuplicates2);
-		CsvOutputFormat.configureRecordFormat(test2Sink).recordDelimiter('\n')
-				.fieldDelimiter('|').field(IntValue.class, 0);
+		CsvOutputFormat.configureRecordFormat(test2Sink).recordDelimiter('\n').fieldDelimiter('|').field(IntValue.class, 0);
 
 		// Test: Compare customer keys
-		CoGroupOperator testCustomerIdentity2 = CoGroupOperator
-				.builder(CoGroupTestIdentity.class, IntValue.class, 0, 0)
+		CoGroupOperator testCustomerIdentity2 = CoGroupOperator.builder(CoGroupTestIdentity.class, IntValue.class, 0, 0)
 				.input1(removeDuplicates).input2(removeDuplicates2).build();
 
 		// END: TEST 2
@@ -328,125 +288,97 @@ public class LargeTestPlan implements Program, ProgramDescription {
 		iteration.setMaximumNumberOfIterations(10000); // Exception otherwise
 
 		// Add a flag field to each customer (initial value: false)
-		MapOperator customersWithFlag = MapOperator.builder(AddFlag.class)
-				.input(customerSource).build();
+		MapOperator customersWithFlag = MapOperator.builder(AddFlag.class).input(customerSource).build();
 
 		iteration.setInitialSolutionSet(customersWithFlag);
 		iteration.setInitialWorkset(customersWithFlag);
 
 		// As input for each iteration
 		// Exception otherwise
-		JoinOperator iterationInput = JoinOperator
-				.builder(WorkSolutionSetJoin.class, IntValue.class, 0, 0)
-				.name("JOIN ITERATION").input1(iteration.getWorkset())
-				.input2(iteration.getSolutionSet()).build();
+		JoinOperator iterationInput = JoinOperator.builder(WorkSolutionSetJoin.class, IntValue.class, 0, 0).name("JOIN ITERATION")
+				.input1(iteration.getWorkset()).input2(iteration.getSolutionSet()).build();
 
 		// Pick one customer from working set
-		ReduceOperator oneCustomer = ReduceOperator
-				.builder(PickOneRecord.class).input(iterationInput).build();
+		ReduceOperator oneCustomer = ReduceOperator.builder(PickOneRecord.class).input(iterationInput).build();
 
 		// Determine all customers from input with no orders (in this case:
 		// check if the picked customer has no orders)
-		CoGroupOperator customerWithNoOrders = CoGroupOperator
-				.builder(CustomersWithNoOrders.class, IntValue.class, 0, 1)
+		CoGroupOperator customerWithNoOrders = CoGroupOperator.builder(CustomersWithNoOrders.class, IntValue.class, 0, 1)
 				.input1(oneCustomer).input2(ordersSource).build();
 
 		// Set the flag for the customer with no order
-		MapOperator customerWithSetFlag = MapOperator.builder(SetFlag.class)
-				.input(customerWithNoOrders).build();
+		MapOperator customerWithSetFlag = MapOperator.builder(SetFlag.class).input(customerWithNoOrders).build();
 
 		// Set changed customers (delta)
 		iteration.setSolutionSetDelta(customerWithSetFlag);
 
 		// Remove checked customer from previous working set
-		CoGroupOperator filteredWorkset = CoGroupOperator
-				.builder(RemoveCheckedCustomer.class, IntValue.class, 0, 0)
+		CoGroupOperator filteredWorkset = CoGroupOperator.builder(RemoveCheckedCustomer.class, IntValue.class, 0, 0)
 				.input1(iteration.getWorkset()).input2(oneCustomer).build();
 
 		// Define workset for next iteration
 		iteration.setNextWorkset(filteredWorkset);
 
 		// Remove unflagged customer
-		MapOperator filteredFlaggedSolutionSet = MapOperator
-				.builder(FilterFlaggedCustomers.class).input(iteration).build();
+		MapOperator filteredFlaggedSolutionSet = MapOperator.builder(FilterFlaggedCustomers.class).input(iteration).build();
 
 		// Extract only the customer keys
-		MapOperator customerKeysWithNoOrders = MapOperator
-				.builder(FilterFirstFieldIntKey.class)
-				.input(filteredFlaggedSolutionSet).build();
+		MapOperator customerKeysWithNoOrders = MapOperator.builder(FilterFirstFieldIntKey.class).input(filteredFlaggedSolutionSet).build();
 
 		// Save the customers without orders in file
-		FileDataSink test3Sink = new FileDataSink(new CsvOutputFormat(),
-				outputTableDirectory + "/Test3.tbl");
+		FileDataSink test3Sink = new FileDataSink(new CsvOutputFormat(), outputTableDirectory + "/Test3.tbl");
 		test3Sink.addInput(customerKeysWithNoOrders);
-		CsvOutputFormat.configureRecordFormat(test3Sink).recordDelimiter('\n')
-				.fieldDelimiter('|').field(IntValue.class, 0);
+		CsvOutputFormat.configureRecordFormat(test3Sink).recordDelimiter('\n').fieldDelimiter('|').field(IntValue.class, 0);
 
 		// Union all customers WITH orders from previous test with all customers WITHOUT orders
-		MapOperator unionCustomers = MapOperator.builder(IdentityMapper.class)
-				.input(customerKeysWithNoOrders, testCustomerIdentity2).build();
+		MapOperator unionCustomers = MapOperator.builder(IdentityMapper.class).input(customerKeysWithNoOrders, testCustomerIdentity2)
+				.build();
 
 		// Filter for customers keys of test 1
-		MapOperator allCustomerKeys = MapOperator
-				.builder(FilterFirstFieldIntKey.class)
-				.input(testCustomerIdentity1).build();
+		MapOperator allCustomerKeys = MapOperator.builder(FilterFirstFieldIntKey.class).input(testCustomerIdentity1).build();
 
 		// Test if unionCustomers contains all customers again
-		CoGroupOperator testCustomerIdentity3 = CoGroupOperator
-				.builder(CoGroupTestIdentity.class, IntValue.class, 0, 0)
+		CoGroupOperator testCustomerIdentity3 = CoGroupOperator.builder(CoGroupTestIdentity.class, IntValue.class, 0, 0)
 				.input1(unionCustomers).input2(allCustomerKeys).build();
 		// END: TEST 3
 
 		// BEGIN: TEST 4 - Usage of TextInputFormat
 
 		// Get all order keys by joining with all customers that placed orders from previous test
-		JoinOperator allOrderKeys = JoinOperator
-				.builder(OrderKeysFromCustomerKeys.class, IntValue.class, 0, 1)
+		JoinOperator allOrderKeys = JoinOperator.builder(OrderKeysFromCustomerKeys.class, IntValue.class, 0, 1)
 				.input1(testCustomerIdentity3).input2(ordersSource).build();
 
 		// Get the string lines of the orders file
-		FileDataSource ordersTextInputSource = new FileDataSource(
-				new TextInputFormat(), orders);
+		FileDataSource ordersTextInputSource = new FileDataSource(new TextInputFormat(), orders);
 
 		// Extract order keys out of string lines
-		MapOperator stringExtractKeys = MapOperator
-				.builder(ExtractKeysFromTextInput.class)
-				.input(ordersTextInputSource).build();
+		MapOperator stringExtractKeys = MapOperator.builder(ExtractKeysFromTextInput.class).input(ordersTextInputSource).build();
 
 		// Save the orders in file
-		FileDataSink test4Sink = new FileDataSink(new CsvOutputFormat(),
-				outputTableDirectory + "/Test4.tbl");
+		FileDataSink test4Sink = new FileDataSink(new CsvOutputFormat(), outputTableDirectory + "/Test4.tbl");
 		test4Sink.addInput(stringExtractKeys);
-		CsvOutputFormat.configureRecordFormat(test4Sink).recordDelimiter('\n')
-				.fieldDelimiter('|').field(IntValue.class, 0);
+		CsvOutputFormat.configureRecordFormat(test4Sink).recordDelimiter('\n').fieldDelimiter('|').field(IntValue.class, 0);
 
 		// Test if extracted values are correct
-		CoGroupOperator testOrderIdentity = CoGroupOperator
-				.builder(CoGroupTestIdentity.class, IntValue.class, 0, 0)
-				.input1(allOrderKeys).input2(stringExtractKeys).build();
+		CoGroupOperator testOrderIdentity = CoGroupOperator.builder(CoGroupTestIdentity.class, IntValue.class, 0, 0).input1(allOrderKeys)
+				.input2(stringExtractKeys).build();
 
 		// END: TEST 4
 
 		// BEGIN: TEST 5 - Usage of AvroInputFormat
 
 		// extract orders from avro file
-		FileDataSource ordersAvroInputSource = new FileDataSource(
-				new AvroInputFormat(), orderAvroFile);
+		FileDataSource ordersAvroInputSource = new FileDataSource(new AvroInputFormat(), orderAvroFile);
 
 		// Extract keys
-		MapOperator extractKeys = MapOperator
-				.builder(FilterFirstFieldIntKey.class)
-				.input(ordersAvroInputSource).build();
+		MapOperator extractKeys = MapOperator.builder(FilterFirstFieldIntKey.class).input(ordersAvroInputSource).build();
 
 		// Save the order keys in file
-		FileDataSink test5Sink = new FileDataSink(new CsvOutputFormat(),
-				outputTableDirectory + "/Test5.tbl");
+		FileDataSink test5Sink = new FileDataSink(new CsvOutputFormat(), outputTableDirectory + "/Test5.tbl");
 		test5Sink.addInput(extractKeys);
-		CsvOutputFormat.configureRecordFormat(test5Sink).recordDelimiter('\n')
-				.fieldDelimiter('|').field(IntValue.class, 0);
+		CsvOutputFormat.configureRecordFormat(test5Sink).recordDelimiter('\n').fieldDelimiter('|').field(IntValue.class, 0);
 
-		CoGroupOperator testOrderIdentity2 = CoGroupOperator
-				.builder(CoGroupTestIdentity.class, IntValue.class, 0, 0)
+		CoGroupOperator testOrderIdentity2 = CoGroupOperator.builder(CoGroupTestIdentity.class, IntValue.class, 0, 0)
 				.input1(testOrderIdentity).input2(extractKeys).build();
 
 		// END: TEST 5
@@ -454,85 +386,70 @@ public class LargeTestPlan implements Program, ProgramDescription {
 		// BEGIN: TEST 6 - date count
 
 		// Count different order dates
-		MapOperator orderDateCountMap = MapOperator
-				.builder(OrderDateCountMap.class).input(ordersAvroInputSource)
-				.build();
+		MapOperator orderDateCountMap = MapOperator.builder(OrderDateCountMap.class).input(ordersAvroInputSource).build();
 
 		// Sum up
-		ReduceOperator orderDateCountReduce = ReduceOperator
-				.builder(OrderDateCountReduce.class)
-				.keyField(StringValue.class, 0).input(orderDateCountMap)
-				.build();
+		ReduceOperator orderDateCountReduce = ReduceOperator.builder(OrderDateCountReduce.class).keyField(StringValue.class, 0)
+				.input(orderDateCountMap).build();
 
 		// Save the orders in file
-		FileDataSink test6Sink = new FileDataSink(new CsvOutputFormat(),
-				outputTableDirectory + "/Test6.tbl");
+		FileDataSink test6Sink = new FileDataSink(new CsvOutputFormat(), outputTableDirectory + "/Test6.tbl");
 		test6Sink.addInput(orderDateCountReduce);
-		CsvOutputFormat.configureRecordFormat(test6Sink).recordDelimiter('\n')
-				.fieldDelimiter('|').field(StringValue.class, 0)
+		CsvOutputFormat.configureRecordFormat(test6Sink).recordDelimiter('\n').fieldDelimiter('|').field(StringValue.class, 0)
 				.field(IntValue.class, 1);
 
 		// do the same with the original orders file
 
 		// Count different order dates
-		MapOperator orderDateCountMap2 = MapOperator
-				.builder(OrderDateCountMap.class).input(ordersSource).build();
+		MapOperator orderDateCountMap2 = MapOperator.builder(OrderDateCountMap.class).input(ordersSource).build();
 
 		// Sum up
-		ReduceOperator orderDateCountReduce2 = ReduceOperator
-				.builder(OrderDateCountReduce.class)
-				.keyField(StringValue.class, 0).input(orderDateCountMap2)
-				.build();
+		ReduceOperator orderDateCountReduce2 = ReduceOperator.builder(OrderDateCountReduce.class).keyField(StringValue.class, 0)
+				.input(orderDateCountMap2).build();
 
 		// Check if date count is correct
-		CoGroupOperator testOrderIdentity3 = CoGroupOperator
-				.builder(CoGroupTestIdentity.class, StringValue.class, 0, 0)
-				.name("testOrderIdentity3").input1(orderDateCountReduce)
-				.input2(orderDateCountReduce2).build();
+		CoGroupOperator testOrderIdentity3 = CoGroupOperator.builder(CoGroupTestIdentity.class, StringValue.class, 0, 0)
+				.name("testOrderIdentity3").input1(orderDateCountReduce).input2(orderDateCountReduce2).build();
 
 		// END: TEST 6
 
 		// BEGIN: TEST 7
 
 		// Sum up counts
-		ReduceOperator sumUp = ReduceOperator.builder(SumUpDateCounts.class)
-				.input(testOrderIdentity3).build();
+		ReduceOperator sumUp = ReduceOperator.builder(SumUpDateCounts.class).input(testOrderIdentity3).build();
 
 		// Count all orders
-		ReduceOperator orderCount = ReduceOperator.builder(ReduceCounter.class)
-				.input(testOrderIdentity2).build();
+		ReduceOperator orderCount = ReduceOperator.builder(ReduceCounter.class).input(testOrderIdentity2).build();
 
 		// Check if the values are equal
-		CoGroupOperator testCountOrdersIdentity = CoGroupOperator
-				.builder(CoGroupTestIdentity.class, IntValue.class, 0, 0)
-				.name("testCountOrdersIdentity").input1(sumUp)
-				.input2(orderCount).build();
+		CoGroupOperator testCountOrdersIdentity = CoGroupOperator.builder(CoGroupTestIdentity.class, IntValue.class, 0, 0)
+				.name("testCountOrdersIdentity").input1(sumUp).input2(orderCount).build();
 
 		// Write count to disk
-		FileDataSink test7Sink = new FileDataSink(new CsvOutputFormat(),
-				outputTableDirectory + "/Test7.tbl");
+		FileDataSink test7Sink = new FileDataSink(new CsvOutputFormat(), outputTableDirectory + "/Test7.tbl");
 		test7Sink.addInput(testCountOrdersIdentity);
-		CsvOutputFormat.configureRecordFormat(test7Sink).recordDelimiter('\n')
-				.fieldDelimiter('|').field(IntValue.class, 0);
+		CsvOutputFormat.configureRecordFormat(test7Sink).recordDelimiter('\n').fieldDelimiter('|').field(IntValue.class, 0);
 
 		// END: TEST 7		
-		
-		// BEGIN TEST 8 - HadoopDataSource with SequenceFile
-		JobConf jobConf = new JobConf();
-		FileInputFormat.addInputPath(jobConf, new Path(sequenceFileInputPath));
-		//  with Stratosphere type converter
-		HadoopDataSource hdsrc = new HadoopDataSource(new SequenceFileInputFormat<LongWritable, Text>(), jobConf, "Sequencefile");
-		MapOperator checkHDsrc = MapOperator.builder(CheckHadoop.class).input(hdsrc).name("Check HDSrc output").build();
-		
-		HadoopDataSource hdsrcWrapperConverter = new HadoopDataSource(new SequenceFileInputFormat<LongWritable, Text>(), jobConf, "Sequencefile", new WritableWrapperConverter());
-		MapOperator checkHDsrcWrapperConverter = MapOperator.builder(CheckHadoopWrapper.class).input(hdsrcWrapperConverter).name("Check HDSrc output").build();
-		// END: TEST 8
 
-		// don't use this for serious output. 
-		FileDataSink fakeSink = new FileDataSink(FailOutOutputFormat.class, "file:///tmp/fakeOut", "fake out");
-		fakeSink.addInput(checkHDsrc);
-		fakeSink.addInput(checkHDsrcWrapperConverter);
-		
+//		// BEGIN: TEST 8 - HadoopDataSource with SequenceFile
+//		JobConf jobConf = new JobConf();
+//		FileInputFormat.addInputPath(jobConf, new Path(sequenceFileInput));
+//		//  with Stratosphere type converter
+//		HadoopDataSource<LongWritable, Text> hdsrc = new HadoopDataSource<LongWritable, Text>(new SequenceFileInputFormat<LongWritable, Text>(), jobConf, "Sequencefile");
+//		MapOperator checkHDsrc = MapOperator.builder(CheckHadoop.class).input(hdsrc).name("Check HDSrc output").build();
+//
+//		HadoopDataSource<LongWritable, Text> hdsrcWrapperConverter = new HadoopDataSource<LongWritable, Text>(new SequenceFileInputFormat<LongWritable, Text>(), jobConf,
+//				"Sequencefile", new WritableWrapperConverter<LongWritable, Text>());
+//		MapOperator checkHDsrcWrapperConverter = MapOperator.builder(CheckHadoopWrapper.class).input(hdsrcWrapperConverter)
+//				.name("Check HDSrc output").build();
+//		// END: TEST 8
+//
+//		// don't use this for serious output. 
+//		FileDataSink fakeSink = new FileDataSink(FailOutOutputFormat.class, "file:///tmp/fakeOut", "fake out");
+//		fakeSink.addInput(checkHDsrc);
+//		fakeSink.addInput(checkHDsrcWrapperConverter);
+
 		Plan p = new Plan(test7Sink, "FullTest");
 		p.addDataSink(test1Sink);
 		p.addDataSink(test2Sink);
@@ -541,7 +458,7 @@ public class LargeTestPlan implements Program, ProgramDescription {
 		p.addDataSink(test5Sink);
 		p.addDataSink(test6Sink);
 		p.addDataSink(resultKR);
-		p.addDataSink(fakeSink);
+//		p.addDataSink(fakeSink);
 		return p;
 	}
 
@@ -552,47 +469,48 @@ public class LargeTestPlan implements Program, ProgramDescription {
 
 	// Quick fix for Join bug
 	private void joinQuickFix(JoinOperator j) {
-		j.setParameter(PactCompiler.HINT_LOCAL_STRATEGY,
-				PactCompiler.HINT_LOCAL_STRATEGY_MERGE);
+		j.setParameter(PactCompiler.HINT_LOCAL_STRATEGY, PactCompiler.HINT_LOCAL_STRATEGY_MERGE);
 	}
 
-	
 	public static class FailOutOutputFormat extends FileOutputFormat {
-		@Override
 		public void writeRecord(Record record) throws IOException {
 			throw new RuntimeException("it is not expected to write anything to that sink. Possible bug?");
 		}
-		
+
 	}
-	
+
 	public static class CheckHadoop extends MapFunction {
 		private static final long serialVersionUID = 1L;
 		LongCounter cnt;
+
 		@Override
 		public void open(Configuration parameters) throws Exception {
 			super.open(parameters);
 			cnt = getRuntimeContext().getLongCounter("Hadoop Sequencefile KV Counter");
 		}
+
 		@Override
 		public void map(Record record, Collector<Record> out) throws Exception {
 			cnt.add(1L);
 			LongValue key = record.getField(0, LongValue.class);
 			StringValue val = record.getField(1, StringValue.class);
-			if(!Long.toString(key.getValue()).equals( val.getValue().split("-")[0])) {
+			if (!Long.toString(key.getValue()).equals(val.getValue().split("-")[0])) {
 				throw new RuntimeException("KV typle's key does not match with value");
 			}
 			// we do not collect the output!
 		}
 	}
-	
+
 	public static class CheckHadoopWrapper extends MapFunction {
 		private static final long serialVersionUID = 1L;
 		LongCounter cnt;
+
 		@Override
 		public void open(Configuration parameters) throws Exception {
 			super.open(parameters);
 			cnt = getRuntimeContext().getLongCounter("Hadoop Sequencefile KV Counter (Wrapper)");
 		}
+
 		@Override
 		public void map(Record record, Collector<Record> out) throws Exception {
 			cnt.add(1L);
@@ -600,19 +518,18 @@ public class LargeTestPlan implements Program, ProgramDescription {
 			Text value = (Text) record.getField(1, WritableWrapper.class).value();
 			String k = Long.toString(key.get());
 			String v = value.toString().split("-")[0];
-			if(!k.equals( v)) {
+			if (!k.equals(v)) {
 				throw new RuntimeException("KV typle's key does not match with value");
 			}
 			// we do not collect the output!
 		}
 	}
-	
+
 	// Joins the fields of two record into one record
 	public static class JoinFields extends JoinFunction {
 
 		@Override
-		public void join(Record r1, Record r2, Collector<Record> out)
-				throws Exception {
+		public void join(Record r1, Record r2, Collector<Record> out) throws Exception {
 
 			Record newRecord = new Record(r1.getNumFields() + r2.getNumFields());
 
@@ -640,27 +557,26 @@ public class LargeTestPlan implements Program, ProgramDescription {
 
 		private IntCounter numLines = new IntCounter();
 		final String regionName;
+
 		public FilterRegion(String rN) {
 			this.regionName = rN;
 		}
+
 		@Override
 		public void open(Configuration parameters) throws Exception {
 			super.open(parameters);
-			getRuntimeContext().addAccumulator("count-american-customers",
-					this.numLines);
+			getRuntimeContext().addAccumulator("count-american-customers", this.numLines);
 		}
 
 		@Override
 		public void map(Record record, Collector<Record> out) throws Exception {
-			if (record.getField(13, StringValue.class).toString()
-					.equals(regionName)) {
+			if (record.getField(13, StringValue.class).toString().equals(regionName)) {
 				out.collect(record);
 				this.numLines.add(1);
 			}
 		}
 
 	}
-
 
 	// Filter for regions other than "AMERICA" and "EUROPE"
 	public static class FilterRegionOthers extends MapFunction {
@@ -670,16 +586,13 @@ public class LargeTestPlan implements Program, ProgramDescription {
 		@Override
 		public void open(Configuration parameters) throws Exception {
 			super.open(parameters);
-			getRuntimeContext().addAccumulator("count-rest-customers",
-					this.numLines);
+			getRuntimeContext().addAccumulator("count-rest-customers", this.numLines);
 		}
 
 		@Override
 		public void map(Record record, Collector<Record> out) throws Exception {
-			if (!record.getField(13, StringValue.class).toString()
-					.equals("AMERICA")
-					&& !record.getField(13, StringValue.class).toString()
-							.equals("EUROPE")) {
+			if (!record.getField(13, StringValue.class).toString().equals("AMERICA")
+					&& !record.getField(13, StringValue.class).toString().equals("EUROPE")) {
 				out.collect(record);
 				this.numLines.add(1);
 			}
@@ -708,9 +621,7 @@ public class LargeTestPlan implements Program, ProgramDescription {
 	public static class CoGroupTestIdentity extends CoGroupFunction {
 
 		@Override
-		public void coGroup(Iterator<Record> records1,
-				Iterator<Record> records2, Collector<Record> out)
-				throws Exception {
+		public void coGroup(Iterator<Record> records1, Iterator<Record> records2, Collector<Record> out) throws Exception {
 
 			int count1 = 0;
 			Record lastR1 = null;
@@ -727,15 +638,11 @@ public class LargeTestPlan implements Program, ProgramDescription {
 			}
 
 			if (count1 != 1 || count2 != 1)
-				throw new Exception(
-						"TEST FAILED: The count of the two inputs do not match: "
-								+ count1 + " / " + count2);
+				throw new Exception("TEST FAILED: The count of the two inputs do not match: " + count1 + " / " + count2);
 
 			if (lastR1.getNumFields() != lastR2.getNumFields())
-				throw new Exception(
-						"TEST FAILED: The number of fields of the two inputs do not match: "
-								+ lastR1.getNumFields() + " / "
-								+ lastR2.getNumFields());
+				throw new Exception("TEST FAILED: The number of fields of the two inputs do not match: " + lastR1.getNumFields() + " / "
+						+ lastR2.getNumFields());
 			out.collect(lastR2);
 		}
 
@@ -746,8 +653,7 @@ public class LargeTestPlan implements Program, ProgramDescription {
 	public static class CollectCustomerKeysWithOrders extends JoinFunction {
 
 		@Override
-		public void join(Record l, Record o, Collector<Record> out)
-				throws Exception {
+		public void join(Record l, Record o, Collector<Record> out) throws Exception {
 			out.collect(new Record(o.getField(1, IntValue.class)));
 		}
 
@@ -757,8 +663,7 @@ public class LargeTestPlan implements Program, ProgramDescription {
 	public static class RemoveDuplicates extends ReduceFunction {
 
 		@Override
-		public void reduce(Iterator<Record> records, Collector<Record> out)
-				throws Exception {
+		public void reduce(Iterator<Record> records, Collector<Record> out) throws Exception {
 			Record record = records.next();
 			out.collect(record);
 		}
@@ -768,8 +673,7 @@ public class LargeTestPlan implements Program, ProgramDescription {
 	public static class CrossJoinFields extends CrossFunction {
 
 		@Override
-		public void cross(Record r1, Record r2, Collector<Record> out)
-				throws Exception {
+		public void cross(Record r1, Record r2, Collector<Record> out) throws Exception {
 			Record newRecord = new Record(r1.getNumFields() + r2.getNumFields());
 
 			int[] r1Positions = new int[r1.getNumFields()];
@@ -792,13 +696,11 @@ public class LargeTestPlan implements Program, ProgramDescription {
 	}
 
 	// Filters the customer key from the LineItem-Order records
-	public static class FilterCustomerKeyFromLineItemsOrders extends
-			MapFunction {
+	public static class FilterCustomerKeyFromLineItemsOrders extends MapFunction {
 
 		@Override
 		public void map(Record lo, Collector<Record> out) throws Exception {
-			if (lo.getField(0, IntValue.class).getValue() == lo.getField(16,
-					IntValue.class).getValue()) {
+			if (lo.getField(0, IntValue.class).getValue() == lo.getField(16, IntValue.class).getValue()) {
 				out.collect(new Record(lo.getField(17, IntValue.class)));
 			}
 
@@ -810,8 +712,7 @@ public class LargeTestPlan implements Program, ProgramDescription {
 	public static class ReduceCounter extends ReduceFunction {
 
 		@Override
-		public void reduce(Iterator<Record> records, Collector<Record> out)
-				throws Exception {
+		public void reduce(Iterator<Record> records, Collector<Record> out) throws Exception {
 
 			int counter = 0;
 
@@ -828,8 +729,7 @@ public class LargeTestPlan implements Program, ProgramDescription {
 	public static class OrderKeysFromCustomerKeys extends JoinFunction {
 
 		@Override
-		public void join(Record c, Record o, Collector<Record> out)
-				throws Exception {
+		public void join(Record c, Record o, Collector<Record> out) throws Exception {
 			out.collect(new Record(o.getField(0, IntValue.class)));
 		}
 	}
@@ -854,8 +754,7 @@ public class LargeTestPlan implements Program, ProgramDescription {
 
 		@Override
 		public void map(Record record, Collector<Record> out) throws Exception {
-			out.collect(new Record(record.getField(4, StringValue.class),
-					new IntValue(1)));
+			out.collect(new Record(record.getField(4, StringValue.class), new IntValue(1)));
 		}
 
 	}
@@ -864,8 +763,7 @@ public class LargeTestPlan implements Program, ProgramDescription {
 	public static class OrderDateCountReduce extends ReduceFunction {
 
 		@Override
-		public void reduce(Iterator<Record> records, Collector<Record> out)
-				throws Exception {
+		public void reduce(Iterator<Record> records, Collector<Record> out) throws Exception {
 			Record element = null;
 			int sum = 0;
 			while (records.hasNext()) {
@@ -883,8 +781,7 @@ public class LargeTestPlan implements Program, ProgramDescription {
 	public static class SumUpDateCounts extends ReduceFunction {
 
 		@Override
-		public void reduce(Iterator<Record> records, Collector<Record> out)
-				throws Exception {
+		public void reduce(Iterator<Record> records, Collector<Record> out) throws Exception {
 			int count = 0;
 			while (records.hasNext()) {
 				count += records.next().getField(1, IntValue.class).getValue();
@@ -897,8 +794,7 @@ public class LargeTestPlan implements Program, ProgramDescription {
 	public static class WorkSolutionSetJoin extends JoinFunction {
 
 		@Override
-		public void join(Record worksetC, Record solutionC,
-				Collector<Record> out) throws Exception {
+		public void join(Record worksetC, Record solutionC, Collector<Record> out) throws Exception {
 			out.collect(worksetC);
 		}
 
@@ -908,8 +804,7 @@ public class LargeTestPlan implements Program, ProgramDescription {
 	public static class PickOneRecord extends ReduceFunction {
 
 		@Override
-		public void reduce(Iterator<Record> records, Collector<Record> out)
-				throws Exception {
+		public void reduce(Iterator<Record> records, Collector<Record> out) throws Exception {
 			if (records.hasNext()) {
 				out.collect(records.next());
 			}
@@ -923,8 +818,7 @@ public class LargeTestPlan implements Program, ProgramDescription {
 	public static class CustomersWithNoOrders extends CoGroupFunction {
 
 		@Override
-		public void coGroup(Iterator<Record> c, Iterator<Record> o,
-				Collector<Record> out) throws Exception {
+		public void coGroup(Iterator<Record> c, Iterator<Record> o, Collector<Record> out) throws Exception {
 
 			// if no order is present output customer
 			if (c.hasNext() && !o.hasNext()) {
@@ -960,9 +854,7 @@ public class LargeTestPlan implements Program, ProgramDescription {
 	public static class RemoveCheckedCustomer extends CoGroupFunction {
 
 		@Override
-		public void coGroup(Iterator<Record> workingSet,
-				Iterator<Record> checkedCustomer, Collector<Record> out)
-				throws Exception {
+		public void coGroup(Iterator<Record> workingSet, Iterator<Record> checkedCustomer, Collector<Record> out) throws Exception {
 			if (!checkedCustomer.hasNext()) {
 				while (workingSet.hasNext())
 					out.collect(workingSet.next());
@@ -976,8 +868,7 @@ public class LargeTestPlan implements Program, ProgramDescription {
 
 		@Override
 		public void map(Record record, Collector<Record> out) throws Exception {
-			if (record.getField(record.getNumFields() - 1, BooleanValue.class)
-					.getValue()) {
+			if (record.getField(record.getNumFields() - 1, BooleanValue.class).getValue()) {
 				out.collect(record);
 			}
 		}
