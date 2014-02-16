@@ -22,7 +22,8 @@
 
 	<properties>
      <stratosphere.version>0.5-SNAPSHOT</stratosphere.version>
-  </properties>
+  	</properties>
+  	
 	<dependencies>
 
 		<dependency>
