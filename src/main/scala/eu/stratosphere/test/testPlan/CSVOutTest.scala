@@ -21,29 +21,12 @@ object RunJobLocal {
 }
 
 
-/**
- * This is a outline for a Stratosphere scala job. It is actually the WordCount 
- * example from the stratosphere distribution.
- * 
- * You can run it out of your IDE using the main() method of RunJob.
- * This will use the LocalExecutor to start a little Stratosphere instance
- * out of your IDE.
- * 
- * You can also generate a .jar file that you can submit on your Stratosphere
- * cluster.
- * Just type 
- *      mvn clean package
- * in the projects root directory.
- * You will find the jar in 
- *      target/stratosphere-quickstart-0.1-SNAPSHOT-Sample.jar
- *
- */
 class CSVOutTest extends Program with ProgramDescription with Serializable {
   override def getDescription() = {
     "Parameters: [input] [output] [numSubStasks]"
   }
   override def getPlan(args: String*) = {
-    getScalaPlan(args(1), args(2), args(0).toInt)
+    getScalaPlan(args(0), args(1), args(2).toInt)
   }
 
   def formatOutput = (word: String, count: Int) => "%s %d".format(word, count)
@@ -55,7 +38,7 @@ class CSVOutTest extends Program with ProgramDescription with Serializable {
 
     val output = words.write(wordsOutput, CsvOutputFormat("\n",",")) 
   
-    val plan = new ScalaPlan(Seq(output), "Word Count (immutable)")
+    val plan = new ScalaPlan(Seq(output), "CsvOutTest")
     plan.setDefaultParallelism(numSubTasks)
     plan
   }
