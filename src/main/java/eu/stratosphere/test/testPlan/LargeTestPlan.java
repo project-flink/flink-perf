@@ -699,7 +699,6 @@ public class LargeTestPlan implements Program, ProgramDescription {
 			Record lastR1 = null;
 			while (records1.hasNext()) {
 				lastR1 = records1.next();
-				System.out.println("r1: " + lastR1.getField(0, IntValue.class));
 				count1++;
 			}
 
@@ -707,7 +706,6 @@ public class LargeTestPlan implements Program, ProgramDescription {
 			Record lastR2 = null;
 			while (records2.hasNext()) {
 				lastR2 = records2.next();
-				System.out.println("r2: " + lastR2.getField(0, IntValue.class));
 				count2++;
 			}
 
@@ -1081,16 +1079,19 @@ public class LargeTestPlan implements Program, ProgramDescription {
 
 	public static class TakeFirstHigherPrice extends ReduceFunction {
 
-		private Record currHighestRecord;
-
-		@Override
-		public void open(Configuration parameters) throws Exception {
-			Collection<Record> vars = getRuntimeContext().getBroadcastVariable("currently_highest_price");
-			this.currHighestRecord = vars.iterator().next();
-		}
-
 		@Override
 		public void reduce(Iterator<Record> records, Collector<Record> out) throws Exception {
+			
+			Collection<Record> vars = getRuntimeContext().getBroadcastVariable("currently_highest_price");
+			Iterator<Record> iterator = vars.iterator();
+			
+			// Prevent bug in Iteration maxIteration+1
+			if(!iterator.hasNext()) {
+				return;
+			}
+			Record currHighestRecord = iterator.next();
+			
+			
 			double currHighest = currHighestRecord.getField(3, DoubleValue.class).getValue();
 
 			Record i = null;
@@ -1101,13 +1102,11 @@ public class LargeTestPlan implements Program, ProgramDescription {
 
 				if (totalPrice > currHighest) {
 					out.collect(i);
-					System.out.println("HIGHER OUT:" + i.getField(0, IntValue.class));
 					collected = true;
 					break;
 				}
 			}
 			if (!collected) {
-				System.out.println("BC OUT:" + currHighestRecord.getField(0, IntValue.class));
 				out.collect(currHighestRecord);
 			}
 		}
@@ -1126,8 +1125,7 @@ public class LargeTestPlan implements Program, ProgramDescription {
 				double value = r.getField(3, DoubleValue.class).getValue();
 				if (max < value) {
 					max = value;
-					System.out.println("MAX:" + max);
-					maxRecord = r;
+					maxRecord = r.createCopy();
 				}
 			}
 			out.collect(maxRecord);
