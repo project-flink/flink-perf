@@ -19,7 +19,7 @@ Generate data using `./generateTPCH.sh`
 
 ### Generate Special Data
 
-1. Generate Avro File(s)
+1. Generate Avro File
 
 This command will generate an Avro file from the original TPC-H orders file. (This step is not necessary when running the test job locally.)
 
@@ -27,7 +27,7 @@ This command will generate an Avro file from the original TPC-H orders file. (Th
 java -cp target/testjob-0.1-SNAPSHOT.jar eu.stratosphere.test.testPlan.LargeTestPlan '/input/orders.tbl' '/output/orders.avro'
 ```
 
-2. Generate Sequencefile
+2. Generate Sequence File
 
 ```
 java -cp target/testjob-0.1-SNAPSHOT.jar eu.stratosphere.test.testPlan.SequenceFileGenerator SeqOut 1000000 15
