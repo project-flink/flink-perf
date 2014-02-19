@@ -3,24 +3,22 @@ package eu.stratosphere.test.testPlan;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.Scanner;
 
 import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.specific.SpecificDatumWriter;
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.mapred.FileInputFormat;
-import org.apache.hadoop.mapred.JobConf;
-import org.apache.hadoop.mapred.SequenceFileInputFormat;
 
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.Program;
 import eu.stratosphere.api.common.ProgramDescription;
 import eu.stratosphere.api.common.accumulators.IntCounter;
 import eu.stratosphere.api.common.accumulators.LongCounter;
+import eu.stratosphere.api.common.operators.BulkIteration;
 import eu.stratosphere.api.common.operators.DeltaIteration;
 import eu.stratosphere.api.common.operators.FileDataSink;
 import eu.stratosphere.api.common.operators.FileDataSource;
@@ -42,9 +40,7 @@ import eu.stratosphere.api.java.record.operators.ReduceOperator;
 import eu.stratosphere.client.LocalExecutor;
 import eu.stratosphere.compiler.PactCompiler;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.hadoopcompatibility.HadoopDataSource;
 import eu.stratosphere.hadoopcompatibility.datatypes.WritableWrapper;
-import eu.stratosphere.hadoopcompatibility.datatypes.WritableWrapperConverter;
 import eu.stratosphere.nephele.client.JobExecutionResult;
 import eu.stratosphere.types.BooleanValue;
 import eu.stratosphere.types.DoubleValue;
@@ -66,6 +62,8 @@ public class LargeTestPlan implements Program, ProgramDescription {
 	public static String outputTableDirectory;
 	public static String sequenceFileInput;
 
+	public static int maxBulkIterations;
+
 	// paths (without file:// or hdfs://)
 	public static String outputAccumulatorsPath;
 	public static String outputKeylessReducerPath;
@@ -84,7 +82,7 @@ public class LargeTestPlan implements Program, ProgramDescription {
 		}
 		// for testing purposes
 		// path = standard java File path
-		else if (args.length >= 12) {
+		else if (args.length >= 13) {
 			// Examples for testing
 			// file:///home/twalthr/repo/test/stratosphere-fulltest/TPC-H/generated_SF0.001/customer.tbl 
 			// file:///home/twalthr/repo/test/stratosphere-fulltest/TPC-H/generated_SF0.001/lineitem.tbl 
@@ -94,6 +92,7 @@ public class LargeTestPlan implements Program, ProgramDescription {
 			// file:///home/twalthr/repo/test/stratosphere-fulltest/out/ordersAvro.avro 
 			// file:///home/twalthr/repo/test/seq
 			// file:///home/twalthr/repo/test/stratosphere-fulltest/out 
+			// 10000
 			// /home/twalthr/repo/test/stratosphere-fulltest/TPC-H/generated_SF0.001/orders.tbl 
 			// /home/twalthr/repo/test/stratosphere-fulltest/out/intermediate-accumulator.txt 
 			// /home/twalthr/repo/test/stratosphere-fulltest/out/intermediate-keylessreducer.txt 
@@ -106,11 +105,12 @@ public class LargeTestPlan implements Program, ProgramDescription {
 			orderAvroFile = args[5];
 			sequenceFileInput = args[6];
 			outputTableDirectory = args[7];
+			maxBulkIterations = Integer.valueOf(args[8]);
 			// paths (without file:// or hdfs://)
-			ordersPath = args[8];
-			outputAccumulatorsPath = args[9];
-			outputKeylessReducerPath = args[10];
-			outputOrderAvroPath = args[11];
+			ordersPath = args[9];
+			outputAccumulatorsPath = args[10];
+			outputKeylessReducerPath = args[11];
+			outputOrderAvroPath = args[12];
 		}
 		// error
 		else {
@@ -146,8 +146,11 @@ public class LargeTestPlan implements Program, ProgramDescription {
 
 		// Create plan and execute
 		Plan plan = largeTestPlan.getPlan();
+		plan.setDefaultParallelism(1);
 
 		JobExecutionResult result = LocalExecutor.execute(plan);
+		// System.out.println(LocalExecutor.optimizerPlanAsJSON(plan));
+		// System.exit(0);
 
 		PrintWriter out = new PrintWriter(outputAccumulatorsPath);
 		out.println(result.getAccumulatorResult("count-american-customers"));
@@ -155,25 +158,26 @@ public class LargeTestPlan implements Program, ProgramDescription {
 		out.println(result.getAccumulatorResult("count-rest-customers"));
 		out.close();
 
-		// BEGIN: TEST 8
-		int counter = (Integer) result.getAccumulatorResult("count-rest-customers");
-		Scanner scanner = new Scanner(new File(outputKeylessReducerPath));
-		int counter2 = scanner.nextInt();
-		scanner.close();
+		// BEGIN: TEST 8 - only for DOP 1
+		if (plan.getDefaultParallelism() == 1) {
+			int counter = (Integer) result.getAccumulatorResult("count-rest-customers");
+			Scanner scanner = new Scanner(new File(outputKeylessReducerPath));
+			int counter2 = scanner.nextInt();
+			scanner.close();
 
-		if (counter != counter2)
-			throw new Exception("TEST 8 FAILED: Keyless Reducer and Accumulator count different");
+			if (counter != counter2)
+				throw new Exception("TEST 8 FAILED: Keyless Reducer and Accumulator count different");
+		}
 		// END: TEST 8
 	}
 
 	@Override
 	public Plan getPlan(String... args) {
 
-		if (args.length < 8 && customer == null) {
+		if (args.length < 9 && customer == null) {
 			this.getDescription();
 			return null;
-		}
-		else if(args.length == 8) {
+		} else if (args.length == 9) {
 			customer = args[0];
 			lineitem = args[1];
 			nation = args[2];
@@ -182,7 +186,8 @@ public class LargeTestPlan implements Program, ProgramDescription {
 			orderAvroFile = args[5];
 			sequenceFileInput = args[6];
 			outputTableDirectory = args[7];
-		}		
+			maxBulkIterations = Integer.valueOf(args[8]);
+		}
 
 		// Read TPC-H data from .tbl-files		
 		// (supplier, part and partsupp not implemented yet)
@@ -204,7 +209,7 @@ public class LargeTestPlan implements Program, ProgramDescription {
 
 		FileDataSource ordersSource = new FileDataSource(new CsvInputFormat(), orders, "orders");
 		CsvInputFormat.configureRecordFormat(ordersSource).recordDelimiter('\n').fieldDelimiter('|').field(IntValue.class, 0)
-				.field(IntValue.class, 1).field(StringValue.class, 2).field(FloatValue.class, 3).field(StringValue.class, 4)
+				.field(IntValue.class, 1).field(StringValue.class, 2).field(DoubleValue.class, 3).field(StringValue.class, 4)
 				.field(StringValue.class, 5).field(StringValue.class, 6).field(IntValue.class, 7).field(StringValue.class, 8);
 
 		FileDataSource regionSource = new FileDataSource(new CsvInputFormat(), region, "region");
@@ -232,7 +237,7 @@ public class LargeTestPlan implements Program, ProgramDescription {
 		ReduceOperator countCustomersOfOtherRegion = ReduceOperator.builder(ReduceCounter.class).input(customersInOtherRegions).build();
 
 		// Save keyless reducer results
-		FileDataSink resultKR = new FileDataSink(new CsvOutputFormat(), outputTableDirectory + "/KeylessReducer.tbl");
+		FileDataSink resultKR = new FileDataSink(new CsvOutputFormat(), outputTableDirectory + "/intermediate-keylessreducer.txt");
 		resultKR.addInput(countCustomersOfOtherRegion);
 		CsvOutputFormat.configureRecordFormat(resultKR).recordDelimiter('\n').fieldDelimiter('|').field(IntValue.class, 0);
 
@@ -248,7 +253,7 @@ public class LargeTestPlan implements Program, ProgramDescription {
 				.field(DoubleValue.class, 5).field(StringValue.class, 6).field(StringValue.class, 7);
 
 		// Test: Compare to input source
-		CoGroupOperator testCustomerIdentity1 = CoGroupOperator.builder(CoGroupTestIdentity.class, IntValue.class, 0, 0)
+		CoGroupOperator testCustomerIdentity1 = CoGroupOperator.builder(CoGroupTestIdentity.class, IntValue.class, 0, 0).name("TEST 1")
 				.input1(customerSource).input2(unionOfRegions).build();
 
 		// END: TEST 1
@@ -278,12 +283,12 @@ public class LargeTestPlan implements Program, ProgramDescription {
 		CsvOutputFormat.configureRecordFormat(test2Sink).recordDelimiter('\n').fieldDelimiter('|').field(IntValue.class, 0);
 
 		// Test: Compare customer keys
-		CoGroupOperator testCustomerIdentity2 = CoGroupOperator.builder(CoGroupTestIdentity.class, IntValue.class, 0, 0)
+		CoGroupOperator testCustomerIdentity2 = CoGroupOperator.builder(CoGroupTestIdentity.class, IntValue.class, 0, 0).name("TEST 2")
 				.input1(removeDuplicates).input2(removeDuplicates2).build();
 
 		// END: TEST 2
 
-		// BEGIN: TEST 3 - Usage of Delta Iterations to determine customers woth no orders
+		// BEGIN: TEST 3 - Usage of Delta Iterations to determine customers with no orders
 		DeltaIteration iteration = new DeltaIteration(0);
 		iteration.setMaximumNumberOfIterations(10000); // Exception otherwise
 
@@ -338,7 +343,7 @@ public class LargeTestPlan implements Program, ProgramDescription {
 		MapOperator allCustomerKeys = MapOperator.builder(FilterFirstFieldIntKey.class).input(testCustomerIdentity1).build();
 
 		// Test if unionCustomers contains all customers again
-		CoGroupOperator testCustomerIdentity3 = CoGroupOperator.builder(CoGroupTestIdentity.class, IntValue.class, 0, 0)
+		CoGroupOperator testCustomerIdentity3 = CoGroupOperator.builder(CoGroupTestIdentity.class, IntValue.class, 0, 0).name("TEST 3")
 				.input1(unionCustomers).input2(allCustomerKeys).build();
 		// END: TEST 3
 
@@ -360,8 +365,8 @@ public class LargeTestPlan implements Program, ProgramDescription {
 		CsvOutputFormat.configureRecordFormat(test4Sink).recordDelimiter('\n').fieldDelimiter('|').field(IntValue.class, 0);
 
 		// Test if extracted values are correct
-		CoGroupOperator testOrderIdentity = CoGroupOperator.builder(CoGroupTestIdentity.class, IntValue.class, 0, 0).input1(allOrderKeys)
-				.input2(stringExtractKeys).build();
+		CoGroupOperator testOrderIdentity = CoGroupOperator.builder(CoGroupTestIdentity.class, IntValue.class, 0, 0).name("TEST 4")
+				.input1(allOrderKeys).input2(stringExtractKeys).build();
 
 		// END: TEST 4
 
@@ -378,7 +383,7 @@ public class LargeTestPlan implements Program, ProgramDescription {
 		test5Sink.addInput(extractKeys);
 		CsvOutputFormat.configureRecordFormat(test5Sink).recordDelimiter('\n').fieldDelimiter('|').field(IntValue.class, 0);
 
-		CoGroupOperator testOrderIdentity2 = CoGroupOperator.builder(CoGroupTestIdentity.class, IntValue.class, 0, 0)
+		CoGroupOperator testOrderIdentity2 = CoGroupOperator.builder(CoGroupTestIdentity.class, IntValue.class, 0, 0).name("TEST 5")
 				.input1(testOrderIdentity).input2(extractKeys).build();
 
 		// END: TEST 5
@@ -408,8 +413,8 @@ public class LargeTestPlan implements Program, ProgramDescription {
 				.input(orderDateCountMap2).build();
 
 		// Check if date count is correct
-		CoGroupOperator testOrderIdentity3 = CoGroupOperator.builder(CoGroupTestIdentity.class, StringValue.class, 0, 0)
-				.name("testOrderIdentity3").input1(orderDateCountReduce).input2(orderDateCountReduce2).build();
+		CoGroupOperator testOrderIdentity3 = CoGroupOperator.builder(CoGroupTestIdentity.class, StringValue.class, 0, 0).name("TEST 6")
+				.input1(orderDateCountReduce).input2(orderDateCountReduce2).build();
 
 		// END: TEST 6
 
@@ -422,8 +427,8 @@ public class LargeTestPlan implements Program, ProgramDescription {
 		ReduceOperator orderCount = ReduceOperator.builder(ReduceCounter.class).input(testOrderIdentity2).build();
 
 		// Check if the values are equal
-		CoGroupOperator testCountOrdersIdentity = CoGroupOperator.builder(CoGroupTestIdentity.class, IntValue.class, 0, 0)
-				.name("testCountOrdersIdentity").input1(sumUp).input2(orderCount).build();
+		CoGroupOperator testCountOrdersIdentity = CoGroupOperator.builder(CoGroupTestIdentity.class, IntValue.class, 0, 0).name("TEST 7")
+				.input1(sumUp).input2(orderCount).build();
 
 		// Write count to disk
 		FileDataSink test7Sink = new FileDataSink(new CsvOutputFormat(), outputTableDirectory + "/Test7.tbl");
@@ -432,33 +437,100 @@ public class LargeTestPlan implements Program, ProgramDescription {
 
 		// END: TEST 7		
 
-//		// BEGIN: TEST 8 - HadoopDataSource with SequenceFile
-//		JobConf jobConf = new JobConf();
-//		FileInputFormat.addInputPath(jobConf, new Path(sequenceFileInput));
-//		//  with Stratosphere type converter
-//		HadoopDataSource<LongWritable, Text> hdsrc = new HadoopDataSource<LongWritable, Text>(new SequenceFileInputFormat<LongWritable, Text>(), jobConf, "Sequencefile");
-//		MapOperator checkHDsrc = MapOperator.builder(CheckHadoop.class).input(hdsrc).name("Check HDSrc output").build();
-//
-//		HadoopDataSource<LongWritable, Text> hdsrcWrapperConverter = new HadoopDataSource<LongWritable, Text>(new SequenceFileInputFormat<LongWritable, Text>(), jobConf,
-//				"Sequencefile", new WritableWrapperConverter<LongWritable, Text>());
-//		MapOperator checkHDsrcWrapperConverter = MapOperator.builder(CheckHadoopWrapper.class).input(hdsrcWrapperConverter)
-//				.name("Check HDSrc output").build();
-//		// END: TEST 8
-//
-//		// don't use this for serious output. 
-//		FileDataSink fakeSink = new FileDataSink(FailOutOutputFormat.class, "file:///tmp/fakeOut", "fake out");
-//		fakeSink.addInput(checkHDsrc);
-//		fakeSink.addInput(checkHDsrcWrapperConverter);
+		//		// BEGIN: TEST 8 - HadoopDataSource with SequenceFile
+		//		JobConf jobConf = new JobConf();
+		//		FileInputFormat.addInputPath(jobConf, new Path(sequenceFileInput));
+		//		//  with Stratosphere type converter
+		//		HadoopDataSource<LongWritable, Text> hdsrc = new HadoopDataSource<LongWritable, Text>(new SequenceFileInputFormat<LongWritable, Text>(), jobConf, "Sequencefile");
+		//		MapOperator checkHDsrc = MapOperator.builder(CheckHadoop.class).input(hdsrc).name("Check HDSrc output").build();
+		//
+		//		HadoopDataSource<LongWritable, Text> hdsrcWrapperConverter = new HadoopDataSource<LongWritable, Text>(new SequenceFileInputFormat<LongWritable, Text>(), jobConf,
+		//				"Sequencefile", new WritableWrapperConverter<LongWritable, Text>());
+		//		MapOperator checkHDsrcWrapperConverter = MapOperator.builder(CheckHadoopWrapper.class).input(hdsrcWrapperConverter)
+		//				.name("Check HDSrc output").build();
+		//		// END: TEST 8
+		//
+		//		// don't use this for serious output. 
+		//		FileDataSink fakeSink = new FileDataSink(FailOutOutputFormat.class, "file:///tmp/fakeOut", "fake out");
+		//		fakeSink.addInput(checkHDsrc);
+		//		fakeSink.addInput(checkHDsrcWrapperConverter);
 
-		Plan p = new Plan(test7Sink, "FullTest");
+		// BEGIN: TEST 9 - Usage of Broadcast Variables
+
+		// Since branching is not yet supported, create a second data source for the BC vars
+		FileDataSource nationSource2 = new FileDataSource(new CsvInputFormat(), nation, "nation");
+		CsvInputFormat.configureRecordFormat(nationSource2).recordDelimiter('\n').fieldDelimiter('|').field(IntValue.class, 0)
+				.field(StringValue.class, 1).field(IntValue.class, 2).field(StringValue.class, 3);
+
+		FileDataSource regionSource2 = new FileDataSource(new CsvInputFormat(), region, "region");
+		CsvInputFormat.configureRecordFormat(regionSource2).recordDelimiter('\n').fieldDelimiter('|').field(IntValue.class, 0)
+				.field(StringValue.class, 1).field(StringValue.class, 2);
+
+		// Join Customer and Nation using Broadcast Variables
+		MapOperator broadcastJoinNation = MapOperator.builder(BroadcastJoinNation.class).setBroadcastVariable("nations", nationSource2)
+				.input(customerSource).build();
+
+		// Join Customer, Nation and Region using Broadcast Variables
+		MapOperator broadcastJoinRegion = MapOperator.builder(BroadcastJoinRegion.class).setBroadcastVariable("regions", regionSource2)
+				.input(broadcastJoinNation).build();
+
+		CoGroupOperator testEquality = CoGroupOperator.builder(FieldEqualityTest.class, IntValue.class, 0, 0).name("TEST 9")
+				.input1(customerWithNationRegion).input2(broadcastJoinRegion).build();
+
+		MapOperator customerFields = MapOperator.builder(FilterCustomerFields.class).input(testEquality).build();
+
+		// Save test results to disk
+		FileDataSink test9Sink = new FileDataSink(new CsvOutputFormat(), outputTableDirectory + "/Test9.tbl");
+		test9Sink.addInput(customerFields);
+		CsvOutputFormat.configureRecordFormat(test9Sink).recordDelimiter('\n').fieldDelimiter('|').field(IntValue.class, 0)
+				.field(StringValue.class, 1).field(StringValue.class, 2).field(IntValue.class, 3).field(StringValue.class, 4)
+				.field(DoubleValue.class, 5).field(StringValue.class, 6).field(StringValue.class, 7);
+
+		// END: TEST 9
+
+		// BEGIN: TEST 10 - Usage of BulkIterations and Broadcast Variables
+
+		// the partial solution is the record with the currently highest found total price
+		// the total price field in the partial solution increases from iteration step to iteration step until it converges
+		BulkIteration bulkIteration = new BulkIteration();
+		bulkIteration.setMaximumNumberOfIterations(maxBulkIterations);
+
+		// pick the first price for use as highest price
+		ReduceOperator firstPrice = ReduceOperator.builder(PickOneRecord.class).input(ordersSource).build();
+		bulkIteration.setInput(firstPrice);
+
+		// begin of iteration step
+
+		// Determine the higher price		
+		ReduceOperator higherPrice = ReduceOperator.builder(TakeFirstHigherPrice.class)
+				.setBroadcastVariable("currently_highest_price", bulkIteration.getPartialSolution()).input(ordersSource).build();
+
+		bulkIteration.setNextPartialSolution(higherPrice);
+
+		// determine maximum total price
+		ReduceOperator orderWithMaxPrice = ReduceOperator.builder(MaximumReducer.class).input(ordersSource).build();
+
+		CoGroupOperator testOrderIdentity4 = CoGroupOperator.builder(CoGroupTestIdentity.class, IntValue.class, 0, 0).name("TEST 10")
+				.input1(orderWithMaxPrice).input2(bulkIteration).build();
+
+		// Save the order keys in file
+		FileDataSink test10Sink = new FileDataSink(new CsvOutputFormat(), outputTableDirectory + "/Test10.tbl");
+		test10Sink.addInput(testOrderIdentity4);
+		CsvOutputFormat.configureRecordFormat(test10Sink).recordDelimiter('\n').fieldDelimiter('|').field(DoubleValue.class, 3);
+
+		// END: TEST 10
+
+		Plan p = new Plan(resultKR, "FullTest");
 		p.addDataSink(test1Sink);
 		p.addDataSink(test2Sink);
 		p.addDataSink(test3Sink);
 		p.addDataSink(test4Sink);
 		p.addDataSink(test5Sink);
 		p.addDataSink(test6Sink);
-		p.addDataSink(resultKR);
-//		p.addDataSink(fakeSink);
+		p.addDataSink(test7Sink);
+		p.addDataSink(test9Sink);
+		p.addDataSink(test10Sink);
+		// p.addDataSink(fakeSink);
 		return p;
 	}
 
@@ -627,6 +699,7 @@ public class LargeTestPlan implements Program, ProgramDescription {
 			Record lastR1 = null;
 			while (records1.hasNext()) {
 				lastR1 = records1.next();
+				System.out.println("r1: " + lastR1.getField(0, IntValue.class));
 				count1++;
 			}
 
@@ -634,15 +707,19 @@ public class LargeTestPlan implements Program, ProgramDescription {
 			Record lastR2 = null;
 			while (records2.hasNext()) {
 				lastR2 = records2.next();
+				System.out.println("r2: " + lastR2.getField(0, IntValue.class));
 				count2++;
 			}
 
-			if (count1 != 1 || count2 != 1)
-				throw new Exception("TEST FAILED: The count of the two inputs do not match: " + count1 + " / " + count2);
+			if (count1 != 1 || count2 != 1) {
+				throw new Exception("TEST FAILED: The count of the two inputs do not match: " + count1 + " / " + count2 + "\n lastR2:"
+						+ lastR2.getField(0, IntValue.class));
+			}
 
-			if (lastR1.getNumFields() != lastR2.getNumFields())
+			if (lastR1.getNumFields() != lastR2.getNumFields()) {
 				throw new Exception("TEST FAILED: The number of fields of the two inputs do not match: " + lastR1.getNumFields() + " / "
 						+ lastR2.getNumFields());
+			}
 			out.collect(lastR2);
 		}
 
@@ -889,6 +966,171 @@ public class LargeTestPlan implements Program, ProgramDescription {
 		@Override
 		public void map(Record record, Collector<Record> out) throws Exception {
 			out.collect(record);
+		}
+	}
+
+	// Joins customer with a nation records
+	public static class BroadcastJoinNation extends MapFunction {
+		@Override
+		public void map(Record customer, Collector<Record> out) throws Exception {
+
+			Collection<Record> nations = getRuntimeContext().getBroadcastVariable("nations");
+
+			for (Record nation : nations) {
+				int nationKey = nation.getField(0, IntValue.class).getValue();
+				int customerNationKey = customer.getField(3, IntValue.class).getValue();
+
+				if (nationKey == customerNationKey) {
+
+					Record newRecord = new Record(customer.getNumFields() + nation.getNumFields());
+
+					int[] r1Positions = new int[customer.getNumFields()];
+					for (int i = 0; i < r1Positions.length; ++i) {
+						r1Positions[i] = i;
+					}
+					newRecord.copyFrom(customer, r1Positions, r1Positions);
+
+					int[] r2Positions = new int[nation.getNumFields()];
+					int[] targetR2Positions = new int[nation.getNumFields()];
+					for (int i = 0; i < r2Positions.length; ++i) {
+						r2Positions[i] = i;
+						targetR2Positions[i] = i + r1Positions.length;
+					}
+					newRecord.copyFrom(nation, r2Positions, targetR2Positions);
+
+					out.collect(newRecord);
+				}
+			}
+
+		}
+	}
+
+	// Joins customer-nation with a region records
+	public static class BroadcastJoinRegion extends MapFunction {
+		@Override
+		public void map(Record customerNation, Collector<Record> out) throws Exception {
+
+			Collection<Record> regions = getRuntimeContext().getBroadcastVariable("regions");
+
+			for (Record region : regions) {
+				int regionKey = region.getField(0, IntValue.class).getValue();
+				int customerNationRegionKey = customerNation.getField(10, IntValue.class).getValue();
+
+				if (regionKey == customerNationRegionKey) {
+
+					Record newRecord = new Record(customerNation.getNumFields() + region.getNumFields());
+
+					int[] r1Positions = new int[customerNation.getNumFields()];
+					for (int i = 0; i < r1Positions.length; ++i) {
+						r1Positions[i] = i;
+					}
+					newRecord.copyFrom(customerNation, r1Positions, r1Positions);
+
+					int[] r2Positions = new int[region.getNumFields()];
+					int[] targetR2Positions = new int[region.getNumFields()];
+					for (int i = 0; i < r2Positions.length; ++i) {
+						r2Positions[i] = i;
+						targetR2Positions[i] = i + r1Positions.length;
+					}
+					newRecord.copyFrom(region, r2Positions, targetR2Positions);
+
+					out.collect(newRecord);
+				}
+			}
+
+		}
+	}
+
+	// Checks the equality of some fields of customer-nation-region record
+	public static class FieldEqualityTest extends CoGroupFunction {
+
+		@Override
+		public void coGroup(Iterator<Record> records1, Iterator<Record> records2, Collector<Record> out) throws Exception {
+			Record r1 = null;
+			Record r2 = null;
+
+			boolean failed = false;
+			while (records1.hasNext() && records2.hasNext()) {
+				r1 = records1.next();
+				r2 = records2.next();
+
+				// check customer name equality
+				if (!r1.getField(1, StringValue.class).getValue().equals(r2.getField(1, StringValue.class).getValue())) {
+					failed = true;
+				}
+
+				// check nation name equality
+				if (!r1.getField(9, StringValue.class).getValue().equals(r2.getField(9, StringValue.class).getValue())) {
+					failed = true;
+				}
+
+				// check region name equality
+				if (!r1.getField(13, StringValue.class).getValue().equals(r2.getField(13, StringValue.class).getValue())) {
+					failed = true;
+				}
+
+				out.collect(r2);
+			}
+			if (records1.hasNext() != records2.hasNext())
+				failed = true;
+
+			if (failed)
+				throw new Exception("TEST FAILED: The records seem not to be equal.");
+		}
+	}
+
+	public static class TakeFirstHigherPrice extends ReduceFunction {
+
+		private Record currHighestRecord;
+
+		@Override
+		public void open(Configuration parameters) throws Exception {
+			Collection<Record> vars = getRuntimeContext().getBroadcastVariable("currently_highest_price");
+			this.currHighestRecord = vars.iterator().next();
+		}
+
+		@Override
+		public void reduce(Iterator<Record> records, Collector<Record> out) throws Exception {
+			double currHighest = currHighestRecord.getField(3, DoubleValue.class).getValue();
+
+			Record i = null;
+			boolean collected = false;
+			while (records.hasNext()) {
+				i = records.next();
+				double totalPrice = i.getField(3, DoubleValue.class).getValue();
+
+				if (totalPrice > currHighest) {
+					out.collect(i);
+					System.out.println("HIGHER OUT:" + i.getField(0, IntValue.class));
+					collected = true;
+					break;
+				}
+			}
+			if (!collected) {
+				System.out.println("BC OUT:" + currHighestRecord.getField(0, IntValue.class));
+				out.collect(currHighestRecord);
+			}
+		}
+
+	}
+
+	public static class MaximumReducer extends ReduceFunction {
+
+		@Override
+		public void reduce(Iterator<Record> records, Collector<Record> out) throws Exception {
+			double max = Double.MIN_VALUE;
+			Record maxRecord = null;
+
+			while (records.hasNext()) {
+				Record r = records.next();
+				double value = r.getField(3, DoubleValue.class).getValue();
+				if (max < value) {
+					max = value;
+					System.out.println("MAX:" + max);
+					maxRecord = r;
+				}
+			}
+			out.collect(maxRecord);
 		}
 	}
 
