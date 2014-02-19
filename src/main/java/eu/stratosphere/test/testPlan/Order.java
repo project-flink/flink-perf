@@ -7,7 +7,7 @@ package eu.stratosphere.test.testPlan;
 @SuppressWarnings("all")
 @org.apache.avro.specific.AvroGenerated
 public class Order extends org.apache.avro.specific.SpecificRecordBase implements org.apache.avro.specific.SpecificRecord {
-  public static final org.apache.avro.Schema SCHEMA$ = new org.apache.avro.Schema.Parser().parse("{\"type\":\"record\",\"name\":\"Order\",\"namespace\":\"eu.stratosphere.test.manyFunctions\",\"fields\":[{\"name\":\"o_orderkey\",\"type\":\"int\"},{\"name\":\"o_custkey\",\"type\":\"int\"},{\"name\":\"o_orderstatus\",\"type\":\"string\"},{\"name\":\"o_totalprice\",\"type\":\"float\"},{\"name\":\"o_orderdate\",\"type\":\"string\"},{\"name\":\"o_orderpriority\",\"type\":\"string\"},{\"name\":\"o_clerk\",\"type\":\"string\"},{\"name\":\"o_shipproprity\",\"type\":\"int\"},{\"name\":\"o_comment\",\"type\":\"string\"}]}");
+  public static final org.apache.avro.Schema SCHEMA$ = new org.apache.avro.Schema.Parser().parse("{\"type\":\"record\",\"name\":\"Order\",\"namespace\":\"eu.stratosphere.test.testPlan\",\"fields\":[{\"name\":\"o_orderkey\",\"type\":\"int\"},{\"name\":\"o_custkey\",\"type\":\"int\"},{\"name\":\"o_orderstatus\",\"type\":\"string\"},{\"name\":\"o_totalprice\",\"type\":\"float\"},{\"name\":\"o_orderdate\",\"type\":\"string\"},{\"name\":\"o_orderpriority\",\"type\":\"string\"},{\"name\":\"o_clerk\",\"type\":\"string\"},{\"name\":\"o_shipproprity\",\"type\":\"int\"},{\"name\":\"o_comment\",\"type\":\"string\"}]}");
   public static org.apache.avro.Schema getClassSchema() { return SCHEMA$; }
   @Deprecated public int o_orderkey;
   @Deprecated public int o_custkey;
