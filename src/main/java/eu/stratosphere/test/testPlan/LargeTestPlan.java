@@ -143,6 +143,9 @@ public class LargeTestPlan implements Program, ProgramDescription {
 		dataFileWriter.flush();
 		s.close();
 		dataFileWriter.close();
+		
+		// do not run job, only build avro files
+		if(args.length == 2) return;
 
 		// Create plan and execute
 		Plan plan = largeTestPlan.getPlan();
