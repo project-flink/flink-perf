@@ -146,7 +146,7 @@ public class LargeTestPlan implements Program, ProgramDescription {
 
 		// Create plan and execute
 		Plan plan = largeTestPlan.getPlan();
-		plan.setDefaultParallelism(1);
+		plan.setDefaultParallelism(4);
 
 		JobExecutionResult result = LocalExecutor.execute(plan);
 		// System.out.println(LocalExecutor.optimizerPlanAsJSON(plan));
@@ -710,8 +710,7 @@ public class LargeTestPlan implements Program, ProgramDescription {
 			}
 
 			if (count1 != 1 || count2 != 1) {
-				throw new Exception("TEST FAILED: The count of the two inputs do not match: " + count1 + " / " + count2 + "\n lastR2:"
-						+ lastR2.getField(0, IntValue.class));
+				throw new Exception("TEST FAILED: The count of the two inputs do not match: " + count1 + " / " + count2);
 			}
 
 			if (lastR1.getNumFields() != lastR2.getNumFields()) {
@@ -1107,7 +1106,7 @@ public class LargeTestPlan implements Program, ProgramDescription {
 				}
 			}
 			if (!collected) {
-				out.collect(currHighestRecord);
+				out.collect(currHighestRecord.createCopy());
 			}
 		}
 
