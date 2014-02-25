@@ -71,6 +71,24 @@ public class LargeTestPlan implements Program, ProgramDescription {
 	public static String outputOrderAvroPath;
 	public static String ordersPath;
 
+	// ---------------------- Parameter Examples ----------------------
+	// ----> For local testing:
+	// file:///home/twalthr/repo/test/stratosphere-fulltest/TPC-H/generated_SF0.001/customer.tbl 
+	// file:///home/twalthr/repo/test/stratosphere-fulltest/TPC-H/generated_SF0.001/lineitem.tbl 
+    // file:///home/twalthr/repo/test/stratosphere-fulltest/TPC-H/generated_SF0.001/nation.tbl 
+	// file:///home/twalthr/repo/test/stratosphere-fulltest/TPC-H/generated_SF0.001/orders.tbl 
+	// file:///home/twalthr/repo/test/stratosphere-fulltest/TPC-H/generated_SF0.001/region.tbl 
+	// file:///home/twalthr/repo/test/stratosphere-fulltest/out/ordersAvro.avro 
+	// file:///home/twalthr/repo/test/seq
+	// file:///home/twalthr/repo/test/stratosphere-fulltest/out 
+	// 10000
+	// /home/twalthr/repo/test/stratosphere-fulltest/TPC-H/generated_SF0.001/orders.tbl 
+	// /home/twalthr/repo/test/stratosphere-fulltest/out/intermediate-accumulator.txt 
+	// /home/twalthr/repo/test/stratosphere-fulltest/out/intermediate-keylessreducer.txt 
+	// /home/twalthr/repo/test/stratosphere-fulltest/out/ordersAvro.avro
+	// ----> For cluster testing:
+	// ./bin/stratosphere run -j /home/twalthr/testjob-0.1-SNAPSHOT.jar -c eu.stratosphere.test.testPlan.LargeTestPlan -a hdfs:///user/twalthr/customer.tbl hdfs:///user/twalthr/lineitem.tbl hdfs:///user/twalthr/nation.tbl hdfs:///user/twalthr/orders.tbl hdfs:///user/twalthr/region.tbl hdfs:///user/twalthr/ordersAvro.avro “seqfile” hdfs:///user/twalthr/out 1500
+	
 	public static void main(String[] args) throws Exception {
 
 		LargeTestPlan largeTestPlan = new LargeTestPlan();
@@ -83,20 +101,6 @@ public class LargeTestPlan implements Program, ProgramDescription {
 		// for testing purposes
 		// path = standard java File path
 		else if (args.length >= 13) {
-			// Examples for testing
-			// file:///home/twalthr/repo/test/stratosphere-fulltest/TPC-H/generated_SF0.001/customer.tbl 
-			// file:///home/twalthr/repo/test/stratosphere-fulltest/TPC-H/generated_SF0.001/lineitem.tbl 
-			// file:///home/twalthr/repo/test/stratosphere-fulltest/TPC-H/generated_SF0.001/nation.tbl 
-			// file:///home/twalthr/repo/test/stratosphere-fulltest/TPC-H/generated_SF0.001/orders.tbl 
-			// file:///home/twalthr/repo/test/stratosphere-fulltest/TPC-H/generated_SF0.001/region.tbl 
-			// file:///home/twalthr/repo/test/stratosphere-fulltest/out/ordersAvro.avro 
-			// file:///home/twalthr/repo/test/seq
-			// file:///home/twalthr/repo/test/stratosphere-fulltest/out 
-			// 10000
-			// /home/twalthr/repo/test/stratosphere-fulltest/TPC-H/generated_SF0.001/orders.tbl 
-			// /home/twalthr/repo/test/stratosphere-fulltest/out/intermediate-accumulator.txt 
-			// /home/twalthr/repo/test/stratosphere-fulltest/out/intermediate-keylessreducer.txt 
-			// /home/twalthr/repo/test/stratosphere-fulltest/out/ordersAvro.avro
 			customer = args[0];
 			lineitem = args[1];
 			nation = args[2];
@@ -149,7 +153,7 @@ public class LargeTestPlan implements Program, ProgramDescription {
 
 		// Create plan and execute
 		Plan plan = largeTestPlan.getPlan();
-		plan.setDefaultParallelism(4);
+		plan.setDefaultParallelism(3);
 
 		JobExecutionResult result = LocalExecutor.execute(plan);
 		// System.out.println(LocalExecutor.optimizerPlanAsJSON(plan));
@@ -523,7 +527,7 @@ public class LargeTestPlan implements Program, ProgramDescription {
 
 		// END: TEST 10
 
-		Plan p = new Plan(resultKR, "FullTest");
+		Plan p = new Plan(resultKR, "Large Test Plan");
 		p.addDataSink(test1Sink);
 		p.addDataSink(test2Sink);
 		p.addDataSink(test3Sink);
@@ -533,7 +537,6 @@ public class LargeTestPlan implements Program, ProgramDescription {
 		p.addDataSink(test7Sink);
 		p.addDataSink(test9Sink);
 		p.addDataSink(test10Sink);
-		// p.addDataSink(fakeSink);
 		return p;
 	}
 
@@ -712,12 +715,15 @@ public class LargeTestPlan implements Program, ProgramDescription {
 				count2++;
 			}
 
-			if (count1 != 1 || count2 != 1) {
-				throw new Exception("TEST FAILED: The count of the two inputs do not match: " + count1 + " / " + count2);
+			if (count1 != 1 || count2 != 1) {				
+				throw new Exception(getRuntimeContext().getTaskName()+" FAILED: The count of the two inputs do not match: " + count1 + " / " + count2+"\n"+
+				((lastR1!=null)?"LAST R1: "+lastR1.getField(0, IntValue.class):"NO LAST R1.")
+				+"\n"+
+				((lastR2!=null)?"LAST R2: "+lastR2.getField(0, IntValue.class):"NO LAST R2."));
 			}
 
 			if (lastR1.getNumFields() != lastR2.getNumFields()) {
-				throw new Exception("TEST FAILED: The number of fields of the two inputs do not match: " + lastR1.getNumFields() + " / "
+				throw new Exception(getRuntimeContext().getTaskName()+" FAILED: The number of fields of the two inputs do not match: " + lastR1.getNumFields() + " / "
 						+ lastR2.getNumFields());
 			}
 			out.collect(lastR2);
@@ -1111,6 +1117,9 @@ public class LargeTestPlan implements Program, ProgramDescription {
 			if (!collected) {
 				out.collect(currHighestRecord.createCopy());
 			}
+
+			// Quick fix for bug
+			while(records.hasNext()) records.next();
 		}
 
 	}
