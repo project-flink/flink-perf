@@ -31,7 +31,7 @@ import eu.stratosphere.api.java.record.io.CsvInputFormat;
 import eu.stratosphere.api.java.record.io.CsvOutputFormat;
 import eu.stratosphere.api.java.record.io.FileOutputFormat;
 import eu.stratosphere.api.java.record.io.TextInputFormat;
-import eu.stratosphere.api.java.record.io.avro.AvroInputFormat;
+import eu.stratosphere.api.java.record.io.avro.AvroRecordInputFormat;
 import eu.stratosphere.api.java.record.operators.CoGroupOperator;
 import eu.stratosphere.api.java.record.operators.CrossOperator;
 import eu.stratosphere.api.java.record.operators.JoinOperator;
@@ -380,7 +380,7 @@ public class LargeTestPlan implements Program, ProgramDescription {
 		// BEGIN: TEST 5 - Usage of AvroInputFormat
 
 		// extract orders from avro file
-		FileDataSource ordersAvroInputSource = new FileDataSource(new AvroInputFormat(), orderAvroFile);
+		FileDataSource ordersAvroInputSource = new FileDataSource(new AvroRecordInputFormat(), orderAvroFile);
 
 		// Extract keys
 		MapOperator extractKeys = MapOperator.builder(FilterFirstFieldIntKey.class).input(ordersAvroInputSource).build();
@@ -464,21 +464,12 @@ public class LargeTestPlan implements Program, ProgramDescription {
 
 		// BEGIN: TEST 9 - Usage of Broadcast Variables
 
-		// Since branching is not yet supported, create a second data source for the BC vars
-		FileDataSource nationSource2 = new FileDataSource(new CsvInputFormat(), nation, "nation");
-		CsvInputFormat.configureRecordFormat(nationSource2).recordDelimiter('\n').fieldDelimiter('|').field(IntValue.class, 0)
-				.field(StringValue.class, 1).field(IntValue.class, 2).field(StringValue.class, 3);
-
-		FileDataSource regionSource2 = new FileDataSource(new CsvInputFormat(), region, "region");
-		CsvInputFormat.configureRecordFormat(regionSource2).recordDelimiter('\n').fieldDelimiter('|').field(IntValue.class, 0)
-				.field(StringValue.class, 1).field(StringValue.class, 2);
-
 		// Join Customer and Nation using Broadcast Variables
-		MapOperator broadcastJoinNation = MapOperator.builder(BroadcastJoinNation.class).setBroadcastVariable("nations", nationSource2)
+		MapOperator broadcastJoinNation = MapOperator.builder(BroadcastJoinNation.class).setBroadcastVariable("nations", nationSource)
 				.input(customerSource).build();
 
 		// Join Customer, Nation and Region using Broadcast Variables
-		MapOperator broadcastJoinRegion = MapOperator.builder(BroadcastJoinRegion.class).setBroadcastVariable("regions", regionSource2)
+		MapOperator broadcastJoinRegion = MapOperator.builder(BroadcastJoinRegion.class).setBroadcastVariable("regions", regionSource)
 				.input(broadcastJoinNation).build();
 
 		CoGroupOperator testEquality = CoGroupOperator.builder(FieldEqualityTest.class, IntValue.class, 0, 0).name("TEST 9")
