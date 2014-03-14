@@ -13,6 +13,7 @@ import org.apache.avro.specific.SpecificDatumWriter;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 
+import eu.stratosphere.api.common.JobExecutionResult;
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.Program;
 import eu.stratosphere.api.common.ProgramDescription;
@@ -38,10 +39,8 @@ import eu.stratosphere.api.java.record.operators.JoinOperator;
 import eu.stratosphere.api.java.record.operators.MapOperator;
 import eu.stratosphere.api.java.record.operators.ReduceOperator;
 import eu.stratosphere.client.LocalExecutor;
-import eu.stratosphere.compiler.PactCompiler;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.hadoopcompatibility.datatypes.WritableWrapper;
-import eu.stratosphere.nephele.client.JobExecutionResult;
 import eu.stratosphere.types.BooleanValue;
 import eu.stratosphere.types.DoubleValue;
 import eu.stratosphere.types.FloatValue;
@@ -538,7 +537,7 @@ public class LargeTestPlan implements Program, ProgramDescription {
 
 	// Quick fix for Join bug
 	private void joinQuickFix(JoinOperator j) {
-		j.setParameter(PactCompiler.HINT_LOCAL_STRATEGY, PactCompiler.HINT_LOCAL_STRATEGY_MERGE);
+		//j.setParameter(PactCompiler.HINT_LOCAL_STRATEGY, PactCompiler.HINT_LOCAL_STRATEGY_MERGE);
 	}
 
 	public static class FailOutOutputFormat extends FileOutputFormat {

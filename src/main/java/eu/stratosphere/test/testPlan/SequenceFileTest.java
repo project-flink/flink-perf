@@ -7,6 +7,7 @@ import org.apache.hadoop.mapred.FileInputFormat;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.SequenceFileInputFormat;
 
+import eu.stratosphere.api.common.JobExecutionResult;
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.Program;
 import eu.stratosphere.api.common.accumulators.AccumulatorHelper;
@@ -15,7 +16,6 @@ import eu.stratosphere.api.java.record.operators.MapOperator;
 import eu.stratosphere.client.LocalExecutor;
 import eu.stratosphere.hadoopcompatibility.HadoopDataSource;
 import eu.stratosphere.hadoopcompatibility.datatypes.WritableWrapperConverter;
-import eu.stratosphere.nephele.client.JobExecutionResult;
 import eu.stratosphere.test.testPlan.LargeTestPlan.CheckHadoop;
 import eu.stratosphere.test.testPlan.LargeTestPlan.CheckHadoopWrapper;
 import eu.stratosphere.test.testPlan.LargeTestPlan.FailOutOutputFormat;

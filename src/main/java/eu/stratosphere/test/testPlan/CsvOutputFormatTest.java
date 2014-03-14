@@ -1,6 +1,7 @@
 package eu.stratosphere.test.testPlan;
 
 
+import eu.stratosphere.api.common.JobExecutionResult;
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.Program;
 import eu.stratosphere.api.common.accumulators.AccumulatorHelper;
@@ -9,7 +10,6 @@ import eu.stratosphere.api.common.operators.FileDataSource;
 import eu.stratosphere.api.java.record.io.CsvInputFormat;
 import eu.stratosphere.api.java.record.io.CsvOutputFormat;
 import eu.stratosphere.client.LocalExecutor;
-import eu.stratosphere.nephele.client.JobExecutionResult;
 import eu.stratosphere.types.StringValue;
 
 /**
