@@ -572,7 +572,15 @@ public class LargeTestPlan implements Program, ProgramDescription {
 	public static class CheckHadoopWrapper extends MapFunction {
 		private static final long serialVersionUID = 1L;
 		LongCounter cnt;
-
+		boolean collecting = false;
+		public CheckHadoopWrapper() {
+			
+		}
+		
+		public CheckHadoopWrapper(boolean collecting) {
+			this.collecting = collecting;
+		}
+		
 		@Override
 		public void open(Configuration parameters) throws Exception {
 			super.open(parameters);
@@ -589,7 +597,12 @@ public class LargeTestPlan implements Program, ProgramDescription {
 			if (!k.equals(v)) {
 				throw new RuntimeException("KV typle's key does not match with value");
 			}
-			// we do not collect the output!
+			if(collecting) {
+				Record r = new Record();
+				r.addField(new LongValue(key.get()));
+				r.addField(new StringValue(value.toString()));
+				out.collect(r);
+			}
 		}
 	}
 
