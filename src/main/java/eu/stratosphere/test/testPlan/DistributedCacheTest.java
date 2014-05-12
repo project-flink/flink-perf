@@ -2,6 +2,7 @@ package eu.stratosphere.test.testPlan;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
+import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -70,7 +71,11 @@ public class DistributedCacheTest implements Program  {
 		FileDataSink out = new FileDataSink(new CsvOutputFormat("\n", " ", StringValue.class), args[3], mapper, "Bla");
 		
 		Plan plan = new Plan(out, "DistCacheTest");
-		plan.registerCachedFile(args[1], "cacheFile");
+		try {
+			plan.registerCachedFile(args[1], "cacheFile");
+		} catch (Exception e) {
+			e.printStackTrace(); 
+		}
 		plan.setDefaultParallelism(numSubTasks);
 		return plan;
 	}

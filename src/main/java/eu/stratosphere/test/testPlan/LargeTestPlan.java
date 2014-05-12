@@ -62,6 +62,7 @@ public class LargeTestPlan implements Program, ProgramDescription {
 	public static String sequenceFileInput;
 
 	public static int maxBulkIterations;
+	public static int dop;
 
 	// paths (without file:// or hdfs://)
 	public static String outputAccumulatorsPath;
@@ -81,12 +82,13 @@ public class LargeTestPlan implements Program, ProgramDescription {
 	// file:///home/twalthr/repo/test/seq
 	// file:///home/twalthr/repo/test/stratosphere-fulltest/out 
 	// 10000
+	// 26
 	// /home/twalthr/repo/test/stratosphere-fulltest/TPC-H/generated_SF0.001/orders.tbl 
 	// /home/twalthr/repo/test/stratosphere-fulltest/out/intermediate-accumulator.txt 
 	// /home/twalthr/repo/test/stratosphere-fulltest/out/intermediate-keylessreducer.txt 
 	// /home/twalthr/repo/test/stratosphere-fulltest/out/ordersAvro.avro
 	// ----> For cluster testing:
-	// ./bin/stratosphere run -j /home/twalthr/testjob-0.1-SNAPSHOT.jar -c eu.stratosphere.test.testPlan.LargeTestPlan -a hdfs:///user/twalthr/customer.tbl hdfs:///user/twalthr/lineitem.tbl hdfs:///user/twalthr/nation.tbl hdfs:///user/twalthr/orders.tbl hdfs:///user/twalthr/region.tbl hdfs:///user/twalthr/ordersAvro.avro “seqfile” hdfs:///user/twalthr/out 1500
+	// ./bin/stratosphere run -j /home/twalthr/testjob-0.1-SNAPSHOT.jar -c eu.stratosphere.test.testPlan.LargeTestPlan -a hdfs:///user/twalthr/customer.tbl hdfs:///user/twalthr/lineitem.tbl hdfs:///user/twalthr/nation.tbl hdfs:///user/twalthr/orders.tbl hdfs:///user/twalthr/region.tbl hdfs:///user/twalthr/ordersAvro.avro “seqfile” hdfs:///user/twalthr/out 1500 26
 	
 	public static void main(String[] args) throws Exception {
 
@@ -181,9 +183,9 @@ public class LargeTestPlan implements Program, ProgramDescription {
 	public Plan getPlan(String... args) {
 
 		if (args.length < 9 && customer == null) {
-			this.getDescription();
-			return null;
-		} else if (args.length == 9) {
+			System.err.println(this.getDescription());
+			System.exit(1);
+		} else if (args.length == 10) {
 			customer = args[0];
 			lineitem = args[1];
 			nation = args[2];
@@ -193,6 +195,7 @@ public class LargeTestPlan implements Program, ProgramDescription {
 			sequenceFileInput = args[6];
 			outputTableDirectory = args[7];
 			maxBulkIterations = Integer.valueOf(args[8]);
+			dop = Integer.valueOf(args[9]);
 		}
 
 		// Read TPC-H data from .tbl-files		
@@ -527,6 +530,7 @@ public class LargeTestPlan implements Program, ProgramDescription {
 		p.addDataSink(test7Sink);
 		p.addDataSink(test9Sink);
 		p.addDataSink(test10Sink);
+		p.setDefaultParallelism(dop);
 		return p;
 	}
 
