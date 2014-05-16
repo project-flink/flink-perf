@@ -229,40 +229,47 @@ public class LargeTestPlan implements Program, ProgramDescription {
 
 		// Join fields of customer and nation
 		JoinOperator customerWithNation = JoinOperator.builder(JoinFields.class, IntValue.class, 3, 0).input1(customerSource)
-				.input2(nationSource).build();
+				.input2(nationSource).name("T1 Join: Customer with Nation").build();
 		joinQuickFix(customerWithNation);
 
 		// Join fields of customerWithNation and region
 		JoinOperator customerWithNationRegion = JoinOperator.builder(JoinFields.class, IntValue.class, 10, 0).input1(customerWithNation)
-				.input2(regionSource).build();
+				.input2(regionSource).name("T1 Join: Customer with Nation and Region").build();
 		joinQuickFix(customerWithNationRegion);
 
 		// Split the customers by regions
-		MapOperator customersInAmerica = MapOperator.builder(new FilterRegion("AMERICA")).input(customerWithNationRegion).build();
-		MapOperator customersInEurope = MapOperator.builder(new FilterRegion("EUROPE")).input(customerWithNationRegion).build();
-		MapOperator customersInOtherRegions = MapOperator.builder(FilterRegionOthers.class).input(customerWithNationRegion).build();
+		MapOperator customersInAmerica = MapOperator.builder(new FilterRegion("AMERICA")).input
+				(customerWithNationRegion).name("T1 Map: Customers in America").build();
+		MapOperator customersInEurope = MapOperator.builder(new FilterRegion("EUROPE")).input
+				(customerWithNationRegion).name("T1 Map: Customers in Europe").build();
+		MapOperator customersInOtherRegions = MapOperator.builder(FilterRegionOthers.class).input
+				(customerWithNationRegion).name("T1 Map: Customers in other regions").build();
 
 		// Count customers of other regions
-		ReduceOperator countCustomersOfOtherRegion = ReduceOperator.builder(ReduceCounter.class).input(customersInOtherRegions).build();
+		ReduceOperator countCustomersOfOtherRegion = ReduceOperator.builder(ReduceCounter.class).input
+				(customersInOtherRegions).name("T1 Reduce: Count customers of other region").build();
 
 		// Save keyless reducer results
-		FileDataSink resultKR = new FileDataSink(new CsvOutputFormat(), outputTableDirectory + "/intermediate-keylessreducer.txt");
+		FileDataSink resultKR = new FileDataSink(new CsvOutputFormat(),
+				outputTableDirectory + "/intermediate-keylessreducer.txt", "T1: Result keyless reducer");
 		resultKR.addInput(countCustomersOfOtherRegion);
 		CsvOutputFormat.configureRecordFormat(resultKR).recordDelimiter('\n').fieldDelimiter('|').field(IntValue.class, 0);
 
 		// Union again and filter customer fields
-		MapOperator unionOfRegions = MapOperator.builder(FilterCustomerFields.class)
+		MapOperator unionOfRegions = MapOperator.builder(FilterCustomerFields.class).name("T1 Map: Union of regions")
 				.input(customersInAmerica, customersInEurope, customersInOtherRegions).build();
 
 		// Save test results to disk
-		FileDataSink test1Sink = new FileDataSink(new CsvOutputFormat(), outputTableDirectory + "/Test1.tbl");
+		FileDataSink test1Sink = new FileDataSink(new CsvOutputFormat(), outputTableDirectory + "/Test1.tbl",
+				"T1: Result Test 1");
 		test1Sink.addInput(unionOfRegions);
 		CsvOutputFormat.configureRecordFormat(test1Sink).recordDelimiter('\n').fieldDelimiter('|').field(IntValue.class, 0)
 				.field(StringValue.class, 1).field(StringValue.class, 2).field(IntValue.class, 3).field(StringValue.class, 4)
 				.field(DoubleValue.class, 5).field(StringValue.class, 6).field(StringValue.class, 7);
 
 		// Test: Compare to input source
-		CoGroupOperator testCustomerIdentity1 = CoGroupOperator.builder(CoGroupTestIdentity.class, IntValue.class, 0, 0).name("TEST 1")
+		CoGroupOperator testCustomerIdentity1 = CoGroupOperator.builder(CoGroupTestIdentity.class, IntValue.class, 0,
+				0).name("T1 CoGroup: Compare customers' identities")
 				.input1(customerSource).input2(unionOfRegions).build();
 
 		// END: TEST 1
@@ -271,29 +278,31 @@ public class LargeTestPlan implements Program, ProgramDescription {
 
 		// Collect customers keys from customers that ever placed orders
 		JoinOperator customersWithOrders = JoinOperator.builder(CollectCustomerKeysWithOrders.class, IntValue.class, 0, 0)
-				.input1(lineitemSource).input2(ordersSource).build();
+				.input1(lineitemSource).input2(ordersSource).name("T2 Join: customers with orders").build();
 		joinQuickFix(customersWithOrders);
 		ReduceOperator removeDuplicates = ReduceOperator.builder(RemoveDuplicates.class, IntValue.class, 0).input(customersWithOrders)
-				.build();
+				.name("T2 Reduce: Remove duplicates").build();
 
 		// Cross LineItems and Orders
 		CrossOperator lineitemsWithOrders = CrossOperator.builder(CrossJoinFields.class).input1(lineitemSource).input2(ordersSource)
-				.build();
+				.name("T2 Cross: Line items with orders").build();
 
 		// Filter customer key
 		MapOperator customerKeyWithOrders2 = MapOperator.builder(FilterCustomerKeyFromLineItemsOrders.class).input(lineitemsWithOrders)
-				.build();
+				.name("T2 Map: Customer key with orders 2").build();
 		ReduceOperator removeDuplicates2 = ReduceOperator.builder(RemoveDuplicates.class, IntValue.class, 0).input(customerKeyWithOrders2)
-				.build();
+				.name("T2 Reduce: Remove duplicates 2").build();
 
 		// Save test results to disk
-		FileDataSink test2Sink = new FileDataSink(new CsvOutputFormat(), outputTableDirectory + "/Test2.tbl");
+		FileDataSink test2Sink = new FileDataSink(new CsvOutputFormat(), outputTableDirectory + "/Test2.tbl",
+				"T2: Result Test 2");
 		test2Sink.addInput(removeDuplicates2);
 		CsvOutputFormat.configureRecordFormat(test2Sink).recordDelimiter('\n').fieldDelimiter('|').field(IntValue.class, 0);
 
 		// Test: Compare customer keys
 		CoGroupOperator testCustomerIdentity2 = CoGroupOperator.builder(CoGroupTestIdentity.class, IntValue.class, 0, 0).name("TEST 2")
-				.input1(removeDuplicates).input2(removeDuplicates2).build();
+				.input1(removeDuplicates).input2(removeDuplicates2).name("T2 CoGroup: Compare customers' identities")
+				.build();
 
 		// END: TEST 2
 
@@ -302,7 +311,8 @@ public class LargeTestPlan implements Program, ProgramDescription {
 		iteration.setMaximumNumberOfIterations(10000); // Exception otherwise
 
 		// Add a flag field to each customer (initial value: false)
-		MapOperator customersWithFlag = MapOperator.builder(AddFlag.class).input(customerSource).build();
+		MapOperator customersWithFlag = MapOperator.builder(AddFlag.class).input(customerSource).name("T3 Map: " +
+				"Customer with flag").build();
 
 		iteration.setInitialSolutionSet(customersWithFlag);
 		iteration.setInitialWorkset(customersWithFlag);
@@ -310,104 +320,119 @@ public class LargeTestPlan implements Program, ProgramDescription {
 		// As input for each iteration
 		// Exception otherwise
 		JoinOperator iterationInput = JoinOperator.builder(WorkSolutionSetJoin.class, IntValue.class, 0, 0).name("JOIN ITERATION")
-				.input1(iteration.getWorkset()).input2(iteration.getSolutionSet()).build();
+				.input1(iteration.getWorkset()).input2(iteration.getSolutionSet()).name("T3 Join: Iteration " +
+								"input").build();
 
 		// Pick one customer from working set
-		ReduceOperator oneCustomer = ReduceOperator.builder(PickOneRecord.class).input(iterationInput).build();
+		ReduceOperator oneCustomer = ReduceOperator.builder(PickOneRecord.class).input(iterationInput).name("T3 " +
+				"Reduce: One customer").build();
 
 		// Determine all customers from input with no orders (in this case:
 		// check if the picked customer has no orders)
 		CoGroupOperator customerWithNoOrders = CoGroupOperator.builder(CustomersWithNoOrders.class, IntValue.class, 0, 1)
-				.input1(oneCustomer).input2(ordersSource).build();
+				.input1(oneCustomer).input2(ordersSource).name("T3 CoGroup: Customers with no orders").build();
 
 		// Set the flag for the customer with no order
-		MapOperator customerWithSetFlag = MapOperator.builder(SetFlag.class).input(customerWithNoOrders).build();
+		MapOperator customerWithSetFlag = MapOperator.builder(SetFlag.class).input(customerWithNoOrders).name("T3 " +
+				"Map: Customers with set flag").build();
 
 		// Set changed customers (delta)
 		iteration.setSolutionSetDelta(customerWithSetFlag);
 
 		// Remove checked customer from previous working set
 		CoGroupOperator filteredWorkset = CoGroupOperator.builder(RemoveCheckedCustomer.class, IntValue.class, 0, 0)
-				.input1(iteration.getWorkset()).input2(oneCustomer).build();
+				.input1(iteration.getWorkset()).input2(oneCustomer).name("T3 CoGroup: Filtered workset").build();
 
 		// Define workset for next iteration
 		iteration.setNextWorkset(filteredWorkset);
 
 		// Remove unflagged customer
-		MapOperator filteredFlaggedSolutionSet = MapOperator.builder(FilterFlaggedCustomers.class).input(iteration).build();
+		MapOperator filteredFlaggedSolutionSet = MapOperator.builder(FilterFlaggedCustomers.class).input(iteration)
+				.name("T3 Map: filtered flagged solution set").build();
 
 		// Extract only the customer keys
-		MapOperator customerKeysWithNoOrders = MapOperator.builder(FilterFirstFieldIntKey.class).input(filteredFlaggedSolutionSet).build();
+		MapOperator customerKeysWithNoOrders = MapOperator.builder(FilterFirstFieldIntKey.class).input
+				(filteredFlaggedSolutionSet).name("T3 Map: Customer keys with no orders").build();
 
 		// Save the customers without orders in file
-		FileDataSink test3Sink = new FileDataSink(new CsvOutputFormat(), outputTableDirectory + "/Test3.tbl");
+		FileDataSink test3Sink = new FileDataSink(new CsvOutputFormat(), outputTableDirectory + "/Test3.tbl",
+				"T3: Result Test 3");
 		test3Sink.addInput(customerKeysWithNoOrders);
 		CsvOutputFormat.configureRecordFormat(test3Sink).recordDelimiter('\n').fieldDelimiter('|').field(IntValue.class, 0);
 
 		// Union all customers WITH orders from previous test with all customers WITHOUT orders
 		MapOperator unionCustomers = MapOperator.builder(IdentityMapper.class).input(customerKeysWithNoOrders, testCustomerIdentity2)
-				.build();
+				.name("T3 Map: Union customers").build();
 
 		// Filter for customers keys of test 1
-		MapOperator allCustomerKeys = MapOperator.builder(FilterFirstFieldIntKey.class).input(testCustomerIdentity1).build();
+		MapOperator allCustomerKeys = MapOperator.builder(FilterFirstFieldIntKey.class).input(testCustomerIdentity1)
+				.name("T3 Map: All customers' keys").build();
 
 		// Test if unionCustomers contains all customers again
-		CoGroupOperator testCustomerIdentity3 = CoGroupOperator.builder(CoGroupTestIdentity.class, IntValue.class, 0, 0).name("TEST 3")
-				.input1(unionCustomers).input2(allCustomerKeys).build();
+		CoGroupOperator testCustomerIdentity3 = CoGroupOperator.builder(CoGroupTestIdentity.class, IntValue.class, 0, 0)
+				.input1(unionCustomers).input2(allCustomerKeys).name("T3 CoGroup: Test customers' identities").build();
 		// END: TEST 3
 
 		// BEGIN: TEST 4 - Usage of TextInputFormat
 
 		// Get all order keys by joining with all customers that placed orders from previous test
 		JoinOperator allOrderKeys = JoinOperator.builder(OrderKeysFromCustomerKeys.class, IntValue.class, 0, 1)
-				.input1(testCustomerIdentity3).input2(ordersSource).build();
+				.input1(testCustomerIdentity3).input2(ordersSource).name("T4 Join: All order keys").build();
 
 		// Get the string lines of the orders file
-		FileDataSource ordersTextInputSource = new FileDataSource(new TextInputFormat(), orders);
+		FileDataSource ordersTextInputSource = new FileDataSource(new TextInputFormat(), orders,
+				"T4 Source: Orders text input");
 
 		// Extract order keys out of string lines
-		MapOperator stringExtractKeys = MapOperator.builder(ExtractKeysFromTextInput.class).input(ordersTextInputSource).build();
+		MapOperator stringExtractKeys = MapOperator.builder(ExtractKeysFromTextInput.class).input
+				(ordersTextInputSource).name("T4 Map: String extract keys").build();
 
 		// Save the orders in file
-		FileDataSink test4Sink = new FileDataSink(new CsvOutputFormat(), outputTableDirectory + "/Test4.tbl");
+		FileDataSink test4Sink = new FileDataSink(new CsvOutputFormat(), outputTableDirectory + "/Test4.tbl",
+				"T4: Result Test 4");
 		test4Sink.addInput(stringExtractKeys);
 		CsvOutputFormat.configureRecordFormat(test4Sink).recordDelimiter('\n').fieldDelimiter('|').field(IntValue.class, 0);
 
 		// Test if extracted values are correct
-		CoGroupOperator testOrderIdentity = CoGroupOperator.builder(CoGroupTestIdentity.class, IntValue.class, 0, 0).name("TEST 4")
-				.input1(allOrderKeys).input2(stringExtractKeys).build();
+		CoGroupOperator testOrderIdentity = CoGroupOperator.builder(CoGroupTestIdentity.class, IntValue.class, 0, 0)
+				.input1(allOrderKeys).input2(stringExtractKeys).name("T4 CoGroup: Test orders' identity").build();
 
 		// END: TEST 4
 
 		// BEGIN: TEST 5 - Usage of AvroInputFormat
 
 		// extract orders from avro file
-		FileDataSource ordersAvroInputSource = new FileDataSource(new AvroRecordInputFormat(), orderAvroFile);
+		FileDataSource ordersAvroInputSource = new FileDataSource(new AvroRecordInputFormat(), orderAvroFile,
+				"T5 Source: Orders avro input");
 
 		// Extract keys
-		MapOperator extractKeys = MapOperator.builder(FilterFirstFieldIntKey.class).input(ordersAvroInputSource).build();
+		MapOperator extractKeys = MapOperator.builder(FilterFirstFieldIntKey.class).input(ordersAvroInputSource)
+				.name("T5 Map: Extract keys").build();
 
 		// Save the order keys in file
-		FileDataSink test5Sink = new FileDataSink(new CsvOutputFormat(), outputTableDirectory + "/Test5.tbl");
+		FileDataSink test5Sink = new FileDataSink(new CsvOutputFormat(), outputTableDirectory + "/Test5.tbl",
+				"T5: Result Test 5");
 		test5Sink.addInput(extractKeys);
 		CsvOutputFormat.configureRecordFormat(test5Sink).recordDelimiter('\n').fieldDelimiter('|').field(IntValue.class, 0);
 
 		CoGroupOperator testOrderIdentity2 = CoGroupOperator.builder(CoGroupTestIdentity.class, IntValue.class, 0, 0).name("TEST 5")
-				.input1(testOrderIdentity).input2(extractKeys).build();
+				.input1(testOrderIdentity).input2(extractKeys).name("T5 CoGroup: Test orders' identity").build();
 
 		// END: TEST 5
 
 		// BEGIN: TEST 6 - date count
 
 		// Count different order dates
-		MapOperator orderDateCountMap = MapOperator.builder(OrderDateCountMap.class).input(ordersAvroInputSource).build();
+		MapOperator orderDateCountMap = MapOperator.builder(OrderDateCountMap.class).input(ordersAvroInputSource)
+				.name("T6 Map: Order data count map").build();
 
 		// Sum up
 		ReduceOperator orderDateCountReduce = ReduceOperator.builder(OrderDateCountReduce.class).keyField(StringValue.class, 0)
-				.input(orderDateCountMap).build();
+				.input(orderDateCountMap).name("T6 Reduce: Order date count reduce").build();
 
 		// Save the orders in file
-		FileDataSink test6Sink = new FileDataSink(new CsvOutputFormat(), outputTableDirectory + "/Test6.tbl");
+		FileDataSink test6Sink = new FileDataSink(new CsvOutputFormat(), outputTableDirectory + "/Test6.tbl",
+				"T6: Result Test 6");
 		test6Sink.addInput(orderDateCountReduce);
 		CsvOutputFormat.configureRecordFormat(test6Sink).recordDelimiter('\n').fieldDelimiter('|').field(StringValue.class, 0)
 				.field(IntValue.class, 1);
@@ -415,14 +440,16 @@ public class LargeTestPlan implements Program, ProgramDescription {
 		// do the same with the original orders file
 
 		// Count different order dates
-		MapOperator orderDateCountMap2 = MapOperator.builder(OrderDateCountMap.class).input(ordersSource).build();
+		MapOperator orderDateCountMap2 = MapOperator.builder(OrderDateCountMap.class).input(ordersSource).name("T6 " +
+				"Map: Order data count map 2").build();
 
 		// Sum up
 		ReduceOperator orderDateCountReduce2 = ReduceOperator.builder(OrderDateCountReduce.class).keyField(StringValue.class, 0)
-				.input(orderDateCountMap2).build();
+				.input(orderDateCountMap2).name("T6 Reduce: Order data count reduce 2").build();
 
 		// Check if date count is correct
-		CoGroupOperator testOrderIdentity3 = CoGroupOperator.builder(CoGroupTestIdentity.class, StringValue.class, 0, 0).name("TEST 6")
+		CoGroupOperator testOrderIdentity3 = CoGroupOperator.builder(CoGroupTestIdentity.class, StringValue.class, 0,
+				0).name("T6 CoGroup: Test orders' identity")
 				.input1(orderDateCountReduce).input2(orderDateCountReduce2).build();
 
 		// END: TEST 6
@@ -430,21 +457,24 @@ public class LargeTestPlan implements Program, ProgramDescription {
 		// BEGIN: TEST 7
 
 		// Sum up counts
-		ReduceOperator sumUp = ReduceOperator.builder(SumUpDateCounts.class).input(testOrderIdentity3).build();
+		ReduceOperator sumUp = ReduceOperator.builder(SumUpDateCounts.class).input(testOrderIdentity3).name("T7 " +
+				"Reduce: Sum up").build();
 
 		// Count all orders
-		ReduceOperator orderCount = ReduceOperator.builder(ReduceCounter.class).input(testOrderIdentity2).build();
+		ReduceOperator orderCount = ReduceOperator.builder(ReduceCounter.class).input(testOrderIdentity2).name("T7 " +
+				"Reduce: Order count").build();
 
 		// Check if the values are equal
 		CoGroupOperator testCountOrdersIdentity = CoGroupOperator.builder(CoGroupTestIdentity.class, IntValue.class, 0, 0).name("TEST 7")
-				.input1(sumUp).input2(orderCount).build();
+				.input1(sumUp).input2(orderCount).name("T7 CoGroup: Test count orders' identity").build();
 
 		// Write count to disk
-		FileDataSink test7Sink = new FileDataSink(new CsvOutputFormat(), outputTableDirectory + "/Test7.tbl");
+		FileDataSink test7Sink = new FileDataSink(new CsvOutputFormat(), outputTableDirectory + "/Test7.tbl",
+				"T7: Result Test 7");
 		test7Sink.addInput(testCountOrdersIdentity);
 		CsvOutputFormat.configureRecordFormat(test7Sink).recordDelimiter('\n').fieldDelimiter('|').field(IntValue.class, 0);
 
-		// END: TEST 7		
+		// END: TEST 7
 
 		//		// BEGIN: TEST 8 - HadoopDataSource with SequenceFile
 		//		JobConf jobConf = new JobConf();
@@ -459,7 +489,7 @@ public class LargeTestPlan implements Program, ProgramDescription {
 		//				.name("Check HDSrc output").build();
 		//		// END: TEST 8
 		//
-		//		// don't use this for serious output. 
+		//		// don't use this for serious output.
 		//		FileDataSink fakeSink = new FileDataSink(FailOutOutputFormat.class, "file:///tmp/fakeOut", "fake out");
 		//		fakeSink.addInput(checkHDsrc);
 		//		fakeSink.addInput(checkHDsrcWrapperConverter);
@@ -468,19 +498,21 @@ public class LargeTestPlan implements Program, ProgramDescription {
 
 		// Join Customer and Nation using Broadcast Variables
 		MapOperator broadcastJoinNation = MapOperator.builder(BroadcastJoinNation.class).setBroadcastVariable("nations", nationSource)
-				.input(customerSource).build();
+				.input(customerSource).name("T9 Map: Broadcast join nation").build();
 
 		// Join Customer, Nation and Region using Broadcast Variables
 		MapOperator broadcastJoinRegion = MapOperator.builder(BroadcastJoinRegion.class).setBroadcastVariable("regions", regionSource)
-				.input(broadcastJoinNation).build();
+				.input(broadcastJoinNation).name("T9 Map: broadcast join region").build();
 
 		CoGroupOperator testEquality = CoGroupOperator.builder(FieldEqualityTest.class, IntValue.class, 0, 0).name("TEST 9")
-				.input1(customerWithNationRegion).input2(broadcastJoinRegion).build();
+				.input1(customerWithNationRegion).input2(broadcastJoinRegion).name("T9 CoGroup: Test equality").build();
 
-		MapOperator customerFields = MapOperator.builder(FilterCustomerFields.class).input(testEquality).build();
+		MapOperator customerFields = MapOperator.builder(FilterCustomerFields.class).input(testEquality).name("T9 " +
+				"Map: Customer fields").build();
 
 		// Save test results to disk
-		FileDataSink test9Sink = new FileDataSink(new CsvOutputFormat(), outputTableDirectory + "/Test9.tbl");
+		FileDataSink test9Sink = new FileDataSink(new CsvOutputFormat(), outputTableDirectory + "/Test9.tbl",
+				"T9: Result Test 9");
 		test9Sink.addInput(customerFields);
 		CsvOutputFormat.configureRecordFormat(test9Sink).recordDelimiter('\n').fieldDelimiter('|').field(IntValue.class, 0)
 				.field(StringValue.class, 1).field(StringValue.class, 2).field(IntValue.class, 3).field(StringValue.class, 4)
@@ -496,25 +528,29 @@ public class LargeTestPlan implements Program, ProgramDescription {
 		bulkIteration.setMaximumNumberOfIterations(maxBulkIterations);
 
 		// pick the first price for use as highest price
-		ReduceOperator firstPrice = ReduceOperator.builder(PickOneRecord.class).input(ordersSource).build();
+		ReduceOperator firstPrice = ReduceOperator.builder(PickOneRecord.class).input(ordersSource).name("T10 Reduce:" +
+				"First price").build();
 		bulkIteration.setInput(firstPrice);
 
 		// begin of iteration step
 
-		// Determine the higher price		
+		// Determine the higher price
 		ReduceOperator higherPrice = ReduceOperator.builder(TakeFirstHigherPrice.class)
-				.setBroadcastVariable("currently_highest_price", bulkIteration.getPartialSolution()).input(ordersSource).build();
+				.setBroadcastVariable("currently_highest_price", bulkIteration.getPartialSolution()).input
+						(ordersSource).name("T10 Reduce: Higher price").build();
 
 		bulkIteration.setNextPartialSolution(higherPrice);
 
 		// determine maximum total price
-		ReduceOperator orderWithMaxPrice = ReduceOperator.builder(MaximumReducer.class).input(ordersSource).build();
+		ReduceOperator orderWithMaxPrice = ReduceOperator.builder(MaximumReducer.class).input(ordersSource).name
+				("T10 Reduce: Order with max price").build();
 
-		CoGroupOperator testOrderIdentity4 = CoGroupOperator.builder(CoGroupTestIdentity.class, IntValue.class, 0, 0).name("TEST 10")
-				.input1(orderWithMaxPrice).input2(bulkIteration).build();
+		CoGroupOperator testOrderIdentity4 = CoGroupOperator.builder(CoGroupTestIdentity.class, IntValue.class, 0, 0).
+				input1(orderWithMaxPrice).input2(bulkIteration).name("T10 CoGroup: Test order identity").build();
 
 		// Save the order keys in file
-		FileDataSink test10Sink = new FileDataSink(new CsvOutputFormat(), outputTableDirectory + "/Test10.tbl");
+		FileDataSink test10Sink = new FileDataSink(new CsvOutputFormat(), outputTableDirectory + "/Test10.tbl",
+				"T10: Result Test 10");
 		test10Sink.addInput(testOrderIdentity4);
 		CsvOutputFormat.configureRecordFormat(test10Sink).recordDelimiter('\n').fieldDelimiter('|').field(DoubleValue.class, 3);
 
