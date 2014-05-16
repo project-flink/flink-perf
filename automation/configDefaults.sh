@@ -2,12 +2,12 @@
 # This is a simple bash file containing configuration values as variables
 
 # the repo must be called stratosphere
-GIT_REPO=https://github.com/rmetzger/stratosphere.git
-GIT_BRANCH=variousFixes
+GIT_REPO=https://github.com/stratosphere/stratosphere.git
+GIT_BRANCH=master
 
 # the repo must be called testjob
-TESTJOB_REPO=https://github.com/rmetzger/testjob.git
-TESTJOB_BRANCH=testjobImprovements
+TESTJOB_REPO=https://github.com/stratosphere/testjob.git
+TESTJOB_BRANCH=master
 
 YARN=false
 YARN_SESSION_CONF="-n 2 -jm 500 -tm 500"
@@ -25,7 +25,7 @@ if [[ $YARN == "true" ]]; then
 	CUSTOM_STRATOSPHERE_MVN=" -Dhadoop.profile=2 "
 fi
 
-HADOOP_BIN="/media/Store/data/Projekte/hadoop-2.4.0/bin/hadoop"
+HADOOP_BIN="hadoop"
 
 # General Stuff
 DOP=8
@@ -43,4 +43,10 @@ TESTJOB_DATA=$FILES_DIRECTORY"/testjob-data"
 HDFS_TESTJOB=$HDFS_WORKING_DIRECTORY"/testjob-in"
 HDFS_TESTJOB_OUT=$HDFS_WORKING_DIRECTORY"/testjob-out-"$RAND
 
+OS=`uname -s`
 
+
+# overwrite defaults by custom config
+if [[ -e "config.sh" ]]; then
+	. ./config.sh
+fi

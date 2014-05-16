@@ -1,6 +1,6 @@
 #/bin/sh
 
-. ./config.sh
+. ./configDefaults.sh
 . ./utils.sh
 
 echo "Showing contents of HDFS_WORKING_DIRECTORY=$HDFS_WORKING_DIRECTORY"

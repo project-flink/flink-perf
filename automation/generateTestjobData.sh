@@ -1,6 +1,6 @@
 #!/bin/bash
 
-. ./config.sh
+. ./configDefaults.sh
 
 SCALE=$1
 if [[ -z "$SCALE" ]]; then

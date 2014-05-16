@@ -2,7 +2,9 @@
 
 echo "Preparing the work environment"
 
-. ./config.sh
+. ./configDefaults.sh
+
+echo "GIT_REPO=$GIT_REPO"
 
 INITIAL=`pwd`
 echo "checking if FILES_DIRECTORY exists"
@@ -24,6 +26,7 @@ fi
 
 echo "Going into strato dir, fetching and checking out."
 cd stratosphere
+git remote set-url origin $GIT_REPO
 git fetch origin
 git checkout origin/$GIT_BRANCH
 
@@ -37,6 +40,7 @@ if [[ $YARN == "true" ]]; then
 	tar xzf *yarn.tar.gz
 	mv stratosphere-yarn-* stratosphere-build
 else
+	rm -rf stratosphere-build
 	mkdir stratosphere-build
 	cp -r stratosphere/stratosphere-dist/target/stratosphere-dist-*-bin/stratosphere-*/* stratosphere-build
 fi

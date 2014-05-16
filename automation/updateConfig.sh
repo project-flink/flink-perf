@@ -1,5 +1,5 @@
 echo "Updating configuration. Remember to restart"
 
-. ./config.sh
+. ./configDefaults.sh
 
 cp str-conf/* $FILES_DIRECTORY/stratosphere-build/conf/

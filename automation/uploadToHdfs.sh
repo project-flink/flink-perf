@@ -2,7 +2,7 @@
 
 echo "Uploading available test data to hdfs"
 
-. ./config.sh
+. ./configDefaults.sh
 . ./utils.sh
 
 

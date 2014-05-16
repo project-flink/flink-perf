@@ -1,6 +1,6 @@
 echo "Stopping Stratosphere"
 
-. ./config.sh
+. ./configDefaults.sh
 
 
 $STRATOSPHERE_BUILD_HOME/bin/stop-cluster.sh

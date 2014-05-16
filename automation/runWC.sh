@@ -2,7 +2,7 @@
 
 echo "Running wordcount example"
 
-. ./config.sh
+. ./configDefaults.sh
 
 ARGS="$DOP $HDFS_WC $HDFS_WC_OUT"
 echo "running wc with args $ARGS"

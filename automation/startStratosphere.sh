@@ -1,6 +1,6 @@
 echo "Starting Stratosphere"
 
-. ./config.sh
+. ./configDefaults.sh
 
 if [[ $YARN == "true" ]]; then
 	$STRATOSPHERE_BUILD_HOME/bin/yarn-session.sh $YARN_SESSION_CONF

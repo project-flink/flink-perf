@@ -2,7 +2,7 @@
 
 echo "Running testjob"
 
-. ./config.sh
+. ./configDefaults.sh
 
 # job arguments example
 # hdfs:///user/twalthr/customer.tbl 

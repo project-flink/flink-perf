@@ -9,7 +9,7 @@ echo "LINES=$LINES"
 
 echo "Generating Data that is required for running the tasks"
 
-. ./config.sh
+. ./configDefaults.sh
 
 cd $FILES_DIRECTORY
 mkdir -p wc-data
