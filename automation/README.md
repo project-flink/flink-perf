@@ -28,6 +28,7 @@ sudo apt-get install git maven aspell ruby make
 # Execution Order 
 
 ```
+cp configDefaults.sh config.sh
 #set values here
 nano config.sh
 ./prepareStratosphere.sh
@@ -35,6 +36,8 @@ nano config.sh
 ./generateWCdata.sh
 ./uploadToHdfs.sh
 ./startStratosphere.sh
+./runWC.sh
+./runTestjob.sh
 
 # now you can run a job
 ./runWC.sh
