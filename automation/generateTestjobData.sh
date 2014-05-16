@@ -24,10 +24,21 @@ if [[ ! -d "tpch_2_16_0" ]]; then
 	mv makefile.suite Makefile
 
 	# set Makefile configuration values
-	sed -i 's/CC      =/CC      = cc/g' Makefile
-	sed -i 's/DATABASE=/DATABASE= SQLSERVER/g' Makefile
-	sed -i 's/MACHINE =/MACHINE = LINUX/g' Makefile
-	sed -i 's/WORKLOAD =/WORKLOAD = TPCH/g' Makefile
+	# $OS defined in config.sh
+	if [ "$OS" == 'Linux' ]; then
+		# set Makefile configuration values
+		sed -i 's/CC      =/CC      = cc/g' Makefile
+		sed -i 's/DATABASE=/DATABASE= SQLSERVER/g' Makefile
+		sed -i 's/MACHINE =/MACHINE = LINUX/g' Makefile
+		sed -i 's/WORKLOAD =/WORKLOAD = TPCH/g' Makefile
+	elif [ "$OS" == 'Darwin' ]; then
+		sed -i "" 's/CC      =/CC      = cc/g' Makefile
+		sed -i "" 's/DATABASE=/DATABASE= SQLSERVER/g' Makefile
+		sed -i "" 's/MACHINE =/MACHINE = LINUX/g' Makefile
+		sed -i "" 's/WORKLOAD =/WORKLOAD = TPCH/g' Makefile
+	else
+		echo "System $OS is not supported"
+	fi
 
 	make
 fi

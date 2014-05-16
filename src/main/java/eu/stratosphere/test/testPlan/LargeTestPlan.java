@@ -284,12 +284,24 @@ public class LargeTestPlan implements Program, ProgramDescription {
 				.name("T2 Reduce: Remove duplicates").build();
 
 		// Cross LineItems and Orders
-		CrossOperator lineitemsWithOrders = CrossOperator.builder(CrossJoinFields.class).input1(lineitemSource).input2(ordersSource)
-				.name("T2 Cross: Line items with orders").build();
+	//	CrossOperator lineitemsWithOrders = CrossOperator.builder(CrossJoinFields.class).input1(lineitemSource).input2(ordersSource)
+	//			.name("T2 Cross: Line items with orders").build();
 
 		// Filter customer key
-		MapOperator customerKeyWithOrders2 = MapOperator.builder(FilterCustomerKeyFromLineItemsOrders.class).input(lineitemsWithOrders)
-				.name("T2 Map: Customer key with orders 2").build();
+	//	MapOperator customerKeyWithOrders2 = MapOperator.builder(FilterCustomerKeyFromLineItemsOrders.class).input(lineitemsWithOrders)
+	//			.name("T2 Map: Customer key with orders 2").build();
+		JoinOperator customerKeyWithOrders2 = JoinOperator.builder(new JoinFunction() {
+			private static final long serialVersionUID = 1L;
+			private Record outRec = new Record();
+			@Override
+			public void join(Record value1, Record value2, Collector<Record> out)
+					throws Exception {
+				// pass o_custkey
+				outRec.setField(0, value2.getField(1, IntValue.class));
+				out.collect(outRec);
+			}
+		}, IntValue.class, 0, 0).input1(lineitemSource).input2(ordersSource).build();
+		
 		ReduceOperator removeDuplicates2 = ReduceOperator.builder(RemoveDuplicates.class, IntValue.class, 0).input(customerKeyWithOrders2)
 				.name("T2 Reduce: Remove duplicates 2").build();
 
