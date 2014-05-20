@@ -27,6 +27,6 @@ git fetch origin
 git checkout origin/$TESTJOB_BRANCH
 
 echo "building testjob"
-$MVN_BIN clean package
+$MVN_BIN clean package $CUSTOM_TESTJOB_MVN
 
 cd $FILES_DIRECTORY
