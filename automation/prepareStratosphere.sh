@@ -46,4 +46,5 @@ else
 fi
 
 cd $INITIAL
-cp str-conf/* $FILES_DIRECTORY/stratosphere-build/conf/
+
+./updateConfig.sh
