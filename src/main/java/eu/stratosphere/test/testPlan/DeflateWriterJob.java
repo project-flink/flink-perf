@@ -9,8 +9,8 @@ import eu.stratosphere.api.common.JobExecutionResult;
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.Program;
 import eu.stratosphere.api.common.accumulators.AccumulatorHelper;
-import eu.stratosphere.api.common.operators.FileDataSource;
 import eu.stratosphere.api.java.record.io.TextInputFormat;
+import eu.stratosphere.api.java.record.operators.FileDataSource;
 import eu.stratosphere.client.LocalExecutor;
 import eu.stratosphere.hadoopcompatibility.HadoopDataSink;
 
