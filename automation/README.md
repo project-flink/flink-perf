@@ -21,8 +21,11 @@ for tpch:
 - make
 - a c compiler (gcc)
 
+for performance evaluation
+- python
+
 ```
-sudo apt-get install git maven aspell ruby make
+sudo apt-get install git maven aspell ruby make python
 ```
 
 # Execution Order 
@@ -42,3 +45,7 @@ nano config.sh
 # now you can run a job
 ./runWC.sh
 ```
+
+# Performance Evaluation
+
+After setting up everything, simply run ```./performance.sh``` with default message or use ```./performance.sh -m "did something"``` to give the comment.

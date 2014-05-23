@@ -12,11 +12,18 @@ TESTJOB_BRANCH=master
 YARN=false
 YARN_SESSION_CONF="-n 2 -jm 500 -tm 500"
 
+OS=`uname -s`
+
 # has to be a absolute path!
 FILES_DIRECTORY=`pwd`/workdir
 HDFS_WORKING_DIRECTORY=file:///tmp/stratosphere-tests
-RAND=`cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 12 | head -n 1`
-
+if [ "$OS" == 'Linux' ]; then
+    RAND=`cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 12 | head -n 1`
+elif [ "$OS" == 'Darwin' ]; then
+    RAND=`LC_CTYPE=C tr -dc 'a-zA-Z0-9' < /dev/urandom | fold -w 12 | head -n 1`
+else
+    echo "System $OS is not supported"
+fi
 MVN_BIN=mvn
 
 #custom mvn flags (most likely -Dhadoop.profile=2 )
@@ -43,7 +50,6 @@ TESTJOB_DATA=$FILES_DIRECTORY"/testjob-data"
 HDFS_TESTJOB=$HDFS_WORKING_DIRECTORY"/testjob-in"
 HDFS_TESTJOB_OUT=$HDFS_WORKING_DIRECTORY"/testjob-out-"$RAND
 
-OS=`uname -s`
 
 
 # overwrite defaults by custom config
