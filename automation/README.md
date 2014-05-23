@@ -37,9 +37,12 @@ nano config.sh
 ./prepareStratosphere.sh
 ./prepareTestjob.sh
 ./generateWCdata.sh
+./generateCPdata.sh
+./generateTestjobdata.sh
 ./uploadToHdfs.sh
 ./startStratosphere.sh
 ./runWC.sh
+./runCP.sh
 ./runTestjob.sh
 
 # now you can run a job

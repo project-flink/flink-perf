@@ -32,7 +32,7 @@ if [[ $YARN == "true" ]]; then
 	CUSTOM_STRATOSPHERE_MVN=" -Dhadoop.profile=2 "
 fi
 
-HADOOP_BIN="/media/Store/data/Projekte/hadoop-2.4.0/bin/hadoop"
+HADOOP_BIN="hadoop"
 
 # General Stuff
 DOP=8
@@ -41,6 +41,12 @@ DOP=8
 FILES_WC_GEN=$FILES_DIRECTORY"/wc-data/generated-wc.txt"
 HDFS_WC=$HDFS_WORKING_DIRECTORY"/wc-in"
 HDFS_WC_OUT=$HDFS_WORKING_DIRECTORY"/wc-out-"$RAND
+
+#Connected Component
+FILES_CP_GEN_VERTEX=$FILES_DIRECTORY"/cp-data/vertex.txt"
+FILES_CP_GEN_EDGE=$FILES_DIRECTORY"/cp-data/edge.txt"
+HDFS_CP=$HDFS_WORKING_DIRECTORY"/cp-in"
+HDFS_CP_OUT=$HDFS_WORKING_DIRECTORY"/cp-out-"$RAND
 
 # Directories
 STRATOSPHERE_BUILD_HOME=$FILES_DIRECTORY"/stratosphere-build"
