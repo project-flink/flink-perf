@@ -43,6 +43,7 @@ else
 	rm -rf stratosphere-build
 	mkdir stratosphere-build
 	cp -r stratosphere/stratosphere-dist/target/stratosphere-dist-*-bin/stratosphere-*/* stratosphere-build
+	cp stratosphere/stratosphere-tests/target/*.jar stratosphere-build/examples
 fi
 
 cd $INITIAL

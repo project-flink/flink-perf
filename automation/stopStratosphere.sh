@@ -1,3 +1,5 @@
+#!/bin/bash
+
 echo "Stopping Stratosphere"
 
 . ./configDefaults.sh

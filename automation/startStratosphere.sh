@@ -1,3 +1,5 @@
+#!/bin/bash
+
 echo "Starting Stratosphere"
 
 . ./configDefaults.sh

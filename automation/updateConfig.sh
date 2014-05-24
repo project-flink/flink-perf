@@ -1,3 +1,6 @@
+#!/bin/bash
+
+
 echo "Updating configuration. Remember to restart"
 
 . ./configDefaults.sh

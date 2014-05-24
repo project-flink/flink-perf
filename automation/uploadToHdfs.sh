@@ -1,4 +1,4 @@
-#/bin/bash
+#!/bin/bash
 
 echo "Uploading available test data to hdfs"
 

@@ -1,3 +1,4 @@
+#!/bin/bash
 
 # This is a simple bash file containing configuration values as variables
 
