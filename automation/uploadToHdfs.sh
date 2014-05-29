@@ -22,6 +22,21 @@ if [[ -e "$FILES_WC_GEN" ]]; then
 	fi
 fi 
 
+echo "checking for cp data"
+if [[ -e "$FILES_CP_GEN_VERTEX" ]]; then
+	echo "found generated connected components data"
+	$HADOOP_BIN fs -test -e $HDFS_CP
+	probe=$?
+	if [ $probe -ne 1 ]; then
+		echo "There is already connected components data in hdfs. Skipping ...";
+	else
+		echo "Uploading to hdfs"
+		$HADOOP_BIN fs -mkdir -p $HDFS_CP"/"
+		$HADOOP_BIN fs -copyFromLocal $FILES_CP_GEN_VERTEX $HDFS_CP"/"
+		$HADOOP_BIN fs -copyFromLocal $FILES_CP_GEN_EDGE $HDFS_CP"/"
+	fi
+fi 
+
 
 echo "checking for tpch data"
 if [[ -e "$TESTJOB_DATA/customer.tbl" ]]; then
