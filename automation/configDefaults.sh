@@ -62,6 +62,9 @@ HDFS_TESTJOB_OUT=$HDFS_WORKING_DIRECTORY"/testjob-out-"$RAND
 
 
 # overwrite defaults by custom config
-if [[ -e "config.sh" ]]; then
-	. ./config.sh
+if [[ `basename $BASH_SOURCE` == "configDefaults.sh" ]] ; then
+	if [[ -e "config.sh" ]]; then
+		. ./config.sh
+	fi
 fi
+
