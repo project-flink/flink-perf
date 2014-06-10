@@ -21,7 +21,7 @@ echo "+++ preparing Stratosphere +++"
 echo "checking if strato dir exists ($STRATO_DIR)"
 if [[ ! -e $STRATO_DIR ]]; then
 	echo "Cloning stratosphere"
-	git clone $GIT_REPO
+	git clone $GIT_REPO stratosphere
 fi
 
 echo "Going into strato dir, fetching and checking out."

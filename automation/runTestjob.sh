@@ -28,7 +28,7 @@ echo "Running testjob"
 # maxBulkIterations = Integer.valueOf(args[8]);
 
 echo "running testjob"
-$STRATOSPHERE_BUILD_HOME"/bin/stratosphere" run -v -w -j $TESTJOB_HOME"/target/testjob-*.jar" \
+$STRATOSPHERE_BUILD_HOME"/bin/stratosphere" run -v -j $TESTJOB_HOME"/target/testjob-*.jar" \
 	-c eu.stratosphere.test.testPlan.LargeTestPlan \
 	$HDFS_TESTJOB/customer.tbl \
 	$HDFS_TESTJOB/lineitem.tbl \
