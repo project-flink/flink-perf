@@ -23,6 +23,7 @@ if [[ ! -e $TESTJOB_DIR ]]; then
 	git clone $TESTJOB_REPO
 fi
 cd $TESTJOB_DIR
+git remote set-url origin $TESTJOB_REPO
 git fetch origin
 git checkout origin/$TESTJOB_BRANCH
 
