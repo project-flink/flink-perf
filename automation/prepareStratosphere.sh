@@ -38,7 +38,10 @@ cd $FILES_DIRECTORY
 if [[ $YARN == "true" ]]; then
 	cp -r stratosphere/stratosphere-dist/target/*yarn.tar.gz .
 	tar xzf *yarn.tar.gz
-	mv stratosphere-yarn-* stratosphere-build
+	cd stratosphere-build
+	rm -r *
+	cd ..
+	mv stratosphere-yarn-*/* stratosphere-build/
 else
 	rm -rf stratosphere-build
 	mkdir stratosphere-build
