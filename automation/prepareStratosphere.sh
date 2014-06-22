@@ -36,10 +36,11 @@ $MVN_BIN clean install -DskipTests -Dmaven.javadoc.skip=true $CUSTOM_STRATOSPHER
 cd $FILES_DIRECTORY
 
 if [[ $YARN == "true" ]]; then
+	rm -r *yarn.tar.gz
 	cp -r stratosphere/stratosphere-dist/target/*yarn.tar.gz .
 	tar xzf *yarn.tar.gz
 	cd stratosphere-build
-	rm -r *
+	rm -rf *
 	cd ..
 	mv stratosphere-yarn-*/* stratosphere-build/
 else
