@@ -1,5 +1,4 @@
-testjob
-=======
+# The project has moved to https://github.com/project-flink/flink-perf
 
 Contains (for now) one large test job that tests all Stratosphere components.
 
