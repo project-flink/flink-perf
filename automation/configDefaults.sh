@@ -38,7 +38,7 @@ CUSTOM_TESTJOB_MVN=""
 HADOOP_BIN="hadoop"
 
 # General Stuff
-DOP=8
+DOP=1
 
 # Wordcount stuff.
 FILES_WC_GEN=$FILES_DIRECTORY"/wc-data/generated-wc.txt"

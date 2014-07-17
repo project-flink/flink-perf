@@ -20,7 +20,7 @@ TESTJOB_DIR=$FILES_DIRECTORY"/testjob"
 echo "checking if testjob dir exists ($TESTJOB_DIR)"
 if [[ ! -e $TESTJOB_DIR ]]; then
 	echo "Cloning testjob"
-	git clone $TESTJOB_REPO
+	git clone $TESTJOB_REPO testjob
 fi
 cd $TESTJOB_DIR
 git remote set-url origin $TESTJOB_REPO

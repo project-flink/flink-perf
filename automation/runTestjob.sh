@@ -28,8 +28,8 @@ echo "Running testjob"
 # maxBulkIterations = Integer.valueOf(args[8]);
 
 echo "running testjob"
-$FLINK_BUILD_HOME"/bin/flink" run -v -j $TESTJOB_HOME"/target/testjob-*.jar" \
-	-c org.apache.flink.test.testPlan.LargeTestPlan \
+$FLINK_BUILD_HOME"/bin/flink" run -v -j $TESTJOB_HOME"/target/flink-perf-*.jar" \
+	-c com.github.projectflink.testPlan.LargeTestPlan \
 	$HDFS_TESTJOB/customer.tbl \
 	$HDFS_TESTJOB/lineitem.tbl \
 	$HDFS_TESTJOB/nation.tbl \

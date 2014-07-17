@@ -5,7 +5,7 @@ echo "Updating configuration. Remember to restart"
 
 . ./configDefaults.sh
 
-for file in str-conf/* ; do
+for file in flink-conf/* ; do
 	filename=$(basename "$file")
 	extension="${filename##*.}"
 	if [[ "$extension" != "template" ]]; then

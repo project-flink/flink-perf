@@ -1,5 +1,5 @@
 
-{"namespace": "eu.stratosphere.test.testPlan",
+{"namespace": "com.github.projectflink.testPlan",
  "type": "record",
  "name": "Order",
  "fields": [
