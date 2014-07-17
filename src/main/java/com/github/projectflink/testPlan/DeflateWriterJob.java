@@ -1,18 +1,18 @@
-package eu.stratosphere.test.testPlan;
+package com.github.projectflink.testPlan;
 
+import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.Plan;
+import org.apache.flink.api.common.Program;
+import org.apache.flink.api.common.accumulators.AccumulatorHelper;
+import org.apache.flink.api.java.record.io.TextInputFormat;
+import org.apache.flink.api.java.record.operators.FileDataSource;
+import org.apache.flink.client.LocalExecutor;
+import org.apache.flink.hadoopcompatibility.mapred.record.HadoopDataSink;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.JobConf;
 
-import eu.stratosphere.api.common.JobExecutionResult;
-import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.api.common.Program;
-import eu.stratosphere.api.common.accumulators.AccumulatorHelper;
-import eu.stratosphere.api.java.record.io.TextInputFormat;
-import eu.stratosphere.api.java.record.operators.FileDataSource;
-import eu.stratosphere.client.LocalExecutor;
-import eu.stratosphere.hadoopcompatibility.HadoopDataSink;
 
 public class DeflateWriterJob implements Program {
 

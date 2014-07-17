@@ -1,5 +1,14 @@
-package eu.stratosphere.test.testPlan;
+package com.github.projectflink.testPlan;
 
+import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.Plan;
+import org.apache.flink.api.common.Program;
+import org.apache.flink.api.common.accumulators.AccumulatorHelper;
+import org.apache.flink.api.java.record.operators.MapOperator;
+import org.apache.flink.client.LocalExecutor;
+import org.apache.flink.hadoopcompatibility.mapred.record.HadoopDataSink;
+import org.apache.flink.hadoopcompatibility.mapred.record.HadoopDataSource;
+import org.apache.flink.hadoopcompatibility.mapred.record.datatypes.WritableWrapperConverter;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
@@ -9,17 +18,8 @@ import org.apache.hadoop.mapred.SequenceFileInputFormat;
 import org.apache.hadoop.mapred.SequenceFileOutputFormat;
 import org.apache.hadoop.mapred.TextOutputFormat;
 
-import eu.stratosphere.api.common.JobExecutionResult;
-import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.api.common.Program;
-import eu.stratosphere.api.common.accumulators.AccumulatorHelper;
-import eu.stratosphere.api.java.record.operators.MapOperator;
-import eu.stratosphere.client.LocalExecutor;
-import eu.stratosphere.hadoopcompatibility.HadoopDataSink;
-import eu.stratosphere.hadoopcompatibility.HadoopDataSource;
-import eu.stratosphere.hadoopcompatibility.datatypes.WritableWrapperConverter;
-import eu.stratosphere.test.testPlan.LargeTestPlan.CheckHadoop;
-import eu.stratosphere.test.testPlan.LargeTestPlan.CheckHadoopWrapper;
+import com.github.projectflink.testPlan.LargeTestPlan.CheckHadoop;
+import com.github.projectflink.testPlan.LargeTestPlan.CheckHadoopWrapper;
 
 public class SequenceFileTest implements Program {
 

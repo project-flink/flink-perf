@@ -1,4 +1,4 @@
-package eu.stratosphere.test.testPlan;
+package com.github.projectflink.testPlan;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -6,24 +6,24 @@ import java.util.List;
 
 import com.google.common.collect.ImmutableSet;
 
-import eu.stratosphere.api.common.JobExecutionResult;
-import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.api.common.Program;
-import eu.stratosphere.api.common.accumulators.AccumulatorHelper;
-import eu.stratosphere.api.common.accumulators.LongCounter;
-import eu.stratosphere.api.common.operators.Operator;
-import eu.stratosphere.api.java.record.functions.MapFunction;
-import eu.stratosphere.api.java.record.io.CsvOutputFormat;
-import eu.stratosphere.api.java.record.io.TextInputFormat;
-import eu.stratosphere.api.java.record.operators.FileDataSink;
-import eu.stratosphere.api.java.record.operators.FileDataSource;
-import eu.stratosphere.api.java.record.operators.MapOperator;
-import eu.stratosphere.client.LocalExecutor;
-import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.core.fs.FileSystem.WriteMode;
-import eu.stratosphere.types.Record;
-import eu.stratosphere.types.StringValue;
-import eu.stratosphere.util.Collector;
+import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.Plan;
+import org.apache.flink.api.common.Program;
+import org.apache.flink.api.common.accumulators.AccumulatorHelper;
+import org.apache.flink.api.common.accumulators.LongCounter;
+import org.apache.flink.api.common.operators.Operator;
+import org.apache.flink.api.java.record.functions.MapFunction;
+import org.apache.flink.api.java.record.io.CsvOutputFormat;
+import org.apache.flink.api.java.record.io.TextInputFormat;
+import org.apache.flink.api.java.record.operators.FileDataSink;
+import org.apache.flink.api.java.record.operators.FileDataSource;
+import org.apache.flink.api.java.record.operators.MapOperator;
+import org.apache.flink.client.LocalExecutor;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.FileSystem.WriteMode;
+import org.apache.flink.types.Record;
+import org.apache.flink.types.StringValue;
+import org.apache.flink.util.Collector;
 
 /**
  * Reads data from a directory and writes it again (to test reading deflate files)

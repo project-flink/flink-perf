@@ -4,10 +4,10 @@
 
 	<modelVersion>4.0.0</modelVersion>
 
-	<groupId>eu.stratosphere</groupId>
+	<groupId>com.github.project-flink</groupId>
 	<version>0.1-SNAPSHOT</version>
-	<artifactId>testjob</artifactId>
-	<name>testjob</name>
+	<artifactId>flink-perf</artifactId>
+	<name>flink-perf</name>
 
 	<packaging>jar</packaging>
 
@@ -25,57 +25,55 @@
 	</repositories>
 
 	<properties>
-		<stratosphere.version>0.5-SNAPSHOT</stratosphere.version>
+		<flink.version>0.6-incubating-SNAPSHOT</flink.version>
 	</properties>
 
 	<dependencies>
-
 		<dependency>
-			<groupId>eu.stratosphere</groupId>
-			<artifactId>stratosphere-core</artifactId>
-			<version>${stratosphere.version}</version>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-core</artifactId>
+			<version>${flink.version}</version>
 		</dependency>
 
 		<dependency>
-			<groupId>eu.stratosphere</groupId>
-			<artifactId>stratosphere-compiler</artifactId>
-			<version>${stratosphere.version}</version>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-compiler</artifactId>
+			<version>${flink.version}</version>
 		</dependency>
 
 		<dependency>
-			<groupId>eu.stratosphere</groupId>
-			<artifactId>stratosphere-runtime</artifactId>
-			<version>${stratosphere.version}</version>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-runtime</artifactId>
+			<version>${flink.version}</version>
 		</dependency>
 
 		<dependency>
-			<groupId>eu.stratosphere</groupId>
-			<artifactId>stratosphere-clients</artifactId>
-			<version>${stratosphere.version}</version>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-clients</artifactId>
+			<version>${flink.version}</version>
 		</dependency>
 		<dependency>
-			<groupId>eu.stratosphere</groupId>
-			<artifactId>hadoop-compatibility</artifactId>
-			<version>${stratosphere.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>eu.stratosphere</groupId>
-			<artifactId>stratosphere-java</artifactId>
-			<version>${stratosphere.version}</version>
-			<!--<scope>test</scope> -->
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-hadoop-compatibility</artifactId>
+			<version>${flink.version}</version>
 		</dependency>
 
 		<dependency>
-			<groupId>eu.stratosphere</groupId>
-			<artifactId>stratosphere-scala</artifactId>
-			<version>${stratosphere.version}</version>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-java</artifactId>
+			<version>${flink.version}</version>
 		</dependency>
 
 		<dependency>
-			<groupId>eu.stratosphere</groupId>
-			<artifactId>avro</artifactId>
-			<version>${stratosphere.version}</version>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-scala</artifactId>
+			<version>${flink.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-avro</artifactId>
+			<version>${flink.version}</version>
 		</dependency>
 
 		<dependency>

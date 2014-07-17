@@ -1,9 +1,10 @@
-package eu.stratosphere.test.javaTestPlan;
+package com.github.projectflink.javaTestPlan;
 
-import eu.stratosphere.test.testPlan.Order;
 import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.specific.SpecificDatumWriter;
+
+import com.github.projectflink.testPlan.Order;
 
 import java.io.File;
 import java.util.Scanner;

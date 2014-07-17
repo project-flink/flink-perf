@@ -1,4 +1,4 @@
-package eu.stratosphere.test.testPlan;
+package com.github.projectflink.testPlan;
 
 import java.io.IOException;
 import java.net.URI;

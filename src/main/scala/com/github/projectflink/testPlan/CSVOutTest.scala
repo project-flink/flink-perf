@@ -1,13 +1,13 @@
-package eu.stratosphere.test.testPlan
+package com.github.projectflink.testPlan
 
-import eu.stratosphere.api.common.Program
-import eu.stratosphere.api.common.ProgramDescription
-import eu.stratosphere.client.LocalExecutor
-import eu.stratosphere.api.scala.TextFile
-import eu.stratosphere.api.scala.ScalaPlan
-import eu.stratosphere.api.scala._
-import eu.stratosphere.api.scala.operators._
-import eu.stratosphere.client.RemoteExecutor
+import org.apache.flink.api.common.Program
+import org.apache.flink.api.common.ProgramDescription
+import org.apache.flink.client.LocalExecutor
+import org.apache.flink.api.scala.TextFile
+import org.apache.flink.api.scala.ScalaPlan
+import org.apache.flink.api.scala._
+import org.apache.flink.api.scala.operators._
+import org.apache.flink.client.RemoteExecutor
 
 // You can run this locally using:
 // mvn exec:exec -Dexec.executable="java" -Dexec.args="-cp %classpath ${package}.RunJobLocal 2 file:///some/path file:///some/other/path"

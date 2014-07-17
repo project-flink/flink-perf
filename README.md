@@ -23,9 +23,11 @@ PageRank
 
 
 
-Contains (for now) one large test job that tests all Stratosphere components.
+Contains (for now) one large test job that tests all Flink components.
 
 ## Background information
+
+This code originated from the Stratosphere.eu project. It is now called Apache Flink (incubating).
 
 Original issue for planning this feature: https://github.com/stratosphere/stratosphere/issues/379
 

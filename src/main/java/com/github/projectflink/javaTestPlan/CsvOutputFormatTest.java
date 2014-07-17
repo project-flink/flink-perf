@@ -1,8 +1,9 @@
-package eu.stratosphere.test.javaTestPlan;
+package com.github.projectflink.javaTestPlan;
 
-import eu.stratosphere.api.java.DataSet;
-import eu.stratosphere.api.java.ExecutionEnvironment;
-import eu.stratosphere.api.java.tuple.Tuple1;
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.tuple.Tuple1;
+
 
 
 /**
@@ -11,7 +12,6 @@ import eu.stratosphere.api.java.tuple.Tuple1;
  *
  */
 public class CsvOutputFormatTest{
-
 
 	public static void main(String[] args) throws Exception {
 		String input = "file:///tmp/word";
