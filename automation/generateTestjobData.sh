@@ -61,8 +61,8 @@ echo "checking if we need to generate avro files"
 
 if [[ ! -e "order.avro" ]]; then
 	echo "there is not order.avro file. Creating it"
-	echo "cmd java -cp $TESTJOB_HOME"/target/testjob-*.jar" eu.stratosphere.test.testPlan.LargeTestPlan orders.tbl orders.avro"
-	java -cp $TESTJOB_HOME"/target/testjob-0.1-SNAPSHOT.jar" eu.stratosphere.test.testPlan.LargeTestPlan orders.tbl orders.avro
+	echo "cmd java -cp $TESTJOB_HOME"/target/testjob-*.jar" org.apache.flink.test.testPlan.LargeTestPlan orders.tbl orders.avro"
+	java -cp $TESTJOB_HOME"/target/testjob-0.1-SNAPSHOT.jar" org.apache.flink.test.testPlan.LargeTestPlan orders.tbl orders.avro
 	echo "done"
 fi
 

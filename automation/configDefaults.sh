@@ -2,12 +2,12 @@
 
 # This is a simple bash file containing configuration values as variables
 
-# the repo must be called stratosphere
-GIT_REPO=https://github.com/stratosphere/stratosphere.git
+# the repo must be called flink
+GIT_REPO=https://github.com/apache/incubator-flink.git
 GIT_BRANCH=master
 
 # the repo must be called testjob
-TESTJOB_REPO=https://github.com/stratosphere/testjob.git
+TESTJOB_REPO=https://github.com/project-flink/flink-perf.git
 TESTJOB_BRANCH=master
 
 YARN=false
@@ -17,7 +17,7 @@ OS=`uname -s`
 
 # has to be a absolute path!
 FILES_DIRECTORY=`pwd`/workdir
-HDFS_WORKING_DIRECTORY=file:///tmp/stratosphere-tests
+HDFS_WORKING_DIRECTORY=file:///tmp/flink-tests
 if [ "$OS" == 'Linux' ]; then
     RAND=`cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 12 | head -n 1`
 elif [ "$OS" == 'Darwin' ]; then
@@ -28,9 +28,9 @@ fi
 MVN_BIN=mvn
 
 #custom mvn flags (most likely -Dhadoop.profile=2 )
-CUSTOM_STRATOSPHERE_MVN=""
+CUSTOM_FLINK_MVN=""
 if [[ $YARN == "true" ]]; then
-	CUSTOM_STRATOSPHERE_MVN=" -Dhadoop.profile=2 "
+	CUSTOM_FLINK_MVN=" -Dhadoop.profile=2 "
 fi
 
 CUSTOM_TESTJOB_MVN=""
@@ -52,7 +52,7 @@ HDFS_CP=$HDFS_WORKING_DIRECTORY"/cp-in"
 HDFS_CP_OUT=$HDFS_WORKING_DIRECTORY"/cp-out-"$RAND
 
 # Directories
-STRATOSPHERE_BUILD_HOME=$FILES_DIRECTORY"/stratosphere-build"
+FLINK_BUILD_HOME=$FILES_DIRECTORY"/flink-build"
 TESTJOB_HOME=$FILES_DIRECTORY"/testjob"
 
 TESTJOB_DATA=$FILES_DIRECTORY"/testjob-data"

@@ -6,5 +6,5 @@ echo "Running wordcount japi without combine example"
 
 ARGS="$HDFS_WC $HDFS_WC_OUT"
 echo "running wc with args $ARGS"
-$STRATOSPHERE_BUILD_HOME"/bin/stratosphere" run -p $DOP -c eu.stratosphere.test.testPlan.WordCountWithoutCombine -j $TESTJOB_HOME"/target/testjob-*.jar" $ARGS
+$FLINK_BUILD_HOME"/bin/flink" run -p $DOP -c org.apache.flink.test.testPlan.WordCountWithoutCombine -j $TESTJOB_HOME"/target/testjob-*.jar" $ARGS
 

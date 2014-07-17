@@ -1,4 +1,4 @@
-Automatically execute a bunch of tests for Stratosphere in a distribted setting
+Automatically execute a bunch of tests for Flink in a distribted setting
 ####
 
 # Preparation
@@ -33,17 +33,17 @@ sudo apt-get install git maven aspell ruby make python
 ```
 cp configDefaults.sh config.sh
 #set values here
-cd str-conf
-# edit the configuration files for Stratosphere and remove the '.template' extension
+cd flink-conf
+# edit the configuration files for Flink and remove the '.template' extension
 cd ..
 nano config.sh
-./prepareStratosphere.sh
+./prepareFlink.sh
 ./prepareTestjob.sh
 ./generateWCdata.sh
 ./generateCPdata.sh
 ./generateTestjobdata.sh
 ./uploadToHdfs.sh
-./startStratosphere.sh
+./startFlink.sh
 ./runWC.sh
 ./runCP.sh
 ./runTestjob.sh

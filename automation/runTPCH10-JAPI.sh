@@ -6,5 +6,5 @@ echo "Running TPCH-10"
 
 ARGS="$HDFS_TPCH10/customer.tbl $HDFS_TPCH10/orders.tbl $HDFS_TPCH10/lineitem.tbl $HDFS_TPCH10/nation.tbl $HDFS_TPCH10_OUT"
 echo "running wc with args $ARGS"
-$STRATOSPHERE_BUILD_HOME"/bin/stratosphere" run -p $DOP -j $STRATOSPHERE_BUILD_HOME/examples/stratosphere-java-examples-*-TPCHQuery10.jar $ARGS
+$FLINK_BUILD_HOME"/bin/flink" run -p $DOP -j $FLINK_BUILD_HOME/examples/flink-java-examples-*-TPCHQuery10.jar $ARGS
 

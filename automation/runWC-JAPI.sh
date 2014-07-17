@@ -6,5 +6,5 @@ echo "Running wordcount example"
 
 ARGS="$HDFS_WC $HDFS_WC_OUT"
 echo "running wc with args $ARGS"
-$STRATOSPHERE_BUILD_HOME"/bin/stratosphere" run -p $DOP -j $STRATOSPHERE_BUILD_HOME/examples/stratosphere-java-examples-*-WordCount.jar $ARGS
+$FLINK_BUILD_HOME"/bin/flink" run -p $DOP -j $FLINK_BUILD_HOME/examples/flink-java-examples-*-WordCount.jar $ARGS
 

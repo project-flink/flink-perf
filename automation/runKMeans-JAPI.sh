@@ -6,5 +6,5 @@ echo "Running wordcount example"
 
 ARGS="$HDFS_KMEANS_POINTS $HDFS_KMEANS_CENTERS $HDFS_KMEANS_OUT 15"
 echo "running wc with args $ARGS"
-$STRATOSPHERE_BUILD_HOME"/bin/stratosphere" run -p $DOP -j $STRATOSPHERE_BUILD_HOME/examples/stratosphere-java-examples-*-KMeans.jar $ARGS
+$FLINK_BUILD_HOME"/bin/flink" run -p $DOP -j $FLINK_BUILD_HOME/examples/flink-java-examples-*-KMeans.jar $ARGS
 
