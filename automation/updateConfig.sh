@@ -9,7 +9,7 @@ for file in str-conf/* ; do
 	filename=$(basename "$file")
 	extension="${filename##*.}"
 	if [[ "$extension" != "template" ]]; then
-		echo "copying $file to $FILES_DIRECTORY/stratosphere-build/conf/"
-		cp $file $FILES_DIRECTORY/stratosphere-build/conf/
+		echo "copying $file to $FILES_DIRECTORY/flink-build/conf/"
+		cp $file $FILES_DIRECTORY/flink-build/conf/
 	fi
 done
