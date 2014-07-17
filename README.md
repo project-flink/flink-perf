@@ -1,4 +1,27 @@
-# The project has moved to https://github.com/project-flink/flink-perf
+Apache Flink: Performance and Testing
+=======
+
+
+Flink performance tests
+
+Add
+
+WordCount
+WordCount NoComb
+
+K-Means
+- low dimensional (3 dimensions k =20)
+- high dimensional (1000 dimensions, k =200)
+
+TPC-H with two joins and aggregation (Q3 if suitable)
+
+Connected components
+
+PageRank
+
+
+
+
 
 Contains (for now) one large test job that tests all Stratosphere components.
 
