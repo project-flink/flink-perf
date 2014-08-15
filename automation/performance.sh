@@ -6,7 +6,7 @@ PERFORMANCE_DIR=$FILES_DIRECTORY"/performance"
 
 if [[ ! -e $PERFORMANCE_DIR ]]; then
 	mkdir $PERFORMANCE_DIR;
-	echo "message,word count,connected components,testjob" >>$PERFORMANCE_DIR"/executiontime.csv"
+	echo "message,word count,connected components,kmeans,testjob" >>$PERFORMANCE_DIR"/executiontime.csv"
 fi
 
 message=`date +%Y-%m-%d`
@@ -28,11 +28,16 @@ end=$(date +%s)
 secCP=$(($end - $start))
 
 start=$(date +%s)
+./runKMeansMultiDimension.sh
+end=$(date +%s)
+secKMeansMultiDimension=$(($end - $start))
+
+start=$(date +%s)
 ./runTestjob.sh
 end=$(date +%s)
 secTestjob=$(($end - $start))
 
 
-echo "$message,"$secWC","$secCP","$secTestjob >> $PERFORMANCE_DIR"/executiontime.csv"
+echo "$message,"$secWC","$secCP","$secKMeansMultiDimension","$secTestjob >> $PERFORMANCE_DIR"/executiontime.csv"
 
 python plot.py $PERFORMANCE_DIR"/executiontime.csv"

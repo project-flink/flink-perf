@@ -8,7 +8,7 @@ echo "Uploading available test data to hdfs"
 
 createHDFSDirectory
 
-echo "checking for wc data"
+echo "checking for Word Count data"
 if [[ -e "$FILES_WC_GEN" ]]; then
 	echo "found generated wordcount data"
 	$HADOOP_BIN fs -test -e $HDFS_WC
@@ -22,7 +22,7 @@ if [[ -e "$FILES_WC_GEN" ]]; then
 	fi
 fi 
 
-echo "checking for cp data"
+echo "checking for Connected Components data"
 if [[ -e "$FILES_CP_GEN_VERTEX" ]]; then
 	echo "found generated connected components data"
 	$HADOOP_BIN fs -test -e $HDFS_CP
@@ -34,6 +34,21 @@ if [[ -e "$FILES_CP_GEN_VERTEX" ]]; then
 		$HADOOP_BIN fs -mkdir -p $HDFS_CP"/"
 		$HADOOP_BIN fs -copyFromLocal $FILES_CP_GEN_VERTEX $HDFS_CP"/"
 		$HADOOP_BIN fs -copyFromLocal $FILES_CP_GEN_EDGE $HDFS_CP"/"
+	fi
+fi 
+
+echo "checking for KMeans data"
+if [[ -e "$FILES_KMEANS_GEN_POINT" ]]; then
+	echo "found generated KMeans data"
+	$HADOOP_BIN fs -test -e $HDFS_KMEANS
+	probe=$?
+	if [ $probe -ne 1 ]; then
+		echo "There is already KMeans data in hdfs. Skipping ...";
+	else
+		echo "Uploading to hdfs"
+		$HADOOP_BIN fs -mkdir -p $HDFS_KMEANS"/"
+		$HADOOP_BIN fs -copyFromLocal $FILES_KMEANS_GEN_POINT $HDFS_KMEANS"/"
+		$HADOOP_BIN fs -copyFromLocal $FILES_KMEANS_GEN_CENTER $HDFS_KMEANS"/"
 	fi
 fi 
 

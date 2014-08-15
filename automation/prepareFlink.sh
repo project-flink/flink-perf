@@ -47,7 +47,7 @@ if [[ $YARN == "true" ]]; then
 else
 	rm -rf flink-build
 	mkdir flink-build
-	cp -r flink/flink-dist/target/*-dist-*-bin/flink-*/* flink-build
+	cp -r flink/flink-dist/target/flink-*-bin/flink-*/* flink-build
 	cp flink/flink-tests/target/*.jar flink-build/examples
 fi
 
