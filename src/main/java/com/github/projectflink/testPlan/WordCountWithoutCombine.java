@@ -16,10 +16,10 @@ package com.github.projectflink.testPlan;
 
 import java.util.Iterator;
 
+import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.functions.FlatMapFunction;
-import org.apache.flink.api.java.functions.GroupReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.util.Collector;
 
@@ -70,8 +70,9 @@ public class WordCountWithoutCombine {
 				.reduceGroup(new GroupReduceFunction<Tuple2<String,Integer>, Tuple2<String, Integer>>() {
 					@Override
 					public void reduce(
-							Iterator<Tuple2<String, Integer>> values,
+							Iterable<Tuple2<String, Integer>> valuesIt,
 							Collector<Tuple2<String, Integer>> out) throws Exception {
+						Iterator<Tuple2<String, Integer>> values = valuesIt.iterator();
 						int count = 0;
 						Tuple2<String, Integer> val = null; // this always works because the iterator always has something.
 						while(values.hasNext()) {
@@ -98,7 +99,7 @@ public class WordCountWithoutCombine {
 	 * FlatMapFunction. The function takes a line (String) and splits it into 
 	 * multiple pairs in the form of "(word,1)" (Tuple2<String, Integer>).
 	 */
-	public static final class Tokenizer extends FlatMapFunction<String, Tuple2<String, Integer>> {
+	public static final class Tokenizer implements FlatMapFunction<String, Tuple2<String, Integer>> {
 
 		@Override
 		public void flatMap(String value, Collector<Tuple2<String, Integer>> out) {

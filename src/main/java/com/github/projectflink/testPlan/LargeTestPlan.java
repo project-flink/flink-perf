@@ -810,7 +810,7 @@ public class LargeTestPlan implements Program, ProgramDescription {
 	public static class CrossJoinFields extends CrossFunction {
 
 		@Override
-		public void cross(Record r1, Record r2, Collector<Record> out) throws Exception {
+		public Record cross(Record r1, Record r2) throws Exception {
 			Record newRecord = new Record(r1.getNumFields() + r2.getNumFields());
 
 			int[] r1Positions = new int[r1.getNumFields()];
@@ -827,7 +827,7 @@ public class LargeTestPlan implements Program, ProgramDescription {
 			}
 			newRecord.copyFrom(r2, r2Positions, targetR2Positions);
 
-			out.collect(newRecord);
+			return newRecord;
 		}
 
 	}

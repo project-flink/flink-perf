@@ -9,19 +9,21 @@ import java.util.Scanner;
 
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.accumulators.IntCounter;
+import org.apache.flink.api.common.functions.CoGroupFunction;
+import org.apache.flink.api.common.functions.CrossFunction;
+import org.apache.flink.api.common.functions.FilterFunction;
+import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.api.common.functions.JoinFunction;
+import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.DeltaIteration;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.IterativeDataSet;
 import org.apache.flink.api.java.aggregation.Aggregations;
-import org.apache.flink.api.java.functions.CoGroupFunction;
-import org.apache.flink.api.java.functions.CrossFunction;
-import org.apache.flink.api.java.functions.FilterFunction;
-import org.apache.flink.api.java.functions.FlatMapFunction;
-import org.apache.flink.api.java.functions.GroupReduceFunction;
-import org.apache.flink.api.java.functions.JoinFunction;
-import org.apache.flink.api.java.functions.MapFunction;
-import org.apache.flink.api.java.functions.ReduceFunction;
+import org.apache.flink.api.java.functions.RichFilterFunction;
+import org.apache.flink.api.java.functions.RichFlatMapFunction;
+import org.apache.flink.api.java.functions.RichGroupReduceFunction;
 import org.apache.flink.api.java.io.AvroInputFormat;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple12;
@@ -31,10 +33,8 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple25;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
-//CHECKSTYLE.OFF: AvoidStarImport
 import org.apache.flink.api.java.tuple.Tuple8;
 import org.apache.flink.api.java.tuple.Tuple9;
-//CHECKSTYLE.ON: AvoidStarImport
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.Collector;
@@ -393,7 +393,7 @@ public class LargeTestPlan {
 	}
 
 	// Joins the fields of two DataSets into one DataSet
-	public static final class JoinFields1 extends JoinFunction<Tuple8<Integer, String, String, Integer, String, Double, String, String>, Tuple4<Integer, String, Integer, String>,
+	public static final class JoinFields1 implements JoinFunction<Tuple8<Integer, String, String, Integer, String, Double, String, String>, Tuple4<Integer, String, Integer, String>,
 			Tuple12<Integer, String, String, Integer, String, Double, String, String,Integer, String, Integer, String>> {
 
 		@Override
@@ -403,7 +403,7 @@ public class LargeTestPlan {
 	}
 
 	// Joins the fields of two DataSets into one DataSet
-	public static final class JoinFields2 extends JoinFunction<Tuple12<Integer, String, String, Integer, String, Double, String, String, Integer, String, Integer, String>, Tuple3<Integer, String, String>,
+	public static final class JoinFields2 implements JoinFunction<Tuple12<Integer, String, String, Integer, String, Double, String, String, Integer, String, Integer, String>, Tuple3<Integer, String, String>,
 		Tuple15<Integer, String, String, Integer, String, Double, String, String,Integer, String, Integer, String, Integer, String, String>> {
 
 		@Override
@@ -413,7 +413,7 @@ public class LargeTestPlan {
 	}
 
 	// Filter for region "AMERICA" and "EUROPE"
-	public static class FilterRegion extends FilterFunction<Tuple15<Integer, String, String, Integer, String, Double, String, String,Integer, String, Integer, String, Integer, String, String>> {
+	public static class FilterRegion extends RichFilterFunction<Tuple15<Integer, String, String, Integer, String, Double, String, String,Integer, String, Integer, String, Integer, String, String>> {
 
 		private IntCounter numLines = new IntCounter();
 		final String regionName;
@@ -441,7 +441,7 @@ public class LargeTestPlan {
 	}
 
 	// Filter for regions other than "AMERICA" and "EUROPE"
-	public static class FilterRegionOthers extends FilterFunction<Tuple15<Integer, String, String, Integer, String, Double, String, String,Integer, String, Integer, String, Integer, String, String>> {
+	public static class FilterRegionOthers extends RichFilterFunction<Tuple15<Integer, String, String, Integer, String, Double, String, String,Integer, String, Integer, String, Integer, String, String>> {
 
 		private IntCounter numLines = new IntCounter();
 
@@ -464,7 +464,7 @@ public class LargeTestPlan {
 	}
 
 	// Extract customer fields out of customer-nation-region record
-	public static class FilterCustomerFields extends MapFunction<Tuple15<Integer, String, String, Integer, String, Double, String, String, Integer, String, Integer, String, Integer, String, String>,
+	public static class FilterCustomerFields implements MapFunction<Tuple15<Integer, String, String, Integer, String, Double, String, String, Integer, String, Integer, String, Integer, String, String>,
 		Tuple8<Integer, String, String, Integer, String, Double, String, String>> {
 
 		@Override
@@ -475,10 +475,13 @@ public class LargeTestPlan {
 	}
 
 	// Test if each key has an equivalent key
-	public static class CoGroupTestIdentity1 extends CoGroupFunction<Tuple1<Integer>, Tuple1<Integer>, Tuple1<Integer>> {
+	public static class CoGroupTestIdentity1 implements CoGroupFunction<Tuple1<Integer>, Tuple1<Integer>, Tuple1<Integer>> {
 		@Override
-		public void coGroup(Iterator<Tuple1<Integer>> input1, Iterator<Tuple1<Integer>> input2, Collector<Tuple1<Integer>> out) throws Exception {
-
+		public void coGroup(Iterable<Tuple1<Integer>> input1It, Iterable<Tuple1<Integer>> input2It, Collector<Tuple1<Integer>> out) throws Exception {
+			Iterator<Tuple1<Integer>> input1 = input1It.iterator();
+			Iterator<Tuple1<Integer>> input2 = input2It.iterator();
+			
+			
 			int count1 = 0;
 			while (input1.hasNext()) {
 				count1++;
@@ -502,9 +505,13 @@ public class LargeTestPlan {
 
 
 	// Test if each key has an equivalent key
-	public static class CoGroupTestIdentity2 extends CoGroupFunction<Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple2<String, Integer>> {
+	public static class CoGroupTestIdentity2 implements CoGroupFunction<Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple2<String, Integer>> {
 		@Override
-		public void coGroup(Iterator<Tuple2<String, Integer>> input1, Iterator<Tuple2<String, Integer>> input2, Collector<Tuple2<String, Integer>> out) throws Exception {
+		public void coGroup(Iterable<Tuple2<String, Integer>> input1It, 
+				Iterable<Tuple2<String, Integer>> input2It,
+				Collector<Tuple2<String, Integer>> out) throws Exception {
+			Iterator<Tuple2<String, Integer>> input1 = input1It.iterator();
+			Iterator<Tuple2<String, Integer>> input2 = input2It.iterator();
 			int count1 = 0;
 			while (input1.hasNext()) {
 				count1++;
@@ -524,11 +531,15 @@ public class LargeTestPlan {
 	}
 
 	// Test if each key has an equivalent key
-	public static class CoGroupTestIdentity8 extends CoGroupFunction<Tuple8<Integer, String, String, Integer, String, Double, String, String>, Tuple8<Integer, String, String, Integer, String, Double, String, String>, Tuple8<Integer, String, String, Integer, String, Double, String, String>> {
+	public static class CoGroupTestIdentity8 implements CoGroupFunction<Tuple8<Integer, String, String, Integer, String, Double, String, String>, Tuple8<Integer, String, String, Integer, String, Double, String, String>, Tuple8<Integer, String, String, Integer, String, Double, String, String>> {
 
 		@Override
-		public void coGroup(Iterator<Tuple8<Integer, String, String, Integer, String, Double, String, String>> input1, Iterator<Tuple8<Integer, String, String, Integer, String, Double, String, String>> input2, Collector<Tuple8<Integer, String, String, Integer, String, Double, String, String>> out) throws Exception {
-
+		public void coGroup(Iterable<Tuple8<Integer, String, String, Integer, String, Double, String, String>> input1It,
+				Iterable<Tuple8<Integer, String, String, Integer, String, Double, String, String>> input2It, 
+				Collector<Tuple8<Integer, String, String, Integer, String, Double, String, String>> out) throws Exception {
+			Iterator<Tuple8<Integer, String, String, Integer, String, Double, String, String>> input1 = input1It.iterator();
+			Iterator<Tuple8<Integer, String, String, Integer, String, Double, String, String>> input2 = input2It.iterator();
+			
 			int count1 = 0;
 			while (input1.hasNext()) {
 				count1++;
@@ -551,11 +562,16 @@ public class LargeTestPlan {
 	}
 	
 	// Test if each key has an equivalent key
-	public static class CoGroupTestIdentity9 extends CoGroupFunction<Tuple9<Integer, Integer, String, Double, String, String, String, Integer, String>
+	public static class CoGroupTestIdentity9 implements CoGroupFunction<Tuple9<Integer, Integer, String, Double, String, String, String, Integer, String>
 		, Tuple9<Integer, Integer, String, Double, String, String, String, Integer, String>, Tuple9<Integer, Integer, String, Double, String, String, String, Integer, String>> {
 		@Override
-		public void coGroup(Iterator<Tuple9<Integer, Integer, String, Double, String, String, String, Integer, String>> input1, Iterator<Tuple9<Integer, Integer, String, Double, String, String, String, Integer, String>> input2, Collector<Tuple9<Integer, Integer, String, Double, String, String, String, Integer, String>> out) throws Exception {
+		public void coGroup(Iterable<Tuple9<Integer, Integer, String, Double, String, String, String, Integer, String>> input1It, 
+				Iterable<Tuple9<Integer, Integer, String, Double, String, String, String, Integer, String>> input2It, 
+				Collector<Tuple9<Integer, Integer, String, Double, String, String, String, Integer, String>> out) throws Exception {
 
+			Iterator<Tuple9<Integer, Integer, String, Double, String, String, String, Integer, String>> input1 = input1It.iterator();
+			Iterator<Tuple9<Integer, Integer, String, Double, String, String, String, Integer, String>> input2 = input2It.iterator();
+			
 			int count1 = 0;
 			while (input1.hasNext()) {
 				count1++;
@@ -577,7 +593,7 @@ public class LargeTestPlan {
 	}
 
 	// Crosses two input streams and returns tuple with merged fields
-	public static class CrossJoinFields extends CrossFunction<Tuple16<Integer, Integer, Integer, Integer, Integer,Float, Float, Float, String, String, String, String, String, String, String, String>,
+	public static class CrossJoinFields implements CrossFunction<Tuple16<Integer, Integer, Integer, Integer, Integer,Float, Float, Float, String, String, String, String, String, String, String, String>,
 		Tuple9<Integer, Integer, String, Double, String, String, String, Integer, String>, Tuple25<Integer, Integer, Integer, Integer, Integer,Float, Float, Float, String, String, String, String, String, String, String, String, Integer, Integer, String, Double, String, String, String, Integer, String>> {
 
 		@Override
@@ -588,7 +604,7 @@ public class LargeTestPlan {
 	}
 
 	// Filters the customer key from the LineItem-Order records
-	public static class FilterCustomerKeyFromLineItemsOrders extends FilterFunction<Tuple25<Integer, Integer, Integer, Integer, Integer,Float, Float, Float, String, String, String, String, String, String, String, String, Integer, Integer, String, Double, String, String, String, Integer, String>> {
+	public static class FilterCustomerKeyFromLineItemsOrders implements FilterFunction<Tuple25<Integer, Integer, Integer, Integer, Integer,Float, Float, Float, String, String, String, String, String, String, String, String, Integer, Integer, String, Double, String, String, String, Integer, String>> {
 
 		@Override
 		public boolean filter(Tuple25<Integer, Integer, Integer, Integer, Integer,Float, Float, Float, String, String, String, String, String, String, String, String, Integer, Integer, String, Double, String, String, String, Integer, String> input) throws Exception {
@@ -598,14 +614,13 @@ public class LargeTestPlan {
 	}
 
 	// Counts the input records
-	public static class ReduceCounter extends GroupReduceFunction<Tuple1<Integer>, Tuple1<Integer>> {
+	public static class ReduceCounter implements GroupReduceFunction<Tuple1<Integer>, Tuple1<Integer>> {
 
 		@Override
-		public void reduce(Iterator<Tuple1<Integer>> input, Collector<Tuple1<Integer>> out) throws Exception {
+		public void reduce(Iterable<Tuple1<Integer>> input, Collector<Tuple1<Integer>> out) throws Exception {
 			int counter = 0;
 
-			while (input.hasNext()) {
-				input.next();
+			for( Tuple1<Integer> el : input) {
 				counter++;
 			}
 			out.collect(new Tuple1<Integer>(counter));
@@ -615,7 +630,7 @@ public class LargeTestPlan {
 
 	// Join LineItems with Orders, collect all customer keys with orders
 	// (records from LineItems are not used, result contains duplicates)
-	public static class CollectCustomerKeysWithOrders extends JoinFunction<Tuple16<Integer, Integer, Integer, Integer, Integer,Float, Float, Float, String, String, String, String, String, String, String, String>,
+	public static class CollectCustomerKeysWithOrders implements JoinFunction<Tuple16<Integer, Integer, Integer, Integer, Integer,Float, Float, Float, String, String, String, String, String, String, String, String>,
 		Tuple9<Integer, Integer, String, Double, String, String, String, Integer, String>, Tuple1<Integer>> {
 
 		@Override
@@ -626,7 +641,7 @@ public class LargeTestPlan {
 	}
 
 	// Removes duplicate keys
-	public static class RemoveDuplicates extends ReduceFunction<Tuple1<Integer>> {
+	public static class RemoveDuplicates implements ReduceFunction<Tuple1<Integer>> {
 
 		@Override
 		public Tuple1<Integer> reduce(Tuple1<Integer> input1, Tuple1<Integer> input2) {
@@ -635,7 +650,7 @@ public class LargeTestPlan {
 	}
 
 	// Adds a flag field to each record.
-	public static class AddFlag extends MapFunction<Tuple8<Integer, String, String, Integer, String, Double, String, String>,
+	public static class AddFlag implements MapFunction<Tuple8<Integer, String, String, Integer, String, Double, String, String>,
 		Tuple9<Integer, String, String, Integer, String, Double, String, String, Boolean>> {
 
 		@Override
@@ -646,7 +661,7 @@ public class LargeTestPlan {
 	}
 
 	// Sets the last (Boolean) flag to "true".
-	public static class SetFlag extends MapFunction<Tuple9<Integer, String, String, Integer, String, Double, String, String, Boolean>,
+	public static class SetFlag implements MapFunction<Tuple9<Integer, String, String, Integer, String, Double, String, String, Boolean>,
 		Tuple9<Integer, String, String, Integer, String, Double, String, String, Boolean>> {
 
 		@Override
@@ -657,7 +672,7 @@ public class LargeTestPlan {
 	}
 
 	// Join which directly outputs the Workset (only necessary to fulfill iteration constraints)
-	public static class WorkSolutionSetJoin extends JoinFunction<Tuple9<Integer, String, String, Integer, String, Double, String, String, Boolean>, Tuple9<Integer, String, String, Integer, String, Double, String, String, Boolean>,
+	public static class WorkSolutionSetJoin implements JoinFunction<Tuple9<Integer, String, String, Integer, String, Double, String, String, Boolean>, Tuple9<Integer, String, String, Integer, String, Double, String, String, Boolean>,
 		Tuple9<Integer, String, String, Integer, String, Double, String, String, Boolean>> {
 
 		@Override
@@ -668,7 +683,7 @@ public class LargeTestPlan {
 	}
 
 	// Outputs the first record of the input stream
-	public static class PickOneRecord extends ReduceFunction<Tuple9<Integer, String, String, Integer, String, Double, String, String, Boolean>> {
+	public static class PickOneRecord implements ReduceFunction<Tuple9<Integer, String, String, Integer, String, Double, String, String, Boolean>> {
 
 		@Override
 		public Tuple9<Integer, String, String, Integer, String, Double, String, String, Boolean> reduce(Tuple9<Integer, String, String, Integer, String, Double, String, String, Boolean> input1, Tuple9<Integer, String, String, Integer, String, Double, String, String, Boolean> input2) throws Exception {
@@ -678,7 +693,7 @@ public class LargeTestPlan {
 	}
 
 	// Outputs the first record of the input stream
-	public static class PickOneOrderRecord extends ReduceFunction<Tuple9<Integer, Integer, String, Double, String, String, String, Integer, String>> {
+	public static class PickOneOrderRecord implements ReduceFunction<Tuple9<Integer, Integer, String, Double, String, String, String, Integer, String>> {
 
 		@Override
 		public Tuple9<Integer, Integer, String, Double, String, String, String, Integer, String> reduce(Tuple9<Integer, Integer, String, Double, String, String, String, Integer, String> input1, Tuple9<Integer, Integer, String, Double, String, String, String, Integer, String> input2) throws Exception {
@@ -688,12 +703,13 @@ public class LargeTestPlan {
 	}
 
 	// Returns only Customers that have no matching Order
-	public static class CustomersWithNoOrders extends CoGroupFunction<Tuple9<Integer, String, String, Integer, String, Double, String, String, Boolean>,
+	public static class CustomersWithNoOrders implements CoGroupFunction<Tuple9<Integer, String, String, Integer, String, Double, String, String, Boolean>,
 		Tuple9<Integer, Integer, String, Double, String, String, String, Integer, String>, Tuple9<Integer, String, String, Integer, String, Double, String, String, Boolean>> {
 
 		@Override
-		public void coGroup(Iterator<Tuple9<Integer, String, String, Integer, String, Double, String, String, Boolean>> input1, Iterator<Tuple9<Integer, Integer, String, Double, String, String, String, Integer, String>> input2, Collector<Tuple9<Integer, String, String, Integer, String, Double, String, String, Boolean>> out) throws Exception {
-
+		public void coGroup(Iterable<Tuple9<Integer, String, String, Integer, String, Double, String, String, Boolean>> input1It, Iterable<Tuple9<Integer, Integer, String, Double, String, String, String, Integer, String>> input2It, Collector<Tuple9<Integer, String, String, Integer, String, Double, String, String, Boolean>> out) throws Exception {
+			Iterator<Tuple9<Integer, String, String, Integer, String, Double, String, String, Boolean>> input1 = input1It.iterator();
+			Iterator<Tuple9<Integer, Integer, String, Double, String, String, String, Integer, String>> input2 = input2It.iterator();
 			// if no order is present output customer
 			if (input1.hasNext() && !input2.hasNext()) {
 				out.collect(input1.next());
@@ -702,11 +718,15 @@ public class LargeTestPlan {
 	}
 
 	// Only return customers that are not in input2
-	public static class RemoveCheckedCustomer extends CoGroupFunction<Tuple9<Integer, String, String, Integer, String, Double, String, String, Boolean>,
+	public static class RemoveCheckedCustomer implements CoGroupFunction<Tuple9<Integer, String, String, Integer, String, Double, String, String, Boolean>,
 		Tuple9<Integer, String, String, Integer, String, Double, String, String, Boolean>, Tuple9<Integer, String, String, Integer, String, Double, String, String, Boolean>> {
 
 		@Override
-		public void coGroup(Iterator<Tuple9<Integer, String, String, Integer, String, Double, String, String, Boolean>> workingSet, Iterator<Tuple9<Integer, String, String, Integer, String, Double, String, String, Boolean>> checkedCustomer, Collector<Tuple9<Integer, String, String, Integer, String, Double, String, String, Boolean>> out) throws Exception {
+		public void coGroup(Iterable<Tuple9<Integer, String, String, Integer, String, Double, String, String, Boolean>> workingSetIt, 
+				Iterable<Tuple9<Integer, String, String, Integer, String, Double, String, String, Boolean>> checkedCustomerIt, 
+				Collector<Tuple9<Integer, String, String, Integer, String, Double, String, String, Boolean>> out) throws Exception {
+			Iterator<Tuple9<Integer, String, String, Integer, String, Double, String, String, Boolean>> workingSet = workingSetIt.iterator();
+			Iterator<Tuple9<Integer, String, String, Integer, String, Double, String, String, Boolean>> checkedCustomer = checkedCustomerIt.iterator();
 			if (!checkedCustomer.hasNext()) {
 				while (workingSet.hasNext())
 					out.collect(workingSet.next());
@@ -715,7 +735,7 @@ public class LargeTestPlan {
 	}
 
 	// Returns all customers with set flag
-	public static class FilterFlaggedCustomers extends FilterFunction<Tuple9<Integer, String, String, Integer, String, Double, String, String, Boolean>> {
+	public static class FilterFlaggedCustomers implements FilterFunction<Tuple9<Integer, String, String, Integer, String, Double, String, String, Boolean>> {
 
 		@Override
 		public boolean filter(Tuple9<Integer, String, String, Integer, String, Double, String, String, Boolean> input) throws Exception {
@@ -725,7 +745,7 @@ public class LargeTestPlan {
 	}
 
 	// Gets all order keys of a customer key
-	public static class OrderKeysFromCustomerKeys extends JoinFunction<Tuple9<Integer, Integer, String, Double, String, String, String, Integer, String>,
+	public static class OrderKeysFromCustomerKeys implements JoinFunction<Tuple9<Integer, Integer, String, Double, String, String, String, Integer, String>,
 		Tuple1<Integer>, Tuple1<Integer>> {
 
 		@Override
@@ -735,7 +755,7 @@ public class LargeTestPlan {
 	}
 
 	// Parses the first key from a string line
-	public static class ExtractKeysFromTextInput extends MapFunction<String, Tuple1<Integer>> {
+	public static class ExtractKeysFromTextInput implements MapFunction<String, Tuple1<Integer>> {
 
 		@Override
 		public Tuple1<Integer> map(String input) throws Exception {
@@ -749,7 +769,7 @@ public class LargeTestPlan {
 	}
 
 	// Returns only the first integer field as record
-	public static class FilterFirstFieldIntKey extends MapFunction<Order, Tuple1<Integer>> {
+	public static class FilterFirstFieldIntKey implements MapFunction<Order, Tuple1<Integer>> {
 
 		@Override
 		public Tuple1<Integer> map(Order input) throws Exception {
@@ -758,7 +778,7 @@ public class LargeTestPlan {
 	}
 
 	// Sum up all date counts
-	public static class SumUpDateCounts extends ReduceFunction<Tuple2<String, Integer>> {
+	public static class SumUpDateCounts implements ReduceFunction<Tuple2<String, Integer>> {
 
 		@Override
 		public Tuple2<String, Integer> reduce(Tuple2<String, Integer> input1, Tuple2<String, Integer> input2) throws Exception {
@@ -767,7 +787,7 @@ public class LargeTestPlan {
 	}
 
 	// Creates string/integer pairs of order dates
-	public static class AvroOrderDateCountMap extends MapFunction<Order, Tuple2<String, Integer>> {
+	public static class AvroOrderDateCountMap implements MapFunction<Order, Tuple2<String, Integer>> {
 
 		@Override
 		public Tuple2<String, Integer> map(Order input) throws Exception {
@@ -777,7 +797,7 @@ public class LargeTestPlan {
 	}
 
 	// Creates string/integer pairs of order dates
-	public static class OrderDateCountMap extends MapFunction<Tuple9<Integer, Integer, String, Double, String, String, String, Integer, String>, Tuple2<String, Integer>> {
+	public static class OrderDateCountMap implements MapFunction<Tuple9<Integer, Integer, String, Double, String, String, String, Integer, String>, Tuple2<String, Integer>> {
 
 		@Override
 		public Tuple2<String, Integer> map(Tuple9<Integer, Integer, String, Double, String, String, String, Integer, String> input) throws Exception {
@@ -787,7 +807,7 @@ public class LargeTestPlan {
 	}
 
 	// Joins customer with a nation records
-	public static class BroadcastJoinNation extends FlatMapFunction<Tuple8<Integer, String, String, Integer, String, Double, String, String>,
+	public static class BroadcastJoinNation extends RichFlatMapFunction<Tuple8<Integer, String, String, Integer, String, Double, String, String>,
 		Tuple12<Integer, String, String, Integer, String, Double, String, String, Integer, String, Integer, String>> {
 
 		private Collection<Tuple4<Integer, String, Integer, String>> nations;
@@ -812,7 +832,7 @@ public class LargeTestPlan {
 	}
 
 	// Joins customer-nation with a region records
-	public static class BroadcastJoinRegion extends FlatMapFunction<Tuple12<Integer, String, String, Integer, String, Double, String, String, Integer, String, Integer, String>,
+	public static class BroadcastJoinRegion extends RichFlatMapFunction<Tuple12<Integer, String, String, Integer, String, Double, String, String, Integer, String, Integer, String>,
 		Tuple15<Integer, String, String, Integer, String, Double, String, String, Integer, String, Integer, String, Integer, String, String>> {
 
 		private Collection<Tuple3<Integer, String, String>> regions;
@@ -837,14 +857,19 @@ public class LargeTestPlan {
 	}
 
 	// Checks the equality of some fields of customer-nation-region record
-	public static class FieldEqualityTest extends CoGroupFunction<Tuple15<Integer, String, String, Integer, String, Double, String, String, Integer, String, Integer, String, Integer, String, String>,
+	public static class FieldEqualityTest implements CoGroupFunction<Tuple15<Integer, String, String, Integer, String, Double, String, String, Integer, String, Integer, String, Integer, String, String>,
 		Tuple15<Integer, String, String, Integer, String, Double, String, String, Integer, String, Integer, String, Integer, String, String>, Tuple15<Integer, String, String, Integer, String, Double, String, String, Integer, String, Integer, String, Integer, String, String>> {
 
 		@Override
-		public void coGroup(Iterator<Tuple15<Integer, String, String, Integer, String, Double, String, String, Integer, String, Integer, String, Integer, String, String>> input1, Iterator<Tuple15<Integer, String, String, Integer, String, Double, String, String, Integer, String, Integer, String, Integer, String, String>> input2, Collector<Tuple15<Integer, String, String, Integer, String, Double, String, String, Integer, String, Integer, String, Integer, String, String>> out) throws Exception {
+		public void coGroup(Iterable<Tuple15<Integer, String, String, Integer, String, Double, String, String, Integer, String, Integer, String, Integer, String, String>> input1It, 
+				Iterable<Tuple15<Integer, String, String, Integer, String, Double, String, String, Integer, String, Integer, String, Integer, String, String>> input2It, 
+				Collector<Tuple15<Integer, String, String, Integer, String, Double, String, String, Integer, String, Integer, String, Integer, String, String>> out) throws Exception {
 			Tuple15<Integer, String, String, Integer, String, Double, String, String, Integer, String, Integer, String, Integer, String, String> r1 = null;
 			Tuple15<Integer, String, String, Integer, String, Double, String, String, Integer, String, Integer, String, Integer, String, String> r2 = null;
-
+			
+			Iterator<Tuple15<Integer, String, String, Integer, String, Double, String, String, Integer, String, Integer, String, Integer, String, String>> input1 = input1It.iterator();
+			Iterator<Tuple15<Integer, String, String, Integer, String, Double, String, String, Integer, String, Integer, String, Integer, String, String>> input2 = input2It.iterator();
+			
 			boolean failed = false;
 			while (input1.hasNext() && input2.hasNext()) {
 				r1 = input1.next();
@@ -875,7 +900,7 @@ public class LargeTestPlan {
 		}
 	}
 
-	public static class TakeFirstHigherPrice extends GroupReduceFunction<Tuple9<Integer, Integer, String, Double, String, String, String, Integer, String>,
+	public static class TakeFirstHigherPrice extends RichGroupReduceFunction<Tuple9<Integer, Integer, String, Double, String, String, String, Integer, String>,
 		Tuple9<Integer, Integer, String, Double, String, String, String, Integer, String>> {
 
 		private Collection<Tuple9<Integer, Integer, String, Double, String, String, String, Integer, String>> vars;
@@ -884,7 +909,9 @@ public class LargeTestPlan {
 			vars = getRuntimeContext().getBroadcastVariable("currently_highest_price");
 		}
 		@Override
-		public void reduce(Iterator<Tuple9<Integer, Integer, String, Double, String, String, String, Integer, String>> input, Collector<Tuple9<Integer, Integer, String, Double, String, String, String, Integer, String>> out) throws Exception {
+		public void reduce(Iterable<Tuple9<Integer, Integer, String, Double, String, String, String, Integer, String>> inputIt, 
+				Collector<Tuple9<Integer, Integer, String, Double, String, String, String, Integer, String>> out) throws Exception {
+			Iterator<Tuple9<Integer, Integer, String, Double, String, String, String, Integer, String>> input = inputIt.iterator();
 
 			Iterator<Tuple9<Integer, Integer, String, Double, String, String, String, Integer, String>> iterator = vars.iterator();
 
