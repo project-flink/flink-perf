@@ -6,7 +6,7 @@ PERFORMANCE_DIR=$FILES_DIRECTORY"/performance"
 
 if [[ ! -e $PERFORMANCE_DIR ]]; then
 	mkdir $PERFORMANCE_DIR;
-	echo "message,word count,wc without combine, connected components,kmeans,TPCH3,Page Rank" >>$PERFORMANCE_DIR"/executiontime.csv"
+	echo "message,word count,wc without combine, connected components,kmeans(low dimension),kmeans(high dimension),TPCH3,Page Rank" >>$PERFORMANCE_DIR"/executiontime.csv"
 fi
 
 message=`date +%Y-%m-%d`
@@ -33,9 +33,14 @@ end=$(date +%s)
 secCP=$(($end - $start))
 
 start=$(date +%s)
-./runKMeansMultiDimension-JAPI.sh
+./runKMeansLowDimension-JAPI.sh
 end=$(date +%s)
-secKMeansMultiDimension=$(($end - $start))
+secKMeansLowDimension=$(($end - $start))
+
+start=$(date +%s)
+./runKMeansHighDimension-JAPI.sh
+end=$(date +%s)
+secKMeansHighDimension=$(($end - $start))
 
 start=$(date +%s)
 ./runTPCH3-JAPI.sh
@@ -49,6 +54,6 @@ secPageRank=$(($end - $start))
 
 
 
-echo $message","$secWC","$secWCWithoutCombine","$secCP","$secKMeansMultiDimension","$secTPCH3","$secPageRank >> $PERFORMANCE_DIR"/executiontime.csv"
+echo $message","$secWC","$secWCWithoutCombine","$secCP","$secKMeansLowDimension","$secKMeansHighDimension","$secTPCH3","$secPageRank >> $PERFORMANCE_DIR"/executiontime.csv"
 
 python plot.py $PERFORMANCE_DIR"/executiontime.csv"

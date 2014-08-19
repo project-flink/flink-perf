@@ -38,7 +38,7 @@ if [[ -e "$FILES_CP_GEN_VERTEX" ]]; then
 fi 
 
 echo "checking for KMeans data"
-if [[ -e "$FILES_KMEANS_GEN_POINT" ]]; then
+if [[ -e "$FILES_KMEANS_LOW_GEN_POINT" ]]; then
 	echo "found generated KMeans data"
 	$HADOOP_BIN fs -test -e $HDFS_KMEANS
 	probe=$?
@@ -47,8 +47,10 @@ if [[ -e "$FILES_KMEANS_GEN_POINT" ]]; then
 	else
 		echo "Uploading to hdfs"
 		$HADOOP_BIN fs -mkdir -p $HDFS_KMEANS"/"
-		$HADOOP_BIN fs -copyFromLocal $FILES_KMEANS_GEN_POINT $HDFS_KMEANS"/"
-		$HADOOP_BIN fs -copyFromLocal $FILES_KMEANS_GEN_CENTER $HDFS_KMEANS"/"
+		$HADOOP_BIN fs -copyFromLocal $FILES_KMEANS_LOW_GEN_POINT $HDFS_KMEANS"/"
+		$HADOOP_BIN fs -copyFromLocal $FILES_KMEANS_LOW_GEN_CENTER $HDFS_KMEANS"/"
+		$HADOOP_BIN fs -copyFromLocal $FILES_KMEANS_HIGH_GEN_POINT $HDFS_KMEANS"/"
+		$HADOOP_BIN fs -copyFromLocal $FILES_KMEANS_HIGH_GEN_CENTER $HDFS_KMEANS"/"		
 	fi
 fi 
 
