@@ -1,5 +1,5 @@
 #!/bin/bash
-
+cd ..
 . ./configDefaults.sh
 
 SCALE=$1
