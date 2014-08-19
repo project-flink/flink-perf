@@ -6,7 +6,7 @@ PERFORMANCE_DIR=$FILES_DIRECTORY"/performance"
 
 if [[ ! -e $PERFORMANCE_DIR ]]; then
 	mkdir $PERFORMANCE_DIR;
-	echo "message,word count,wc without combine, connected components,kmeans,TPCH3" >>$PERFORMANCE_DIR"/executiontime.csv"
+	echo "message,word count,wc without combine, connected components,kmeans,TPCH3,Page Rank" >>$PERFORMANCE_DIR"/executiontime.csv"
 fi
 
 message=`date +%Y-%m-%d`
@@ -42,9 +42,13 @@ start=$(date +%s)
 end=$(date +%s)
 secTPCH3=$(($end - $start))
 
+start=$(date +%s)
+./runPageRank-JAPI.sh
+end=$(date +%s)
+secPageRank=$(($end - $start))
 
 
 
-echo $message","$secWC","$secWCWithoutCombine","$secCP","$secKMeansMultiDimension","$secTPCH3 >> $PERFORMANCE_DIR"/executiontime.csv"
+echo $message","$secWC","$secWCWithoutCombine","$secCP","$secKMeansMultiDimension","$secTPCH3","$secPageRank >> $PERFORMANCE_DIR"/executiontime.csv"
 
 python plot.py $PERFORMANCE_DIR"/executiontime.csv"
