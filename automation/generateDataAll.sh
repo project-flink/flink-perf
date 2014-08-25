@@ -11,5 +11,8 @@ echo "Generating KMeans data."
 echo "Generating Connected Components data."
 ./generateCPdata.sh
 
+echo "Generating Page Rank data."
+./generatePRdata.sh
+
 echo "Generating TPCH data."
 ./generateTestjobData.sh

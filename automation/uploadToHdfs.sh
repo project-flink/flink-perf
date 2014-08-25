@@ -37,6 +37,21 @@ if [[ -e "$FILES_CP_GEN_VERTEX" ]]; then
 	fi
 fi 
 
+echo "checking for Page Rank data"
+if [[ -e "$FILES_PAGERANK_GEN_VERTEX" ]]; then
+	echo "found generated page rank data"
+	$HADOOP_BIN fs -test -e $HDFS_PAGERANK
+	probe=$?
+	if [ $probe -ne 1 ]; then
+		echo "There is already page rank data in hdfs. Skipping ...";
+	else
+		echo "Uploading to hdfs"
+		$HADOOP_BIN fs -mkdir -p $HDFS_PAGERANK"/"
+		$HADOOP_BIN fs -copyFromLocal $FILES_PAGERANK_GEN_VERTEX $HDFS_PAGERANK"/"
+		$HADOOP_BIN fs -copyFromLocal $FILES_PAGERANK_GEN_EDGE $HDFS_PAGERANK"/"
+	fi
+fi 
+
 echo "checking for KMeans data"
 if [[ -e "$FILES_KMEANS_LOW_GEN_POINT" ]]; then
 	echo "found generated KMeans data"
