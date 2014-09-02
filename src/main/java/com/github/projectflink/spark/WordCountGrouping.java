@@ -11,11 +11,13 @@ import org.apache.spark.api.java.function.PairFunction;
 
 import scala.Tuple2;
 
+
 public class WordCountGrouping {
 	public static void main(String[] args) {
 		String master = args[0];
 		String inFile = args[1];
 		String outFile = args[2];
+		int numParts = Integer.valueOf(args[3]);
 		System.err.println("Starting spark with master="+master+" in="+inFile+" out="+outFile);
 		
 		SparkConf conf = new SparkConf().setAppName("WordCountGrouping").setMaster(master);
@@ -33,7 +35,7 @@ public class WordCountGrouping {
 			}
 		});
 		
-		JavaPairRDD<String, Integer> counts  = pairs.groupByKey().mapToPair(new PairFunction<Tuple2<String,Iterable<Integer>>, String, Integer>() {
+		JavaPairRDD<String, Integer> counts  = pairs.groupByKey(numParts).mapToPair(new PairFunction<Tuple2<String,Iterable<Integer>>, String, Integer>() {
 			@Override
 			public Tuple2<String, Integer> call(Tuple2<String, Iterable<Integer>> group) throws Exception {
 				int count = 0;
