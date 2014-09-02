@@ -1,4 +1,6 @@
 #!/bin/bash
+cd ..
+. ./configDefaults.sh
 
 VERTEX_NUM=$1
 EDGE_NUM=$2
@@ -11,11 +13,9 @@ echo "vertex_num=$VERTEX_NUM, edge_num=$EDGE_NUM"
 
 echo "Generating Data that is required for running the tasks"
 
-. ./configDefaults.sh
-
 mkdir -p $FILES_DIRECTORY"/cp-data"
 
-python CPDataGenerator.py $VERTEX_NUM $EDGE_NUM $FILES_CP_GEN_VERTEX $FILES_CP_GEN_EDGE
+python data-generator/RandomGraphGenerator.py $VERTEX_NUM $EDGE_NUM 1 $FILES_CP_GEN_VERTEX $FILES_CP_GEN_EDGE
 
 
 echo "done. find the generated file in $FILES_DIRECTORY/cp-data/"

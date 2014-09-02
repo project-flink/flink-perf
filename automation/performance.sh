@@ -6,7 +6,7 @@ PERFORMANCE_DIR=$FILES_DIRECTORY"/performance"
 
 if [[ ! -e $PERFORMANCE_DIR ]]; then
 	mkdir $PERFORMANCE_DIR;
-	echo "message,word count,connected components,testjob" >>$PERFORMANCE_DIR"/executiontime.csv"
+	echo "message,word count,wc without combine, connected components,kmeans(low dimension),kmeans(high dimension),TPCH3,Page Rank" >>$PERFORMANCE_DIR"/executiontime.csv"
 fi
 
 message=`date +%Y-%m-%d`
@@ -18,21 +18,42 @@ while getopts "m:" OPTION; do
 done
 
 start=$(date +%s)
-./runWC.sh
+./runWC-JAPI.sh
 end=$(date +%s)
 secWC=$(($end - $start))
 
 start=$(date +%s)
-./runCP.sh
+./runWC-JAPI-withoutCombine.sh
+end=$(date +%s)
+secWCWithoutCombine=$(($end - $start))
+
+start=$(date +%s)
+./runCP-JAPI.sh
 end=$(date +%s)
 secCP=$(($end - $start))
 
 start=$(date +%s)
-./runTestjob.sh
+./runKMeansLowDimension-JAPI.sh
 end=$(date +%s)
-secTestjob=$(($end - $start))
+secKMeansLowDimension=$(($end - $start))
+
+start=$(date +%s)
+./runKMeansHighDimension-JAPI.sh
+end=$(date +%s)
+secKMeansHighDimension=$(($end - $start))
+
+start=$(date +%s)
+./runTPCH3-JAPI.sh
+end=$(date +%s)
+secTPCH3=$(($end - $start))
+
+start=$(date +%s)
+./runPageRank-JAPI.sh
+end=$(date +%s)
+secPageRank=$(($end - $start))
 
 
-echo "$message,"$secWC","$secCP","$secTestjob >> $PERFORMANCE_DIR"/executiontime.csv"
+
+echo $message","$secWC","$secWCWithoutCombine","$secCP","$secKMeansLowDimension","$secKMeansHighDimension","$secTPCH3","$secPageRank >> $PERFORMANCE_DIR"/executiontime.csv"
 
 python plot.py $PERFORMANCE_DIR"/executiontime.csv"

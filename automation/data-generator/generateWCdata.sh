@@ -1,4 +1,6 @@
 #!/bin/bash
+cd ..
+. ./configDefaults.sh
 
 LINES=$1
 if [[ -z "$LINES" ]]; then
@@ -9,12 +11,10 @@ echo "LINES=$LINES"
 
 echo "Generating Data that is required for running the tasks"
 
-. ./configDefaults.sh
-
 cd $FILES_DIRECTORY
 mkdir -p wc-data
 cd wc-data
-
+pwd
 if [[ ! -f "en-common.wl.utf8" ]]; then
 	echo "downloading dictionary"
 	wget ftp://ftp.gnu.org/gnu/aspell/dict/en/aspell6-en-7.1-0.tar.bz2

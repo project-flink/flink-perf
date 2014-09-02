@@ -1,5 +1,5 @@
 #!/bin/bash
-
+cd ..
 . ./configDefaults.sh
 
 SCALE=$1
@@ -36,6 +36,8 @@ if [[ ! -d "tpch_2_16_0" ]]; then
 		sed -i "" 's/DATABASE=/DATABASE= SQLSERVER/g' Makefile
 		sed -i "" 's/MACHINE =/MACHINE = LINUX/g' Makefile
 		sed -i "" 's/WORKLOAD =/WORKLOAD = TPCH/g' Makefile
+		sed -i "" 's/<malloc.h>/<sys\/malloc.h>/g' bm_utils.c
+		sed -i "" 's/<malloc.h>/<sys\/malloc.h>/g' varsub.c
 	else
 		echo "System $OS is not supported"
 	fi
