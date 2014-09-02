@@ -6,6 +6,9 @@
 GIT_REPO=https://github.com/apache/incubator-flink.git
 GIT_BRANCH=master
 
+#Comma separated list of pull requests to be merged before building
+PULL_REQUESTS=""
+
 # the repo must be called testjob
 TESTJOB_REPO=https://github.com/project-flink/flink-perf.git
 TESTJOB_BRANCH=master

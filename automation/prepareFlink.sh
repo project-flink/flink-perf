@@ -30,15 +30,23 @@ git remote set-url origin $GIT_REPO
 git fetch origin
 git checkout origin/$GIT_BRANCH
 
-echo "building flink"
-$MVN_BIN clean install -DskipTests -Dmaven.javadoc.skip=true $CUSTOM_FLINK_MVN
+IFS=","
+for pr in $PULL_REQUESTS ; do
+	wget https://github.com/apache/incubator-flink/pull/$pr.patch
+	echo "downloaded patch $pr.patch"
+	git am --signoff $pr.patch
+	rm $pr.patch # clean up directory
+done
+sleep 4
 
+echo "building flink"
+#$MVN_BIN clean install -DskipTests -Dmaven.javadoc.skip=true $CUSTOM_FLINK_MVN
+eval "$MVN_BIN clean install -DskipTests -Dmaven.javadoc.skip=true $CUSTOM_FLINK_MVN"
 cd $FILES_DIRECTORY
 
 if [[ $YARN == "true" ]]; then
-	rm -r *yarn.tar.gz
-	cp -r flink/flink-dist/target/*yarn.tar.gz .
-	tar xzf *yarn.tar.gz
+	rm -r *yarn*
+	cp -r flink/flink-dist/target/flink-*-bin/*yarn* .
 	mkdir flink-build
 	cd flink-build
 	rm -rf *
