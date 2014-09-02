@@ -37,7 +37,7 @@ for pr in $PULL_REQUESTS ; do
 	git am --signoff $pr.patch
 	rm $pr.patch # clean up directory
 done
-sleep 4
+
 
 echo "building flink"
 #$MVN_BIN clean install -DskipTests -Dmaven.javadoc.skip=true $CUSTOM_FLINK_MVN

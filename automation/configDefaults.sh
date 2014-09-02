@@ -9,6 +9,9 @@ GIT_BRANCH=master
 #Comma separated list of pull requests to be merged before building
 PULL_REQUESTS=""
 
+
+SPARK_GIT_REPO=https://github.com/apache/spark.git
+
 # the repo must be called testjob
 TESTJOB_REPO=https://github.com/project-flink/flink-perf.git
 TESTJOB_BRANCH=master
@@ -43,6 +46,7 @@ HADOOP_BIN="hadoop"
 # FLINK Directory
 FLINK_BUILD_HOME=$FILES_DIRECTORY"/flink-build"
 
+SPARK_HOME=$FILES_DIRECTORY"/spark"
 # General Stuff
 DOP=1
 
@@ -50,6 +54,7 @@ DOP=1
 FILES_WC_GEN=$FILES_DIRECTORY"/wc-data/generated-wc.txt"
 HDFS_WC=$HDFS_WORKING_DIRECTORY"/wc-in"
 HDFS_WC_OUT=$HDFS_WORKING_DIRECTORY"/wc-out-"$RAND
+HDFS_SPARK_WC_OUT=$HDFS_WORKING_DIRECTORY"/spark-wc-out-"$RAND
 
 #Connected Component
 FILES_CP_GEN_VERTEX=$FILES_DIRECTORY"/cp-data/vertex.txt"
