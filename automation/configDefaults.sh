@@ -11,6 +11,7 @@ PULL_REQUESTS=""
 
 
 SPARK_GIT_REPO=https://github.com/apache/spark.git
+SPARK_GIT_BRANCH="master"
 
 # the repo must be called testjob
 TESTJOB_REPO=https://github.com/project-flink/flink-perf.git

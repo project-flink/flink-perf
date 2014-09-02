@@ -24,10 +24,10 @@ if [[ ! -e $SPARK_DIR ]]; then
 fi
 
 echo "Going into Spark dir, fetching and checking out."
-cd flink
+cd spark
 git remote set-url origin $SPARK_GIT_REPO
 git fetch origin
-git checkout origin/$GIT_BRANCH
+git checkout origin/$SPARK_GIT_BRANCH
 
 
 echo "building spark"

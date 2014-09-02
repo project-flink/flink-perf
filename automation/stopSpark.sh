@@ -5,5 +5,5 @@ echo "Starting Spark"
 . ./configDefaults.sh
 
 
-$SPARK_HOME/sbin/start-all.sh
+$SPARK_HOME/sbin/stop-all.sh
 
