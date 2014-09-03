@@ -18,7 +18,7 @@ public class WordCountGrouping {
 		String inFile = args[1];
 		String outFile = args[2];
 		int numParts = Integer.valueOf(args[3]);
-		System.err.println("Starting spark with master="+master+" in="+inFile+" out="+outFile);
+		System.out.println("Starting spark with master="+master+" in="+inFile+" out="+outFile);
 		
 		SparkConf conf = new SparkConf().setAppName("WordCountGrouping").setMaster(master);
 		JavaSparkContext sc = new JavaSparkContext(conf);
