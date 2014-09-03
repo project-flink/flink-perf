@@ -4,6 +4,5 @@ echo "Running wordcount japi without combine example"
 
 . ./configDefaults.sh
 
-ARGS="$HDFS_WC $HDFS_WC_OUT"
-echo "running wc with args $ARGS"
-$FLINK_BUILD_HOME"/bin/flink" run -p $DOP -c com.github.projectflink.testPlan.WordCountWithoutCombine -j $TESTJOB_HOME"/target/flink-perf-*.jar" $ARGS
+echo "running wc with args"
+$FLINK_BUILD_HOME"/bin/flink" run -c com.github.projectflink.testPlan.WordCountWithoutCombine -p $DOP $TESTJOB_HOME"/flink-jobs/target/flink-jobs-*-SNAPSHOT.jar" $HDFS_WC $HDFS_WC_OUT

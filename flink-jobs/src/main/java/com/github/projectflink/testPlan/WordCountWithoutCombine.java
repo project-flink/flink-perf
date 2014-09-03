@@ -16,6 +16,7 @@ package com.github.projectflink.testPlan;
 
 import java.util.Iterator;
 
+import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.java.DataSet;
@@ -37,7 +38,7 @@ import org.apache.flink.util.Collector;
  * <p>
  * This example shows how to:
  * <ul>
- * <li>write a simple Stratosphere program.
+ * <li>write a simple Flink program.
  * <li>use Tuple data types.
  * <li>write and use user-defined functions. 
  * </ul>
@@ -64,7 +65,12 @@ public class WordCountWithoutCombine {
 		
 		DataSet<Tuple2<String, Integer>> counts = 
 				// split up the lines in pairs (2-tuples) containing: (word,1)
-				text.flatMap(new Tokenizer())
+				text.flatMap(new Tokenizer()).filter(new FilterFunction<Tuple2<String,Integer>>() {
+					@Override
+					public boolean filter(Tuple2<String, Integer> value) throws Exception {
+						return !value.f1.equals("");
+					}
+				})
 				// group by the tuple field "0" and sum up tuple field "1"
 				.groupBy(0)
 				.reduceGroup(new GroupReduceFunction<Tuple2<String,Integer>, Tuple2<String, Integer>>() {
@@ -83,11 +89,12 @@ public class WordCountWithoutCombine {
 						out.collect(val);
 					}
 				});
-
-		counts.writeAsCsv(outputPath, "\n", " ");
+		
+		counts.writeAsText(outputPath);
+		// counts.writeAsCsv(outputPath, "\n", " ");
 		
 		// execute program
-		env.execute("WordCount Example");
+		env.execute("WordCountWithoutcombine");
 	}
 	
 	// *************************************************************************
@@ -130,7 +137,8 @@ public class WordCountWithoutCombine {
 				textPath = args[0];
 				outputPath = args[1];
 			} else {
-				System.err.println("Usage: WordCount <text path> <result path>");
+				System.err.println("Wrong argument count. got "+args.length);
+				System.err.println("Usage: WordCountWithoutCombine <text path> <result path>");
 				return false;
 			}
 		} else {
