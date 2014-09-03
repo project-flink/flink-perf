@@ -25,7 +25,7 @@ public class WordCount {
 		JavaRDD<String> file = sc.textFile(inFile);
 		JavaRDD<String> words = file.flatMap(new FlatMapFunction<String, String>() {
 					public Iterable<String> call(String s) {
-						return Arrays.asList(s.split(" "));
+						return Arrays.asList( s.toLowerCase().split("\\W+") );
 					}
 				});
 		JavaPairRDD<String, Integer> pairs = words.mapToPair(new PairFunction<String, String, Integer>() {
