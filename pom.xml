@@ -7,11 +7,17 @@
   <artifactId>flink-perf</artifactId>
   <name>flink-perf</name>
 
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
+
   <packaging>pom</packaging>  
   <modules>
     <module>flink-jobs</module>
     <module>spark-jobs</module>
+    <module>perf-common</module>
   </modules>
   
+
 
 </project>

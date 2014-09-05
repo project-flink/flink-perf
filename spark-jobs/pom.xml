@@ -4,8 +4,6 @@
 
 	<modelVersion>4.0.0</modelVersion>
 
-	<groupId>com.github.project-flink</groupId>
-	<version>0.1-SNAPSHOT</version>
 	<artifactId>spark-jobs</artifactId>
 	<name>spark-jobs</name>
 
@@ -45,9 +43,21 @@
 		<dependency>
 			<groupId>org.apache.spark</groupId>
 			<artifactId>spark-core_2.10</artifactId>
-			<version>1.0.2</version>
+			<version>1.1.0</version>
 		</dependency>
-	</dependencies>
+		<dependency>
+			<groupId>org.apache.spark</groupId>
+			<artifactId>spark-sql_2.10</artifactId>
+			<version>1.1.0</version>
+		</dependency>
+
+        <dependency>
+            <groupId>org.scala-lang</groupId>
+            <artifactId>scala-library</artifactId>
+            <version>2.10.3</version>
+        </dependency>
+
+    </dependencies>
 
 	<build>
 		<plugins>
@@ -66,6 +76,20 @@
 
 							<includes>
 								<include>**/spark/WordCount*</include>
+							</includes>
+						</configuration>
+					</execution>
+					<execution>
+						<id>All</id>
+						<phase>package</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+						<configuration>
+							<classifier>All</classifier>
+
+							<includes>
+								<include>**/spark/*</include>
 							</includes>
 						</configuration>
 					</execution>
@@ -110,6 +134,39 @@
 					<argLine>-Xmx1024m</argLine>
 				</configuration>
 			</plugin>
+
+            <plugin>
+                <groupId>net.alchim31.maven</groupId>
+                <artifactId>scala-maven-plugin</artifactId>
+                <version>3.1.4</version>
+                <executions>
+                    <!-- Run scala compiler in the process-resources phase, so that dependencies on
+                        scala classes can be resolved later in the (Java) compile phase -->
+                    <execution>
+                        <id>scala-compile-first</id>
+                        <phase>process-resources</phase>
+                        <goals>
+                            <goal>compile</goal>
+                        </goals>
+                    </execution>
+
+                    <!-- Run scala compiler in the process-test-resources phase, so that dependencies on
+                         scala classes can be resolved later in the (Java) test-compile phase -->
+                    <execution>
+                        <id>scala-test-compile</id>
+                        <phase>process-test-resources</phase>
+                        <goals>
+                            <goal>testCompile</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <jvmArgs>
+                        <jvmArg>-Xms128m</jvmArg>
+                        <jvmArg>-Xmx512m</jvmArg>
+                    </jvmArgs>
+                </configuration>
+            </plugin>
 
 			<plugin>
 				<artifactId>maven-failsafe-plugin</artifactId>

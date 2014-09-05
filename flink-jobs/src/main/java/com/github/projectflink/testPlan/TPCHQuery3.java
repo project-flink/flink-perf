@@ -32,9 +32,9 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.api.java.tuple.Tuple5;
-
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.core.fs.FileSystem.WriteMode;
 
 /**
  * This program implements a modified version of the TPC-H query 3. The
@@ -188,7 +188,7 @@ public class TPCHQuery3 {
 			.aggregate(Aggregations.SUM, 1);
 
 		// emit result
-		joined.writeAsCsv(outputPath, "\n", "|");
+		joined.writeAsCsv(outputPath, "\n", "|", WriteMode.OVERWRITE);
 
 		// execute program
 		env.execute("TPCH Query 3 Example");

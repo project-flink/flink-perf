@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "Starting Spark"
+echo "Stopping Spark"
 
 . ./configDefaults.sh
 

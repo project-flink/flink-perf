@@ -19,6 +19,7 @@
 package com.github.projectflink.spark;
 
 
+import com.github.projectflink.spark.scala.ScalaRegistrator;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
@@ -27,6 +28,7 @@ import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.PairFunction;
 import org.apache.spark.api.java.function.Function2;
 import org.apache.spark.broadcast.Broadcast;
+
 import scala.Tuple2;
 
 import java.io.Serializable;
@@ -36,21 +38,27 @@ import java.util.List;
 
 public class KMeansArbitraryDimension {
 
-
 	public static void main(String[] args) {
 
 		if(!parseParameters(args)) {
 			return;
 		}
 
-		SparkConf conf = new SparkConf().setAppName("KMeans").setMaster(master);
+		SparkConf conf = new SparkConf().setAppName("KMeans Multi-Dimension").setMaster(master);
+		conf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer");
+		// conf.set("spark.kryo.registrator", ScalaRegistrator.class.getCanonicalName());
+		conf.set("spark.kryo.registrator", MyRegistrator.class.getCanonicalName());
+
+
+
 		JavaSparkContext sc = new JavaSparkContext(conf);
 
 		// ================================ Standard KMeans =============================
 
 		JavaRDD<Point> points = sc
-			.textFile(pointsPath)
+			.textFile(pointsPath, 400)
 			.map(new ConvertToPoint());
+		points.cache();
 
 		JavaPairRDD<Integer, Point> kCenters = sc
 			.textFile(centersPath)
@@ -64,14 +72,13 @@ public class KMeansArbitraryDimension {
 				.mapToPair(new SelectNearestCentroid(brCenters))
 				// count and sum point coordinates for each centroid
 				.mapToPair(new CountAppender())
-				.reduceByKey(new CentroidSum())
+			//	.reduceByKey(new CentroidSum())
+				//.groupByKey().map()
 				// calculate the mean( the new center ) of each cluster
 				.mapToPair(new CentroidAverage());
 
 			brCenters.unpersist();
 		}
-
-//		kCenters.saveAsTextFile(outputPath);
 
 		Broadcast<List<Tuple2<Integer, Point>>> brCenters = sc.broadcast(kCenters.collect());
 		JavaPairRDD<Integer, Point> clusteredPoints = points.mapToPair(new SelectNearestCentroid(brCenters));

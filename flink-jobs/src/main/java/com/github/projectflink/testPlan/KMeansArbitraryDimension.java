@@ -22,13 +22,13 @@ import java.util.Collection;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.api.java.functions.RichMapFunction;
+import org.apache.flink.api.common.functions.RichMapFunction;
+import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.IterativeDataSet;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.util.StringUtils;
 
@@ -109,8 +109,8 @@ public class KMeansArbitraryDimension {
 			.map(new SelectNearestCenter()).withBroadcastSet(finalCentroids, "centroids");
 
 		// emit result
-		clusteredPoints.writeAsCsv(outputPath, "\n", " ", FileSystem.WriteMode.OVERWRITE);
-
+		//clusteredPoints.writeAsCsv(outputPath, "\n", " ", FileSystem.WriteMode.OVERWRITE);
+		clusteredPoints.writeAsText(outputPath);
 		// execute program
 		env.execute("KMeans Multi-Dimension");
 
@@ -176,7 +176,7 @@ public class KMeansArbitraryDimension {
 
 		@Override
 		public String toString() {
-			return id + " " + super.toString();
+			return id + "," + super.toString();
 		}
 	}
 

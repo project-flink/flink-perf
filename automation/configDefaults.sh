@@ -1,6 +1,14 @@
 #!/bin/bash
 
+#export all these variables
+set -a
+
 # This is a simple bash file containing configuration values as variables
+if [ "$DEFAULTS_READ" = "true" ] ; then
+	echo "defaults already read. exiting"
+	return 0
+fi
+
 
 # the repo must be called flink
 GIT_REPO=https://github.com/apache/incubator-flink.git
@@ -75,6 +83,8 @@ HDFS_KMEANS_OUT=$HDFS_WORKING_DIRECTORY"/kmeans-out-"$RAND
 HDFS_SPARK_KMEANS_OUT=$HDFS_WORKING_DIRECTORY"/spark-kmeans-out-"$RAND
 HDFS_KMEANS_POINTS=$HDFS_WORKING_DIRECTORY"/kmeans-points"
 HDFS_KMEANS_CENTERS=$HDFS_WORKING_DIRECTORY"/kmeans-centers"
+HDFS_KMEANS_PERF_POINTS=""
+HDFS_KMEANS_PERF_CENTERS=""
 
 #Page Rank
 FILES_PAGERANK_GEN_VERTEX=$FILES_DIRECTORY"/pagerank-data/vertex.txt"
@@ -105,4 +115,5 @@ if [[ `basename $BASH_SOURCE` == "configDefaults.sh" ]] ; then
 		. ./config.sh
 	fi
 fi
-
+# see first statement
+export DEFAULTS_READ="true"
