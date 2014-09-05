@@ -19,7 +19,7 @@ echo "+++ preparing Spark +++"
 
 echo "checking if Spark dir exists (SPARK_DIR=$SPARK_DIR)"
 if [[ ! -e $SPARK_DIR ]]; then
-	echo "Cloning flink"
+	echo "Cloning spark"
 	git clone $SPARK_GIT_REPO spark
 fi
 
