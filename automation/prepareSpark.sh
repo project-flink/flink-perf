@@ -27,12 +27,13 @@ echo "Going into Spark dir, fetching and checking out."
 cd spark
 git remote set-url origin $SPARK_GIT_REPO
 git fetch origin
-git checkout origin/$SPARK_GIT_BRANCH
+git checkout $SPARK_GIT_BRANCH
 
 
 echo "building spark"
 #$MVN_BIN clean install -DskipTests -Dmaven.javadoc.skip=true $CUSTOM_FLINK_MVN
-eval "sbt/sbt -Dhadoop.version=2.2.0 -Pyarn assembly"
+#eval "sbt/sbt -Dhadoop.version=2.2.0 -Pyarn assembly"
+SPARK_HADOOP_VERSION=2.2.0 SPARK_YARN=true sbt/sbt assembly
 cd $FILES_DIRECTORY
 
 
