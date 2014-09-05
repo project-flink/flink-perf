@@ -96,10 +96,10 @@ public class KMeansArbitraryDimension {
 		DataSet<Centroid> newCentroids = points
 			// compute closest centroid for each point
 			.map(new SelectNearestCenter()).withBroadcastSet(loop, "centroids")
-				// count and sum point coordinates for each centroid
+			// count and sum point coordinates for each centroid
 			.map(new CountAppender())
 			.groupBy(0).reduce(new CentroidAccumulator())
-				// compute new centroids from point counts and coordinate sums
+			// compute new centroids from point counts and coordinate sums
 			.map(new CentroidAverager());
 		// feed new centroids back into next iteration
 		DataSet<Centroid> finalCentroids = loop.closeWith(newCentroids);
@@ -120,9 +120,6 @@ public class KMeansArbitraryDimension {
 	//     DATA TYPES
 	// *************************************************************************
 
-	/**
-	 * A simple two-dimensional point.
-	 */
 	public static class Point implements Serializable {
 
 		public double [] points;
@@ -161,9 +158,6 @@ public class KMeansArbitraryDimension {
 		}
 	}
 
-	/**
-	 * A simple two-dimensional centroid, basically a point with an ID. 
-	 */
 	public static class Centroid extends Point {
 
 		public int id;

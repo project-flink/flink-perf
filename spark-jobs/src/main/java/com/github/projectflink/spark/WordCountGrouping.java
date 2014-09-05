@@ -39,10 +39,10 @@ public class WordCountGrouping {
 			@Override
 			public Tuple2<String, Integer> call(Tuple2<String, Iterable<Integer>> group) throws Exception {
 				int count = 0;
-				for(Integer a : group._2  ) {
+				for(Integer a : group._2()  ) {
 					count += a;
 				}
-				return new Tuple2<String, Integer>(group._1, count);
+				return new Tuple2<String, Integer>(group._1(), count);
 			}
 		});
 		counts.saveAsTextFile(outFile);
