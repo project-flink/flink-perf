@@ -10,5 +10,5 @@ echo "running connected components with args $ARGS"
 
 $SPARK_HOME/bin/spark-submit --master spark://$HOST:7077 \
  --class com.github.projectflink.spark.ConnectedComponents \
- `ls "$TESTJOB_HOME"/spark-jobs/target/spark-jobs-*.jar` \
+ `ls "$TESTJOB_HOME"/spark-jobs/target/spark-jobs-*-SNAPSHOT.jar` \
  $ARGS

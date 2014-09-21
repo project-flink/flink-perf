@@ -7,6 +7,6 @@ echo "Running KMeans High Dimension"
 ARGS="$HDFS_KMEANS/point-high.txt $HDFS_KMEANS/center-high.txt $HDFS_KMEANS_OUT/high 100"
 echo "running KMeans with args $ARGS"
 
-$FLINK_BUILD_HOME"/bin/flink" run -p $DOP $TESTJOB_HOME"/target/flink-perf-*.jar" \
+$FLINK_BUILD_HOME"/bin/flink" run -p $DOP $TESTJOB_HOME"/flink-jobs/target/flink-jobs-*-SNAPSHOT.jar" \
  -c com.github.projectflink.testPlan.KMeansArbitraryDimension $ARGS
 

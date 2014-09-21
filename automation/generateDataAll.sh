@@ -12,7 +12,7 @@ echo "Generating Connected Components data."
 ./generateCPdata.sh
 
 echo "Generating Page Rank data."
-./generatePRdata.sh
+./generatePRdata.sh 1000000 1000000
 
 echo "Generating TPCH data."
 ./generateTestjobData.sh
