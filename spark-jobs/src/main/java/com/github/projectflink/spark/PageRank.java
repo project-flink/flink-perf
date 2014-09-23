@@ -68,7 +68,8 @@ public class PageRank {
 					}
 					return new Tuple2<Long, Long[]>(t._1(), neighbors.toArray(new Long[neighbors.size()]));
 				}
-			});
+			})
+			.cache();
 
 		for (int i = 0; i < maxIterations; i++) {
 			// join pages with outgoing edges and distribute rank

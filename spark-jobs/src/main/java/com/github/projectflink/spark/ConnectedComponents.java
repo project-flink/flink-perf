@@ -35,7 +35,8 @@ public class ConnectedComponents {
 
 		JavaPairRDD<Long, Long> edges = sc
 			.textFile(edgesPath)
-			.flatMapToPair(new UndirectedEdge());
+			.flatMapToPair(new UndirectedEdge())
+			.cache();
 		
 		JavaPairRDD<Long, Long> cc = vertices.mapToPair(new PairFunction<Long, Long, Long>() {
 			@Override
