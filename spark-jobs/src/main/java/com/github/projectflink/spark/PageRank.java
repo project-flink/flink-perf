@@ -16,7 +16,6 @@ import java.util.ArrayList;
 public class PageRank {
 
 	private static final double DAMPENING_FACTOR = 0.85;
-	private static final double EPSILON = 0.0001;
 
 
 	public static void main(String[] args) {
@@ -90,7 +89,7 @@ public class PageRank {
 				});
 
 			// sum ranks and apply dampening factor
-			JavaPairRDD<Long, Double> newRank = rankToDistribute
+			pagesWithRanks = rankToDistribute
 				.reduceByKey(new Function2<Double, Double, Double>() {
 					@Override
 					public Double call(Double t1, Double t2) throws Exception {
@@ -104,23 +103,6 @@ public class PageRank {
 						return new Tuple2<Long, Double>(t._1(), t._2() * DAMPENING_FACTOR + randomJump);
 					}
 				});
-
-			// termination criteria
-			JavaPairRDD<Long, Tuple2<Double, Double>> filterEpsilon = newRank
-				.join(pagesWithRanks)
-				.filter(new Function<Tuple2<Long, Tuple2<Double, Double>>, Boolean>() {
-					@Override
-					public Boolean call(Tuple2<Long, Tuple2<Double, Double>> t) throws Exception {
-						return Math.abs(t._2()._1() - t._2()._2()) > EPSILON;
-					}
-				});
-
-			pagesWithRanks = newRank;
-
-			if (filterEpsilon.count() == 0) {
-				break;
-			}
-
 		}
 
 		pagesWithRanks.saveAsTextFile(outputPath);
