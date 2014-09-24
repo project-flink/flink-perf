@@ -48,12 +48,7 @@ public class PageRank {
 
 		// assign initial rank to pages
 		JavaPairRDD<Long, Double> pagesWithRanks = pagesInput
-			.mapToPair(new PairFunction<Long, Long, Double>() {
-				@Override
-				public Tuple2<Long, Double> call(Long a) throws Exception {
-					return new Tuple2<Long, Double>(a, 1.0d / numPages);
-				}
-			});
+			.mapToPair(new RankAssigner(numPages));
 
 		// build adjacency list from link input
 		JavaPairRDD<Long, Long[]> adjacencyListInput = linksInput
@@ -97,18 +92,42 @@ public class PageRank {
 						return t1 + t2;
 					}
 				})
-				.mapToPair(new PairFunction<Tuple2<Long, Double>, Long, Double>() {
-					@Override
-					public Tuple2<Long, Double> call(Tuple2<Long, Double> t) throws Exception {
-						double randomJump = (1 - DAMPENING_FACTOR) / numPages;
-						return new Tuple2<Long, Double>(t._1(), t._2() * DAMPENING_FACTOR + randomJump);
-					}
-				});
+				.mapToPair(new Dampener(DAMPENING_FACTOR, numPages));
 		}
 
 		pagesWithRanks.saveAsTextFile(outputPath);
 
 	}
+
+	public static final class RankAssigner implements PairFunction<Long, Long, Double> {
+
+		private double rank;
+
+		public RankAssigner(Long numVertices){
+			this.rank = 1.0d / numVertices;
+		}
+
+		@Override
+		public Tuple2<Long, Double> call(Long a) throws Exception {
+			return new Tuple2<Long, Double>(a, rank);
+		}
+	}
+
+	public static final class Dampener implements PairFunction<Tuple2<Long, Double>, Long, Double> {
+
+		private final double dampening;
+		private final double randomJump;
+
+		public Dampener(double dampening, Long numVertices) {
+			this.dampening = dampening;
+			this.randomJump = (1 - dampening) / numVertices;
+		}
+		@Override
+		public Tuple2<Long, Double> call(Tuple2<Long, Double> t) throws Exception {
+			return new Tuple2<Long, Double>(t._1(), t._2() * dampening + randomJump);
+		}
+	}
+
 
 	// *************************************************************************
 	//     UTIL METHODS

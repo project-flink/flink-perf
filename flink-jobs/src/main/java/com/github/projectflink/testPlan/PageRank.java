@@ -64,9 +64,7 @@ public class PageRank {
 				// apply dampening factor
 			.map(new Dampener(DAMPENING_FACTOR, numPages));
 
-		DataSet<Tuple2<Long, Double>> finalPageRanks = iteration.closeWith(
-			newRanks,
-			newRanks.join(iteration).where(0).equalTo(0));
+		DataSet<Tuple2<Long, Double>> finalPageRanks = iteration.closeWith(newRanks);
 
 		// emit result
 		finalPageRanks.writeAsCsv(outputPath, "\n", " ");
