@@ -40,7 +40,7 @@ public class WordCountGrouping {
 		}).filter(new Function<Tuple2<String,Integer>, Boolean>() {
 			@Override
 			public Boolean call(Tuple2<String, Integer> v1) throws Exception {
-				return !v1._1.equals("");
+				return !v1._1().equals("");
 			}
 		});
 		JavaPairRDD<String, Iterable<Integer>> countsGrouped = pairs.groupByKey();

@@ -50,7 +50,8 @@ public class KMeansArbitraryDimension {
 
 		JavaRDD<Point> points = sc
 			.textFile(pointsPath)
-			.map(new ConvertToPoint());
+			.map(new ConvertToPoint())
+			.cache();
 
 		JavaPairRDD<Integer, Point> kCenters = sc
 			.textFile(centersPath)

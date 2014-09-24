@@ -157,7 +157,7 @@ public class TPCHQuery3 {
 		DataSet<ShippingPriorityItem> customerWithOrders =
 			cust.join(or)
 				.where(0)
-				.equalTo(0)
+				.equalTo(1)
 				.with(
 					new JoinFunction<Customer, Order, ShippingPriorityItem>() {
 						@Override
@@ -213,11 +213,12 @@ public class TPCHQuery3 {
 		public String getMktsegment() { return this.f1; }
 	}
 
-	public static class Order extends Tuple3<Integer, String, Integer> {
+	public static class Order extends Tuple4<Integer, Integer, String, Integer> {
 
 		public Integer getOrderkey() { return this.f0; }
-		public String getOrderdate() { return this.f1; }
-		public Integer getShippriority() { return this.f2; }
+		public Integer getCustKey() { return this.f1; }
+		public String getOrderdate() { return this.f2; }
+		public Integer getShippriority() { return this.f3; }
 	}
 
 	public static class ShippingPriorityItem extends Tuple5<Integer, Double, String, Integer, Integer> {
@@ -291,7 +292,7 @@ public class TPCHQuery3 {
 	private static DataSet<Order> getOrdersDataSet(ExecutionEnvironment env) {
 		return env.readCsvFile(ordersPath)
 			.fieldDelimiter('|')
-			.includeFields("100010010")
+			.includeFields("110010010")
 			.tupleType(Order.class);
 	}
 
