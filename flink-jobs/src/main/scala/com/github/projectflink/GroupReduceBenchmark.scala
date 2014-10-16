@@ -19,6 +19,7 @@ package com.github.projectflink
 
 import org.apache.commons.lang.RandomStringUtils
 import org.apache.flink.api.common.operators.Order
+import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint
 import org.apache.flink.api.scala._
 import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.util.Collector
@@ -70,12 +71,14 @@ object GroupReduceBenchmarkGenerateData {
         (skewedSample(skew, numCountries - 1), rnd.nextInt(numBooks).toLong)
     }
 
-    val readsWithCountry = reads.join(countryNames).where("_1").equalTo("_1") {
+    val readsWithCountry = reads.joinWithTiny(countryNames).where("_1").equalTo("_1") {
       (left, right) =>
         (right._2, left._2)
     }
 
-    val readsWithCountryAndBook = readsWithCountry.join(bookNames).where("_2").equalTo("_1") {
+    val readsWithCountryAndBook = readsWithCountry.join(bookNames, JoinHint.REPARTITION_HASH_SECOND)
+      .where("_2")
+      .equalTo("_1") {
       (left, right) =>
         (left._1, right._2)
     }.rebalance()
@@ -92,7 +95,7 @@ object GroupReduceBenchmarkGenerateData {
     }
 
     // execute program
-    env.execute("Flink Scala API Skeleton")
+    env.execute("Group Reduce Benchmark Data Generator")
   }
 }
 
@@ -150,7 +153,7 @@ object GroupReduceBenchmarkFlink {
     }
 
     // execute program
-    env.execute("Flink Scala API Skeleton")
+    env.execute("Group Reduce Benchmark Flink")
   }
 }
 
