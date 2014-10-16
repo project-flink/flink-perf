@@ -19,7 +19,6 @@
 package com.github.projectflink.spark;
 
 
-import com.github.projectflink.spark.scala.ScalaRegistrator;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;

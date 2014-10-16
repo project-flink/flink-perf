@@ -13,14 +13,8 @@ import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.Function2;
 import org.apache.spark.api.java.function.PairFunction;
-import org.apache.spark.serializer.KryoRegistrator;
 
-import com.esotericsoftware.kryo.Kryo;
-import com.github.projectflink.spark.TPCH3Spark.Customer;
-import com.github.projectflink.spark.TPCH3Spark.Lineitem;
-import com.github.projectflink.spark.TPCH3Spark.Order;
-import com.github.projectflink.spark.TPCH3Spark.ShippingPriorityItem;
-import com.github.projectflink.spark.scala.TPCH3ScalaReg;
+import com.github.projectflink.spark.util.TPCH3ScalaReg;
 
 import scala.Tuple2;
 import scala.Tuple3;
