@@ -29,7 +29,7 @@ import scala.util.Random
 object GroupReduceBenchmarkGenerateData {
   val rnd = new Random(System.currentTimeMillis())
 
-  private final def skewedSample(skew: Double, max: Int): Int = {
+  private final def skewedSample(skew: Double, max: Long): Long = {
     val uniform = rnd.nextDouble()
     val `var` = Math.pow(uniform, skew)
     val pareto = 0.2 / `var`
@@ -45,9 +45,9 @@ object GroupReduceBenchmarkGenerateData {
 
     var master = args(0)
     var dop = args(1).toInt
-    var numCountries = args(2).toInt
+    var numCountries = args(2).toLong
     var numBooks = args(3).toInt
-    var numReads = args(4).toInt
+    var numReads = args(4).toLong
     var skew = args(5).toFloat
     val outputPath = if (args.length > 6) {
       args(6)
@@ -55,11 +55,11 @@ object GroupReduceBenchmarkGenerateData {
       null
     }
 
-    val hash = mutable.HashMap[Int, Int]()
+    val hash = mutable.HashMap[Long, Long]()
 
-    for (i <- 0 to numReads) {
+    for (i <- 0L to numReads) {
       val key = skewedSample(skew, numCountries - 1)
-      val prev: Int = hash.getOrElse(key, 0)
+      val prev: Long = hash.getOrElse(key, 0)
       hash.put(key, prev + 1)
     }
 
@@ -73,14 +73,14 @@ object GroupReduceBenchmarkGenerateData {
     val countryIds = env.generateSequence(0, numCountries - 1)
     val bookIds = env.generateSequence(0, numBooks - 1)
 
-    val countryNames = countryIds map { id => (id.toInt, RandomStringUtils.random(20, true, false)) }
-    val bookNames = bookIds map { id => (id.toInt, RandomStringUtils.random(30, true, false)) }
+    val countryNames = countryIds map { id => (id, RandomStringUtils.random(20, true, false)) }
+    val bookNames = bookIds map { id => (id, RandomStringUtils.random(30, true, false)) }
 
     val reads = countryIds flatMap {
-      (id, out: Collector[(Int, Int)]) =>
+      (id, out: Collector[(Long, Long)]) =>
         val numReads = readsInCountry(id.toInt)
-        for (i <- 0 until numReads) {
-          out.collect((id.toInt, rnd.nextInt(numBooks)))
+        for (i <- 0L until numReads) {
+          out.collect((id, rnd.nextInt(numBooks)))
         }
     }
 
@@ -145,7 +145,7 @@ object GroupReduceBenchmarkFlink {
 
     // Group by country and determine top-k books
     val result = readsWithCountryAndBook
-      .map { in => (in._1, in._2, 1) }
+      .map { in => (in._1, in._2, 1L) }
       .groupBy("_1", "_2")
       .sum("_3")
       .groupBy("_1").sortGroup("_3", Order.DESCENDING)

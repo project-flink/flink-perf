@@ -42,7 +42,7 @@ object GroupReduceBenchmarkSpark {
     }
 
     val result = readsWithCountryAndBook
-      .map { case (country, book) => ((country, book), 1) }
+      .map { case (country, book) => ((country, book), 1L) }
       .reduceByKey { _ + _ }
       .map { case ((country, book), count) => (country, (book, count)) }
       .groupByKey
