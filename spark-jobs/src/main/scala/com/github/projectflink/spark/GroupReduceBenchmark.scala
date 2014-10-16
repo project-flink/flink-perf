@@ -11,45 +11,22 @@ import org.apache.spark.SparkConf
 import scala.util.Random
 
 object GroupReduceBenchmarkSpark {
-  val rnd = new Random(System.currentTimeMillis())
-
-  private final def skewedSample(skew: Double, max: Int): Int = {
-    val uniform = rnd.nextDouble()
-    val `var` = Math.pow(uniform, skew)
-    val pareto = 0.2 / `var`
-    val `val` = pareto.toInt
-    if (`val` > max) `val` % max else `val`
-  }
 
   def main(args: Array[String]) {
-    if (args.length < 7) {
-      println("Usage: [master] [dop] [numCountries] [numBooks] [numReads] [skew] [k] [output]")
+    if (args.length < 4) {
+      println("Usage: [master] [dop] [k] [input] [output]")
       return
     }
 
     var master = args(0)
     var dop = args(1).toInt
-    var numCountries = args(2).toInt
-    var numBooks = args(3).toInt
-    var numReads = args(4).toInt
-    var skew = args(5).toFloat
-    var k = args(6).toInt
-    val outputPath = if (args.length > 7) {
-      args(7)
+    var k = args(2).toInt
+    var inputPath = args(3)
+    val outputPath = if (args.length > 4) {
+      args(4)
     } else {
       null
     }
-
-    val hash = mutable.HashMap[Int, Int]()
-
-    for (i <- 0 to numReads) {
-      val key = skewedSample(skew, numCountries - 1)
-      val prev: Int = hash.getOrElse(key, 0)
-      hash.put(key, prev + 1)
-    }
-
-    val readsInCountry = hash.values.toArray
-
 
     // set up the execution environment
     val conf = new SparkConf()
@@ -58,28 +35,11 @@ object GroupReduceBenchmarkSpark {
       .set("spark.default.parallelism", dop.toString)
     val spark = new SparkContext(conf)
 
-    val countryIds: RDD[Int] = spark.parallelize(0 to (numCountries - 1))
-    val bookIds: RDD[Int] = spark.parallelize(0 to (numBooks - 1))
-
-    val countryNames = countryIds map { id => (id, rnd.nextString(20)) }
-    val bookNames = bookIds map { id => (id, rnd.nextString(30)) }
-
-    val reads = countryIds flatMap {
-      id =>
-        val numReads = readsInCountry(id)
-        (0 to numReads) map { i => (id, rnd.nextInt(numBooks)) }
+    val readsWithCountryAndBook = spark.textFile(inputPath, dop) map {
+      in =>
+        val Array(country, book) = in.split(',')
+        (country, book)
     }
-
-
-    val readsWithCountry = reads.join(countryNames) map {
-      case (key, bookIdCountry) => bookIdCountry
-    }
-
-    val readsWithCountryAndBook = readsWithCountry.join(bookNames) map {
-      case (key, countryWithBook) => countryWithBook
-    }
-
-    //    println(readsWithCountryAndBook.collect().mkString(", "))
 
     val result = readsWithCountryAndBook
       .map { case (country, book) => ((country, book), 1) }

@@ -17,6 +17,7 @@
  */
 package com.github.projectflink
 
+import org.apache.commons.lang.RandomStringUtils
 import org.apache.flink.api.common.operators.Order
 import org.apache.flink.api.scala._
 import org.apache.flink.core.fs.FileSystem.WriteMode
@@ -25,7 +26,7 @@ import org.apache.flink.util.Collector
 import scala.collection.mutable
 import scala.util.Random
 
-object GroupReduceBenchmarkFlink {
+object GroupReduceBenchmarkGenerateData {
   val rnd = new Random(System.currentTimeMillis())
 
   private final def skewedSample(skew: Double, max: Int): Int = {
@@ -37,8 +38,8 @@ object GroupReduceBenchmarkFlink {
   }
 
   def main(args: Array[String]) {
-    if (args.length < 4) {
-      println("Usage: [numCountries] [numBooks] [numReads] [skew]")
+    if (args.length < 6) {
+      println("Usage: [master] [dop] [numCountries] [numBooks] [numReads] [skew] [output]")
       return
     }
 
@@ -48,9 +49,8 @@ object GroupReduceBenchmarkFlink {
     var numBooks = args(3).toInt
     var numReads = args(4).toInt
     var skew = args(5).toFloat
-    var k = args(6).toInt
-    val outputPath = if (args.length > 7) {
-      args(7)
+    val outputPath = if (args.length > 6) {
+      args(6)
     } else {
       null
     }
@@ -68,13 +68,13 @@ object GroupReduceBenchmarkFlink {
 
     // set up the execution environment
     val env = ExecutionEnvironment.getExecutionEnvironment
-    env.setDegreeOfParallelism(dop);
+    env.setDegreeOfParallelism(dop)
 
     val countryIds = env.generateSequence(0, numCountries - 1)
     val bookIds = env.generateSequence(0, numBooks - 1)
 
-    val countryNames = countryIds map { id => (id.toInt, rnd.nextString(20)) }
-    val bookNames = bookIds map { id => (id.toInt, rnd.nextString(30)) }
+    val countryNames = countryIds map { id => (id.toInt, RandomStringUtils.random(20, true, false)) }
+    val bookNames = bookIds map { id => (id.toInt, RandomStringUtils.random(30, true, false)) }
 
     val reads = countryIds flatMap {
       (id, out: Collector[(Int, Int)]) =>
@@ -92,7 +92,56 @@ object GroupReduceBenchmarkFlink {
     val readsWithCountryAndBook = readsWithCountry.join(bookNames).where("_2").equalTo("_1") {
       (left, right) =>
         (left._1, right._2)
+    }.rebalance()
+
+
+
+    if (outputPath == null) {
+      readsWithCountryAndBook.print()
+    } else {
+      readsWithCountryAndBook.writeAsCsv(outputPath + s"$numCountries-$numBooks-$numReads-$skew",
+        rowDelimiter = "\n",
+        fieldDelimiter = ",",
+        writeMode = WriteMode.OVERWRITE)
     }
+
+    // execute program
+    env.execute("Flink Scala API Skeleton")
+  }
+}
+
+object GroupReduceBenchmarkFlink {
+  val rnd = new Random(System.currentTimeMillis())
+
+  private final def skewedSample(skew: Double, max: Int): Int = {
+    val uniform = rnd.nextDouble()
+    val `var` = Math.pow(uniform, skew)
+    val pareto = 0.2 / `var`
+    val `val` = pareto.toInt
+    if (`val` > max) `val` % max else `val`
+  }
+
+  def main(args: Array[String]) {
+    if (args.length < 4) {
+      println("Usage: [master] [dop] [k] [input] [output]")
+      return
+    }
+
+    var master = args(0)
+    var dop = args(1).toInt
+    var k = args(2).toInt
+    var inputPath = args(3)
+    val outputPath = if (args.length > 4) {
+      args(4)
+    } else {
+      null
+    }
+
+    // set up the execution environment
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    env.setDegreeOfParallelism(dop)
+
+    val readsWithCountryAndBook = env.readCsvFile[(String, String)](inputPath)
 
     // Group by country and determine top-k books
     val result = readsWithCountryAndBook
