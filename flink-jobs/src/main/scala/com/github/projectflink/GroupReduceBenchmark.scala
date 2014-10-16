@@ -55,35 +55,19 @@ object GroupReduceBenchmarkGenerateData {
       null
     }
 
-    val hash = mutable.HashMap[Long, Long]()
-
-    for (i <- 0L to numReads) {
-      val key = skewedSample(skew, numCountries - 1)
-      val prev: Long = hash.getOrElse(key, 0)
-      hash.put(key, prev + 1)
-    }
-
-    val readsInCountry = hash.values.toArray.zipWithIndex
-
-    println("READS " + readsInCountry.mkString(", "))
-
-
     // set up the execution environment
     val env = ExecutionEnvironment.getExecutionEnvironment
     env.setDegreeOfParallelism(dop)
 
-    val countryIds = env.fromCollection(readsInCountry)
+    val countryIds = env.generateSequence(0, numCountries - 1)
     val bookIds = env.generateSequence(0, numBooks - 1)
 
-    val countryNames = countryIds map { id => (id._2.toLong, RandomStringUtils.random(20, true, false)) }
+    val countryNames = countryIds map { id => (id, RandomStringUtils.random(20, true, false)) }
     val bookNames = bookIds map { id => (id, RandomStringUtils.random(30, true, false)) }
 
-    val reads = countryIds flatMap {
-      (in, out: Collector[(Long, Long)]) =>
-        val (numReads, id) = in
-        for (i <- 0L until numReads) {
-          out.collect((id, rnd.nextInt(numBooks)))
-        }
+    val reads = env.generateSequence(0, numReads - 1) map {
+      i =>
+        (skewedSample(skew, numCountries - 1), rnd.nextInt(numBooks).toLong)
     }
 
     val readsWithCountry = reads.join(countryNames).where("_1").equalTo("_1") {
