@@ -1,5 +1,7 @@
 package com.github.projectflink.grep;
 
+import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.functions.RichFilterFunction;
 import org.apache.flink.api.java.DataSet;
@@ -12,15 +14,16 @@ import java.util.regex.Pattern;
 
 public class GrepJob {
 
-	public static void main(String[] args) throws Exception {
+	public static void main(final String[] args) throws Exception {
 		// set up the execution environment
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		System.err.println("Using input="+args[0]);
 		System.err.println("Using output="+args[1]);
+		System.err.println("Using pattern'"+args[2]+"'");
 		// get input data
 		DataSet<String> text = env.readTextFile(args[0]);
 		DataSet<String> res = text.filter(new RichFilterFunction<String>() {
-			Pattern p = Pattern.compile("formulating");
+			Pattern p = Pattern.compile(args[2]);
 			LongCounter filterMatches = new LongCounter();
 			LongCounter filterRecords = new LongCounter();
 			@Override
@@ -47,6 +50,7 @@ public class GrepJob {
 		res.writeAsText(args[1], FileSystem.WriteMode.OVERWRITE);
 
 		// execute program
-		env.execute("Flink Filter benchmark");
+		JobExecutionResult jobResult = env.execute("Flink Filter benchmark");
+		System.err.println(AccumulatorHelper.getResultsFormated(jobResult.getAllAccumulatorResults()));
 	}
 }
