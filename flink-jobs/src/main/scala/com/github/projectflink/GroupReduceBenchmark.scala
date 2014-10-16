@@ -138,18 +138,19 @@ object GroupReduceBenchmarkFlink {
       .groupBy("_1", "_2")
       .sum("_3")
       .groupBy("_1").sortGroup("_3", Order.DESCENDING)
+      .first(k)
+      .groupBy("_1")
       .reduceGroup {
       in =>
         val it = in.toIterator.buffered
         val first = it.head
-        val topk = it.take(k) map { t => (t._2, t._3) }
-        (first._1, topk.mkString(", "))
+        (first._1, it.mkString(", "))
     }
 
     if (outputPath == null) {
       result.print()
     } else {
-      result.writeAsText(outputPath + "_flink", WriteMode.OVERWRITE)
+      result.writeAsCsv(outputPath + "_flink", writeMode = WriteMode.OVERWRITE)
     }
 
     // execute program
