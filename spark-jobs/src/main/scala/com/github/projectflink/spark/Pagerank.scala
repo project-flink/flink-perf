@@ -31,14 +31,27 @@ object Pagerank {
     implicit val sc = new SparkContext(conf)
 
     val inData : RDD[String] = sc.textFile(input.toString)
-    val inKV = inData.map { line:String =>
+
+    val adjacencyMatrix = inData.map { line =>
+      val sp = line.split(" ")
+      val it = sp.iterator
+      val key = it.next().toInt
+      val rest = it.toList.map(_.toInt) // materialize list here
+      (key, rest)
+    }.cache()
+
+  /*  val inKV = inData.map { line:String =>
       val sp = line.split(" ")
       (sp(0).toInt, sp(1).toInt)
+    } */
+
+
+  //  val adjacencyMatrix = inKV.groupByKey(dop).cache()
+
+    //var pagerank = sc.parallelize(1 to numVertices, dop) map ((_, 1.0/numVertices))
+    var pagerank = adjacencyMatrix.distinct() map { tup =>
+      (tup._1, 1.0/numVertices)
     }
-
-    val adjacencyMatrix = inKV.groupByKey(dop).cache()
-
-    var pagerank = sc.parallelize(1 to numVertices, dop) map ((_, 1.0/numVertices))
 
     for(i <- 1 to maxIterations) {
       System.out.println("++++ Starting next iteration");
