@@ -47,7 +47,7 @@ object GroupReduceBenchmarkSpark {
       .map { case ((country, book), count) => (country, (book, count)) }
       .groupByKey
       .map { case (country, songs) =>
-        (country, songs.toList.sortBy(- _._2).take(5).mkString(", "))
+        (country, songs.toList.sortBy(- _._2).take(k).mkString(", "))
       }
 
     if (outputPath == null) {

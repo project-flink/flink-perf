@@ -100,15 +100,6 @@ object GroupReduceBenchmarkGenerateData {
 }
 
 object GroupReduceBenchmarkFlink {
-  val rnd = new Random(System.currentTimeMillis())
-
-  private final def skewedSample(skew: Double, max: Int): Int = {
-    val uniform = rnd.nextDouble()
-    val `var` = Math.pow(uniform, skew)
-    val pareto = 0.2 / `var`
-    val `val` = pareto.toInt
-    if (`val` > max) `val` % max else `val`
-  }
 
   def main(args: Array[String]) {
     if (args.length < 4) {
@@ -155,6 +146,7 @@ object GroupReduceBenchmarkFlink {
 
     // execute program
     env.execute("Group Reduce Benchmark Flink")
+//    println(env.getExecutionPlan())
   }
 }
 
