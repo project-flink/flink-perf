@@ -74,44 +74,48 @@ public class GrepJob {
 		JobExecutionResult jobResult = env.execute("Flink Grep benchmark");
 		System.err.println(AccumulatorHelper.getResultsFormated(jobResult.getAllAccumulatorResults()));
 	}
-}
-	/*
-public static class Access {
-	public int userId;
-	public Date time;
-	public int statusCode;
-	public String url;
-}
-public class User {
-	public int userId;
-	public int regionId;
-	public Date customerSince;
-}
 
-private void slides() {
-	String logPath = "";
-	
-	final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-	// get access log
-	DataSet<String> logRaw = env.readTextFile(logPath);
-	DataSet<Access> accessLog = logRaw.map(new LogToAccessMapper());
-	
-	// read user data
-	DataSet<User> users = 
-			env.createInput(new JDBCInputFormat("jdbcIn", "mysql://", "usr", "pw", "SELECT * FROM user"))
-			.map(new JDBCToUser());
-	
-	// find customers that bought something
-	DataSet<Access> goodCustomers = accessLog.filter(new FilterFunction<GrepJob.Access>() {
-		@Override
-		public boolean filter(Access access) throws Exception {
-			return access.url.contains("checkout");
-		}
-	});
-	
-	// join them with the users database
-	DataSet<Tuple2<Access, User>> campaign = goodCustomers.join(users).where("userId").equalTo("userId");
-	
-	campaign.writeAsText(outPath);
-	env.execute();
-} */
+/*
+	public static class Access {
+		public int userId;
+		public Date time;
+		public int statusCode;
+		public String url;
+	}
+
+	public class User {
+		public int userId;
+		public int regionId;
+		public Date customerSince;
+	}
+
+	private void slides() {
+		String logPath = "";
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		// get access log
+		DataSet<String> logRaw = env.readTextFile(logPath);
+		DataSet<Access> accessLog = logRaw.map(new LogToAccessMapper());
+
+		// read user data
+		DataSet<User> users =
+				env.createInput(new JDBCInputFormat("jdbcIn", "mysql://", "usr", "pw", "SELECT * FROM user"))
+						.map(new JDBCToUser());
+
+		// find customers that bought something
+		DataSet<Access> goodCustomers = accessLog.filter((access) -> { return access.url.contains("checkout"); });
+		DataSet<Access> goodCustomers = accessLog.filter(new FilterFunction<GrepJob.Access>() {
+			@Override
+			public boolean filter(Access access) throws Exception {
+				return access.url.contains("checkout");
+			}
+		});
+
+		// join them with the users database
+		DataSet<Tuple2<Access, User>> campaign = goodCustomers.join(users).where("userId").equalTo("userId");
+
+		campaign.writeAsText(outPath);
+		env.execute();
+	} */
+
+}

@@ -38,16 +38,6 @@ object Pagerank {
     }
 
     val adjacencyMatrixCached = adjacencyMatrix.cache();
-
-  /*  val inKV = inData.map { line:String =>
-      val sp = line.split(" ")
-      (sp(0).toInt, sp(1).toInt)
-    } */
-
-
-  //  val adjacencyMatrix = inKV.groupByKey(dop).cache()
-
-    //var pagerank = sc.parallelize(1 to numVertices, dop) map ((_, 1.0/numVertices))
     var pagerank = adjacencyMatrixCached.map { tup =>
       (tup._1, 1.0/numVertices)
     }
@@ -72,24 +62,5 @@ object Pagerank {
       pagerank.foreach(println _)
     }
   }
-
-  /*def createInitialPagerank(numVertices: Int)(implicit sc: SparkContext) = {
-    sc.parallelize(1 to numVertices map ((_, 1.0/numVertices)))
-  }
-
-  def createAdjacencyMatrix(numVertices: Int, sparsity: Double)(implicit sc: SparkContext) = {
-    sc.parallelize(1 to numVertices).map{
-      node =>
-        val random = new Random(node)
-        val neighbours = 1 to numVertices flatMap {
-          n =>
-            if(n != node && random.nextDouble() <= sparsity){
-              Some(n)
-            }else{
-              None
-            }
-        }
-        (node, neighbours)
-    } */
 
 }
