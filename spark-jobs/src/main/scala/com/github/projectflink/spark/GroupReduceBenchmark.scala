@@ -31,7 +31,7 @@ object GroupReduceBenchmarkSpark {
     // set up the execution environment
     val conf = new SparkConf()
       .setAppName("Group Reduce Benachmark")
-      .setMaster("local")
+      .setMaster(master)
       .set("spark.default.parallelism", dop.toString)
     val spark = new SparkContext(conf)
 

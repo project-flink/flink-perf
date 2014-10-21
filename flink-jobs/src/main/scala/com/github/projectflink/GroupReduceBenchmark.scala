@@ -17,14 +17,11 @@
  */
 package com.github.projectflink
 
-import org.apache.commons.lang.RandomStringUtils
 import org.apache.flink.api.common.operators.Order
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint
 import org.apache.flink.api.scala._
 import org.apache.flink.core.fs.FileSystem.WriteMode
-import org.apache.flink.util.Collector
 
-import scala.collection.mutable
 import scala.util.Random
 
 object GroupReduceBenchmarkGenerateData {
