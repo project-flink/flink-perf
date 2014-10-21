@@ -32,7 +32,7 @@ object Pagerank {
 
     val inData : RDD[String] = sc.textFile(input.toString)
 
-    val adjacencyMatrix = inData.map { line =>
+    val adjacencyMatrix = inData.repartition(dop).map{ line =>
       val sp = line.split(" ").map(_.toInt)
       (sp(0), sp.tail)
     }
