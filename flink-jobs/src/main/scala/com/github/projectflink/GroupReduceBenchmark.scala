@@ -17,11 +17,17 @@
  */
 package com.github.projectflink
 
+import java.lang
+
+import org.apache.flink.api.common.functions.RichMapPartitionFunction
 import org.apache.flink.api.common.operators.Order
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint
 import org.apache.flink.api.scala._
+import org.apache.flink.configuration.Configuration
 import org.apache.flink.core.fs.FileSystem.WriteMode
+import org.apache.flink.util.Collector
 
+import scala.collection.mutable
 import scala.util.Random
 
 object GroupReduceBenchmarkGenerateData {
@@ -132,7 +138,7 @@ object GroupReduceBenchmarkFlink {
       in =>
         val it = in.toIterator.buffered
         val first = it.head
-        (first._1, it.mkString(", "))
+        (first._1, it.map(in => (in._2, in._3)).mkString(", "))
     }
 
     if (outputPath == null) {
@@ -146,4 +152,110 @@ object GroupReduceBenchmarkFlink {
 //    println(env.getExecutionPlan())
   }
 }
+
+object GroupReduceBenchmarkFlinkHash {
+
+  def main(args: Array[String]) {
+    if (args.length < 4) {
+      println("Usage: [master] [dop] [k] [input] [output]")
+      return
+    }
+
+    var master = args(0)
+    var dop = args(1).toInt
+    var k = args(2).toInt
+    var inputPath = args(3)
+    val outputPath = if (args.length > 4) {
+      args(4)
+    } else {
+      null
+    }
+
+    // set up the execution environment
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    env.setDegreeOfParallelism(dop)
+
+    val readsWithCountryAndBook = env.readCsvFile[(String, String)](inputPath)
+
+    // Group by country and determine top-k books
+    val result = readsWithCountryAndBook
+      .map { in => (in._1, in._2, 1L) }
+      .mapPartition(new HashAggregator("COMBINER"))
+      .partitionByHash("_2", "_1")
+      .mapPartition(new HashAggregator("REDUCER"))
+      .partitionByHash("_1")
+      .mapPartition(new HashGrouper(k))
+
+    if (outputPath == null) {
+      result.print()
+    } else {
+      result.writeAsCsv(outputPath + "_flink", writeMode = WriteMode.OVERWRITE)
+    }
+
+    // execute program
+    env.execute("Group Reduce Benchmark Flink")
+    //    println(env.getExecutionPlan())
+  }
+}
+
+class HashAggregator(combine: String)
+  extends RichMapPartitionFunction[(String, String, Long), (String, String, Long)] {
+
+  private var aggregate: mutable.HashMap[(String, String), Long] = null
+
+  override def open(config: Configuration) {
+    aggregate = mutable.HashMap[(String, String), Long]()
+  }
+
+  override def mapPartition(
+      records: lang.Iterable[(String, String, Long)],
+      out: Collector[(String, String, Long)]): Unit = {
+    val it = records.iterator
+    while (it.hasNext) {
+      val value = it.next()
+      val key = (value._1, value._2)
+      val previous = aggregate.getOrElse(key, 0L)
+      aggregate.put(key, previous + value._3)
+    }
+    val outIt = aggregate.iterator
+
+    while (outIt.hasNext) {
+      val value = outIt.next()
+      out.collect((value._1._1, value._1._2, value._2))
+    }
+  }
+}
+
+class HashGrouper(k: Int)
+  extends RichMapPartitionFunction[(String, String, Long), (String, String)] {
+
+  private var groups: mutable.HashMap[String, mutable.MutableList[(String, Long)]] = null
+
+  override def open(config: Configuration) {
+    groups = mutable.HashMap[String, mutable.MutableList[(String, Long)]]()
+  }
+
+  override def mapPartition(
+      records: lang.Iterable[(String, String, Long)],
+      out: Collector[(String, String)]): Unit = {
+    val it = records.iterator()
+    while (it.hasNext) {
+      val value = it.next()
+      val list = groups.getOrElse(value._1, mutable.MutableList[(String, Long)]())
+      list += ((value._2, value._3))
+      groups.put(value._1, list)
+    }
+
+    val listIt = groups.iterator
+    while (listIt.hasNext) {
+      val value = listIt.next()
+      val key = value._1
+      val list = value._2
+      val sorted = list.sortBy(- _._2)
+//      println("SORTED " + sorted.take(5))
+      out.collect((key, sorted.take(k).mkString(", ") ))
+    }
+  }
+}
+
 
