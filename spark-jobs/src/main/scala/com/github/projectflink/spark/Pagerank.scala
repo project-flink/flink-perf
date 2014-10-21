@@ -33,12 +33,11 @@ object Pagerank {
     val inData : RDD[String] = sc.textFile(input.toString)
 
     val adjacencyMatrix = inData.map { line =>
-      val sp = line.split(" ")
-      val it = sp.iterator
-      val key = it.next().toInt
-      val rest = it.toList.map(_.toInt) // materialize list here
-      (key, rest)
-    }.cache()
+      val sp = line.split(" ").map(_.toInt)
+      (sp(0), sp.tail)
+    }
+
+    val adjacencyMatrixCached = adjacencyMatrix.cache();
 
   /*  val inKV = inData.map { line:String =>
       val sp = line.split(" ")
@@ -49,13 +48,13 @@ object Pagerank {
   //  val adjacencyMatrix = inKV.groupByKey(dop).cache()
 
     //var pagerank = sc.parallelize(1 to numVertices, dop) map ((_, 1.0/numVertices))
-    var pagerank = adjacencyMatrix.distinct() map { tup =>
+    var pagerank = adjacencyMatrixCached.distinct() map { tup =>
       (tup._1, 1.0/numVertices)
     }
 
     for(i <- 1 to maxIterations) {
       System.out.println("++++ Starting next iteration");
-      pagerank = pagerank.join(adjacencyMatrix, dop).flatMap {
+      pagerank = pagerank.join(adjacencyMatrixCached, dop).flatMap {
         case (node, (rank, neighboursIt)) => {
           val neighbours = neighboursIt.toSeq
           neighbours.map {

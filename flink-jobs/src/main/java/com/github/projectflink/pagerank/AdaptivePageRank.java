@@ -60,11 +60,11 @@ public class AdaptivePageRank {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 	//	env.setDegreeOfParallelism(4);
 
-		DataSet<Tuple2<Long, long[]>> adjacency1 = env.readTextFile(adjacencyPath).map(new AdjacencyBuilder());
-		DataSet<Tuple2<Long, long[]>> adjacency2 = env.readTextFile(adjacencyPath).map(new AdjacencyBuilder());
+		DataSet<Tuple2<Long, long[]>> adjacency = env.readTextFile(adjacencyPath).map(new AdjacencyBuilder());
+		// DataSet<Tuple2<Long, long[]>> adjacency2 = env.readTextFile(adjacencyPath).map(new AdjacencyBuilder());
 
 
-		DataSet<Tuple2<Long, Double>> initialRanks = adjacency1
+		DataSet<Tuple2<Long, Double>> initialRanks = adjacency
 				.flatMap(new InitialMessageBuilder(numVertices, dampeningFactor))
 				.groupBy(0)
 				.reduceGroup(new Agg());
@@ -77,7 +77,7 @@ public class AdaptivePageRank {
 		DeltaIteration<Tuple2<Long, Double>, Tuple2<Long, Double>> adaptiveIteration = initialRanks.iterateDelta(initialDeltas, numIterations, 0);
 
 		DataSet<Tuple2<Long, Double>> deltas = adaptiveIteration.getWorkset()
-				.join(adjacency2).where(0).equalTo(0).with(new DeltaDistributor(0.85))
+				.join(adjacency).where(0).equalTo(0).with(new DeltaDistributor(0.85))
 				.groupBy(0)
 				.reduceGroup(new AggAndFilter(threshold));
 
