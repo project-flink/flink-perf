@@ -48,7 +48,7 @@ object Pagerank {
   //  val adjacencyMatrix = inKV.groupByKey(dop).cache()
 
     //var pagerank = sc.parallelize(1 to numVertices, dop) map ((_, 1.0/numVertices))
-    var pagerank = adjacencyMatrixCached.distinct() map { tup =>
+    var pagerank = adjacencyMatrixCached.map { tup =>
       (tup._1, 1.0/numVertices)
     }
 

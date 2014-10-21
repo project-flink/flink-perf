@@ -61,7 +61,7 @@ object Pagerank {
       val sp = line.split(" ").map(_.toInt)
       AdjacencyRow(sp(0), sp.tail)
     }
-    val initialPagerank = adjacencyMatrix.distinct(0).map { (tup: AdjacencyRow) =>
+    val initialPagerank = adjacencyMatrix.map { (tup: AdjacencyRow) =>
       Pagerank(tup.node, 1.0d/numVertices)
     }
 
