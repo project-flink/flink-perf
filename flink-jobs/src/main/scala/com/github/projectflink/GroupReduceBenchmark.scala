@@ -126,7 +126,7 @@ object GroupReduceBenchmarkFlink {
     // Group by country and determine top-k books
     val result = readsWithCountryAndBook
       .map { in => (in._1, in._2, 1L) }
-      .groupBy("_1", "_2")
+      .groupBy("_2", "_1")
       .sum("_3")
       .groupBy("_1").sortGroup("_3", Order.DESCENDING)
       .first(k)
