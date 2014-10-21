@@ -63,8 +63,8 @@ object GroupReduceBenchmarkGenerateData {
     val countryIds = env.generateSequence(0, numCountries - 1)
     val bookIds = env.generateSequence(0, numBooks - 1)
 
-    val countryNames = countryIds map { id => (id, RandomStringUtils.random(20, true, false)) }
-    val bookNames = bookIds map { id => (id, RandomStringUtils.random(30, true, false)) }
+    val countryNames = countryIds map { id => (id, "The awesome countru No. " + id) }
+    val bookNames = bookIds map { id => (id, "This is the most special song No. " + id) }
 
     val reads = env.generateSequence(0, numReads - 1) map {
       i =>
