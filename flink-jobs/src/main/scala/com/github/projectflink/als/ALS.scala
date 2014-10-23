@@ -1,15 +1,15 @@
 package com.github.projectflink.als
 
 import breeze.linalg._
-import breeze.stats.distributions.Rand
+import breeze.stats.distributions.{ThreadLocalRandomGenerator, RandBasis, Rand}
 import com.github.projectflink.als.ALSUtils._
+import org.apache.commons.math3.random.MersenneTwister
 import org.apache.flink.api.scala._
+import org.apache.flink.core.fs.FileSystem.WriteMode
 
 import scala.reflect.io.Path
 
-object ALS {
-  val defaultDataGenerationConfig = ALSDGConfig(10, 15, 5, 10, 1, 4, 1)
-  val SCALING_FACTOR = 100
+object ALS extends ALSBase {
 
   def main(args: Array[String]): Unit = {
     val parser = new scopt.OptionParser[ALSConfig]("ALS"){
@@ -23,6 +23,11 @@ object ALS {
         (v, c) => c.copy(lambda = v)
       } text {
         "Regularization constant"
+      }
+      arg[Int]("maxIterations") action {
+        (v, c) => c.copy(maxIterations = v)
+      } text{
+        "Maximal number of iterations"
       }
       arg[String]("inputRankings") optional() action {
         (v, c) => c.copy(inputRankings = v)
@@ -53,9 +58,7 @@ object ALS {
           )
         }
 
-        rankings.print()
-
-        val strippedRankings = rankings map { x => (x._1, x._2) }
+        val adjacencies = rankings map { x => (x._1, x._2) }
 
         val initialM = rankings map {
           x => (x._2, x._3, 1)
@@ -65,99 +68,141 @@ object ALS {
           x =>
             val (mID, rankSum, numberNonZeroRanks) = x
             val average = rankSum/numberNonZeroRanks
-            val random = Rand.uniform
+//            val random = Rand.uniform
+            val generator = new ThreadLocalRandomGenerator(new MersenneTwister(mID))
+            val random = new Rand[Double]{
+              override def draw(): Double = generator.nextDouble()
+            }
 
             val t = random.sample(numLatentVariables-1).map{ _ * average/SCALING_FACTOR}
             BreezeVector(mID, average +: t)
         }
 
-        initialM.print()
-
-        val uV = initialM.join(rankings).where(0).equalTo(1).map{
-          x => {
-            val (BreezeVector(_, vWrapper), (uID, _, ranking)) = x
-
-            BreezeVector(uID, vWrapper.vector * ranking)
-          }
-        }.groupBy(0).reduce{
-          (left, right) => {
-            val (BreezeVector(uID, leftWrapper), BreezeVector(_, rightWrapper)) = (left, right)
-
-            BreezeVector(uID, leftWrapper.vector + rightWrapper.vector)
+        val m = initialM.iterate(maxIterations){
+          m => {
+            val u = updateU(rankings, m, adjacencies, lambda)
+            updateM(rankings, u, adjacencies, lambda)
           }
         }
 
-        val uA = initialM.join(strippedRankings).where(0).equalTo(1).map {
-          x => {
-            val (BreezeVector(_, BreezeDenseVectorWrapper(vector)), (uID, _)) = x
-            import outerProduct._
-            val partialMatrix = outerProduct(vector, vector)
+        val u = updateU(rankings, m, adjacencies, lambda)
 
-            diag(partialMatrix) += lambda
+        if(outputPath != null){
+          val ufile = Path(outputPath) / U_MATRIX_FILE
+          u.writeAsCsv(
+            ufile.toString(),
+            "\n",
+            ",",
+            WriteMode.OVERWRITE
+          )
 
-            BreezeMatrix(uID, partialMatrix)
-          }
-        }.groupBy(0).reduce{
-          (left, right) => BreezeMatrix(left.idx, left.wrapper.matrix + right.wrapper.matrix)
+          val mfile = Path(outputPath) / M_MATRIX_FILE
+
+          m.writeAsCsv(
+            mfile.toString,
+            "\n",
+            ",",
+            WriteMode.OVERWRITE
+          )
+        }else{
+          u.print()
+          m.print()
         }
-
-        val u = uA.join(uV).where(0).equalTo(0).map{
-          x =>
-            val (BreezeMatrix(uID, matrix), BreezeVector(_, wrapper)) = x
-
-            BreezeVector(uID, matrix \ wrapper.vector)
-        }
-
-        val mV = u.join(rankings).where(0).equalTo(0).map{
-          x => {
-            val (BreezeVector(_, wrapper), (_, mID, ranking)) = x
-
-            BreezeVector(mID, wrapper * ranking)
-          }
-        }.groupBy(0).reduce{
-          (left, right) => {
-            val (BreezeVector(mID, BreezeDenseVectorWrapper(leftVector)), BreezeVector(_,
-            BreezeDenseVectorWrapper(rightVector))) = (left,right)
-
-            BreezeVector(mID, leftVector + rightVector)
-          }
-        }
-
-        val mA = u.join(strippedRankings).where(0).equalTo(0).map{
-          x => {
-            val (BreezeVector(_, BreezeDenseVectorWrapper(vector)), (_, mID)) = x
-
-            import outerProduct._
-            val partialMatrix = outerProduct(vector, vector)
-
-            diag(partialMatrix) += lambda
-
-            BreezeMatrix(mID, partialMatrix)
-          }
-        }.groupBy(0).reduce{
-          (left, right) => {
-            val (BreezeMatrix(mID, BreezeDenseMatrixWrapper(leftMatrix)), BreezeMatrix(_,
-              BreezeDenseMatrixWrapper(rightMatrix))) = (left, right)
-
-            BreezeMatrix(mID, leftMatrix + rightMatrix)
-          }
-        }
-
-        val m = mA.join(mV).where(0).equalTo(0).map{
-          x => {
-            val (BreezeMatrix(mID, BreezeDenseMatrixWrapper(matrix)), BreezeVector(_,
-              BreezeDenseVectorWrapper(vector))) = x
-
-            BreezeVector(mID, matrix \ vector)
-          }
-        }
-
-        u.print()
-        m.print()
 
         env.execute("ALS benchmark")
     } getOrElse{
       println("Error parsing the command line options.")
+    }
+  }
+
+  def updateU(rankings: CellMatrix, m: ColMatrix, adjacencies: AdjacencyMatrix,
+              lambda: Double): DataSet[BreezeVector] = {
+    val uV = m.join(rankings).where(0).equalTo(1) {
+      (mVector, rankingEntry) => {
+        val (uID, _, ranking) = rankingEntry
+        val vector = mVector.wrapper.vector
+
+        BreezeVector(uID, vector * ranking)
+      }
+    }.groupBy(0).reduce{
+      (left, right) => {
+        val (BreezeVector(uID, leftWrapper), BreezeVector(_, rightWrapper)) = (left, right)
+
+        BreezeVector(uID, leftWrapper.vector + rightWrapper.vector)
+      }
+    }
+
+    val uA = m.join(adjacencies).where(0).equalTo(1){
+      (mVector, adjacencyRelation) => {
+        val uID = adjacencyRelation._1
+        val vector = mVector.wrapper.vector
+
+        import outerProduct._
+        val partialMatrix = outerProduct(vector, vector)
+
+        diag(partialMatrix) += lambda
+
+        BreezeMatrix(uID, partialMatrix)
+      }
+    }.groupBy(0).reduce{
+      (left, right) => BreezeMatrix(left.idx, left.wrapper.matrix + right.wrapper.matrix)
+    }
+
+    uA.join(uV).where(0).equalTo(0){
+      (aMatrix, vVector) =>
+        val (BreezeMatrix(uID, BreezeDenseMatrixWrapper(matrix))) = aMatrix
+        val (BreezeVector(_, BreezeDenseVectorWrapper(vector))) = vVector
+
+        BreezeVector(uID, matrix \ vector)
+    }
+  }
+
+  def updateM(rankings: CellMatrix, u: ColMatrix, adjacencies: AdjacencyMatrix, lambda: Double
+               ): DataSet[BreezeVector] = {
+    val mV = u.join(rankings).where(0).equalTo(0){
+      (uVector, rankingEntry) => {
+        val (_, mID, ranking) = rankingEntry
+        val (BreezeVector(_, BreezeDenseVectorWrapper(vector))) = uVector
+
+        BreezeVector(mID, vector * ranking)
+      }
+    }.groupBy(0).reduce{
+      (left, right) => {
+        val (BreezeVector(mID, BreezeDenseVectorWrapper(leftVector)), BreezeVector(_,
+        BreezeDenseVectorWrapper(rightVector))) = (left,right)
+
+        BreezeVector(mID, leftVector + rightVector)
+      }
+    }
+
+    val mA = u.join(adjacencies).where(0).equalTo(0){
+      (uVector, adjacencyRelation) => {
+        val vector = uVector.wrapper.vector
+        val mID = adjacencyRelation._2
+
+        import outerProduct._
+        val partialMatrix = outerProduct(vector, vector)
+
+        diag(partialMatrix) += lambda
+
+        BreezeMatrix(mID, partialMatrix)
+      }
+    }.groupBy(0).reduce{
+      (left, right) => {
+        val (BreezeMatrix(mID, BreezeDenseMatrixWrapper(leftMatrix)), BreezeMatrix(_,
+        BreezeDenseMatrixWrapper(rightMatrix))) = (left, right)
+
+        BreezeMatrix(mID, leftMatrix + rightMatrix)
+      }
+    }
+
+    mA.join(mV).where(0).equalTo(0){
+      (aMatrix, vVector) => {
+        val BreezeMatrix(mID, BreezeDenseMatrixWrapper(matrix)) = aMatrix
+        val vector = vVector.wrapper.vector
+
+        BreezeVector(mID, matrix \ vector)
+      }
     }
   }
 

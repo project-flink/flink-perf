@@ -12,7 +12,9 @@ object ALSUtils {
                          varNumRankingEntries: Double = 0,
                          outputPath: String = null)
 
-  case class ALSConfig(numLatentVariables: Int = 0, lambda: Double = 0,
+  case class ALSConfig(numListeners: Int = 0, numSongs: Int = 0, numLatentVariables: Int = 0,
+                       lambda: Double = 0,
+                       maxIterations: Int = 0,
                        inputRankings: String = null, outputPath: String = null)
 
   val RANKING_MATRIX = "rankingMatrix"
