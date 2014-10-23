@@ -9,8 +9,17 @@ import scala.reflect.io.Path
 
 import breeze.linalg._
 
+case class ALSDGConfig(numListeners: Int = 0, numSongs: Int = 0, numLatentVariables: Int = 0,
+                       meanEntries: Double = 0,
+                       varEntries: Double = 0,
+                       meanNumRankingEntries: Double = 0,
+                       varNumRankingEntries: Double = 0,
+                       outputPath: String = null)
+
 object ALSDataGeneration{
-  import ALSUtils._
+  val RANKING_MATRIX = "rankingMatrix"
+  val SONGS_MATRIX = "songsMatrix"
+  val LISTENERS_MATRIX = "listenersMatrix"
 
   def main(args: Array[String]): Unit = {
     val parser = new scopt.OptionParser[ALSDGConfig]("ALSDataGeneration"){
@@ -56,9 +65,9 @@ object ALSDataGeneration{
       }else{
         // write to disk
         val path = Path(config.outputPath)
-        val rankingPath = path / ALSUtils.RANKING_MATRIX
-        val songsPath = path / ALSUtils.SONGS_MATRIX
-        val listenersPath = path / ALSUtils.LISTENERS_MATRIX
+        val rankingPath = path / RANKING_MATRIX
+        val songsPath = path / SONGS_MATRIX
+        val listenersPath = path / LISTENERS_MATRIX
 
         rankingMatrix.writeAsCsv(
           filePath = rankingPath.toString,
@@ -93,41 +102,35 @@ object ALSDataGeneration{
 
     val intermediateListeners = env.generateSequence(1, numListeners) map {
       x => {
-//        val rand = Rand.gaussian(meanEntries, varEntries)
-        val rand = Gaussian(meanEntries, varEntries)(new RandBasis(new ThreadLocalRandomGenerator
-(new MersenneTwister(x))))
+        val rand = Rand.gaussian(meanEntries, varEntries)
         val entries = rand.sample(numLatentVariables)
 
-//        val threshold = Rand.gaussian(meanNumRankingEntries, varNumRankingEntries).draw/numSongs
+        val threshold = Rand.gaussian(meanNumRankingEntries, varNumRankingEntries).draw/numSongs
 
-        val threshold = Gaussian(meanNumRankingEntries, varNumRankingEntries)(new RandBasis(new
-            ThreadLocalRandomGenerator(new MersenneTwister(x)))).draw/numSongs
-
-        (BreezeVector(x.toInt, entries.toArray), threshold)
+        (x.toInt, entries.toArray, threshold)
       }
     }
 
-    val listeners = intermediateListeners map { x => x._1 }
+    val listeners = intermediateListeners map { x => (x._1, x._2) }
 
     val songs = env.generateSequence(1, numSongs) map {
       x => {
-//        val rand = Rand.gaussian(meanEntries, varEntries)
-val rand = Gaussian(meanEntries, varEntries)(new RandBasis(new ThreadLocalRandomGenerator
-(new MersenneTwister(x))))
+        val rand = Rand.gaussian(meanEntries, varEntries)
         val entries = rand.sample(numLatentVariables)
-        BreezeVector(x.toInt, entries.toArray)
+        (x.toInt, entries.toArray)
       }
     }
 
     val rankingMatrix = intermediateListeners.cross(songs).flatMap {
       x =>
-        val ((BreezeVector(row, left), threshold), BreezeVector(col, right)) = x
-//        val rnd = Rand.uniform
-        val rnd =  new ThreadLocalRandomGenerator(new MersenneTwister(row*numSongs + col))
-        val prob = rnd.nextDouble()
+        val ((row, left, threshold), (col, right)) = x
+        val rnd = Rand.uniform
+        val prob = rnd.sample()
 
         if (prob <= threshold) {
-          val result: Double = left.vector dot right.vector
+          val leftVector = DenseVector(left)
+          val rightVector = DenseVector(right)
+          val result: Double = leftVector dot rightVector
 
           Some(row, col, result)
         } else {
