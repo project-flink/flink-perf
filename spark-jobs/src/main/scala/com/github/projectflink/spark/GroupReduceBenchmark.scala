@@ -44,11 +44,11 @@ object GroupReduceBenchmarkSpark {
     val result = readsWithCountryAndBook
       .map { case (country, book) => ((country, book), 1L) }
       .reduceByKey { _ + _ }
-      .map { case ((country, book), count) => (country, (book, count)) }
-      .groupByKey
-      .map { case (country, songs) =>
-        (country, songs.toList.sortBy(- _._2).take(k).mkString(", "))
-      }
+//      .map { case ((country, book), count) => (country, (book, count)) }
+//      .groupByKey
+//      .map { case (country, songs) =>
+//        (country, songs.toList.sortBy(- _._2).take(k).mkString(", "))
+//      }
 
     if (outputPath == null) {
       result foreach { println(_) }
