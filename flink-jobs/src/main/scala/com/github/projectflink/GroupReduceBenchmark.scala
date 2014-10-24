@@ -182,9 +182,17 @@ object GroupReduceBenchmarkFlinkHash {
       .map { in => (in._1, in._2, 1L) }
       .mapPartition(new HashAggregator("COMBINER"))
       .partitionByHash("_2", "_1")
-      .mapPartition(new HashAggregator("REDUCER"))
-      .partitionByHash("_1")
-      .mapPartition(new HashGrouper(k))
+      .groupBy("_2", "_1")
+      .sum("_3")
+      .groupBy("_1").sortGroup("_3", Order.DESCENDING)
+      .first(k)
+      .groupBy("_1")
+      .reduceGroup {
+      in =>
+        val it = in.toIterator.buffered
+        val first = it.head
+        (first._1, it.map(in => (in._2, in._3)).mkString(", "))
+    }
 
     if (outputPath == null) {
       result.print()
@@ -193,8 +201,8 @@ object GroupReduceBenchmarkFlinkHash {
     }
 
     // execute program
-    env.execute("Group Reduce Benchmark Flink")
-    //    println(env.getExecutionPlan())
+    env.execute("Group Reduce Benchmark Flink (HashCombine)")
+//        println(env.getExecutionPlan())
   }
 }
 
