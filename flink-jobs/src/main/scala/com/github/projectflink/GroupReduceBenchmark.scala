@@ -153,7 +153,7 @@ object GroupReduceBenchmarkFlink {
   }
 }
 
-object GroupReduceBenchmarkFlinkHash {
+object GroupReduceBenchmarkFlinkHashCombine {
 
   def main(args: Array[String]) {
     if (args.length < 4) {
@@ -184,6 +184,58 @@ object GroupReduceBenchmarkFlinkHash {
       .partitionByHash("_2", "_1")
       .groupBy("_2", "_1")
       .sum("_3")
+      .groupBy("_1").sortGroup("_3", Order.DESCENDING)
+      .first(k)
+      .groupBy("_1")
+      .reduceGroup {
+      in =>
+        val it = in.toIterator.buffered
+        val first = it.head
+        (first._1, it.map(in => (in._2, in._3)).mkString(", "))
+    }
+
+    if (outputPath == null) {
+      result.print()
+    } else {
+      result.writeAsCsv(outputPath + "_flink", writeMode = WriteMode.OVERWRITE)
+    }
+
+    // execute program
+    env.execute("Group Reduce Benchmark Flink (HashCombine)")
+    //        println(env.getExecutionPlan())
+  }
+}
+
+object GroupReduceBenchmarkFlinkHash {
+
+  def main(args: Array[String]) {
+    if (args.length < 4) {
+      println("Usage: [master] [dop] [k] [input] [output]")
+      return
+    }
+
+    var master = args(0)
+    var dop = args(1).toInt
+    var k = args(2).toInt
+    var inputPath = args(3)
+    val outputPath = if (args.length > 4) {
+      args(4)
+    } else {
+      null
+    }
+
+    // set up the execution environment
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    env.setDegreeOfParallelism(dop)
+
+    val readsWithCountryAndBook = env.readCsvFile[(String, String)](inputPath)
+
+    // Group by country and determine top-k books
+    val result = readsWithCountryAndBook
+      .map { in => (in._1, in._2, 1L) }
+      .mapPartition(new HashAggregator("COMBINER"))
+      .partitionByHash("_2", "_1")
+      .mapPartition(new HashAggregator("COMBINER"))
       .groupBy("_1").sortGroup("_3", Order.DESCENDING)
       .first(k)
       .groupBy("_1")
