@@ -32,7 +32,11 @@ import org.apache.flink.util.Collector
 import scala.collection.mutable
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
+
+case class JTuple3[T1, T2, T3](var _1: T1, var _2: T2, var _3: T3)
+case class JTuple2[T1, T2](var _1: T1, var _2: T2)
 
 object GroupReduceBenchmarkGenerateData {
   val rnd = new Random(System.currentTimeMillis())
@@ -183,11 +187,11 @@ object GroupReduceBenchmarkFlinkHashCombine {
 
     // Group by country and determine top-k books
     val result = readsWithCountryAndBook
-      .map { in => (in._1, in._2, 1L) }
+      .map { in => new JTuple2((in._1, in._2), 1L) }
       .mapPartition(new HashListAggregator("COMBINER"))
-      .partitionByHash("_2", "_1")
-      .groupBy("_2", "_1")
-      .sum("_3")
+      .partitionByHash("_1.*")
+      .groupBy("_1.*")
+      .sum("_2")
 //      .groupBy("_1").sortGroup("_3", Order.DESCENDING)
 //      .first(k)
 //      .groupBy("_1")
@@ -236,10 +240,10 @@ object GroupReduceBenchmarkFlinkHash {
 
     // Group by country and determine top-k books
     val result = readsWithCountryAndBook
-      .map { in => (in._1, in._2, 1L) }
+      .map { in => new JTuple2((in._1, in._2), 1L) }
       .mapPartition(new HashListAggregator("COMBINER"))
-      .partitionByHash("_2", "_1")
-      .mapPartition(new HashListAggregator("COMBINER"))
+      .partitionByHash("_1.*")
+      .mapPartition(new HashListAggregator("REDUCER"))
 //      .groupBy("_1").sortGroup("_3", Order.DESCENDING)
 //      .first(k)
 //      .groupBy("_1")
@@ -263,23 +267,23 @@ object GroupReduceBenchmarkFlinkHash {
 }
 
 class HashListAggregator(combine: String)
-  extends RichMapPartitionFunction[(String, String, Long), (String, String, Long)] {
+  extends RichMapPartitionFunction[JTuple2[(String, String), Long], JTuple2[(String, String), Long]] {
 
-  private var aggregate: mutable.HashMap[String, Long] = null
+  private var aggregate: mutable.HashMap[(String, String), Long] = null
 
   var gcCount = new LongCounter
   var gcTime = new LongCounter
 
   override def open(config: Configuration) {
-    aggregate = mutable.HashMap[String, Long]()
+    aggregate = mutable.HashMap[(String, String), Long]()
     val ctx = getRuntimeContext
     ctx.addAccumulator("gc-time-" + ctx.getIndexOfThisSubtask, gcTime)
     ctx.addAccumulator("gc-count-" + ctx.getIndexOfThisSubtask, gcCount)
   }
 
   override def mapPartition(
-                             records: lang.Iterable[(String, String, Long)],
-                             out: Collector[(String, String, Long)]): Unit = {
+                             records: lang.Iterable[JTuple2[(String, String), Long]],
+                             out: Collector[JTuple2[(String, String), Long]]): Unit = {
 
     val gcBeans = ManagementFactory.getGarbageCollectorMXBeans.asScala
     var beforeGcCount = 0L
@@ -293,13 +297,9 @@ class HashListAggregator(combine: String)
     val it = records.iterator
     while (it.hasNext) {
       val value = it.next()
-//      val key = (value._1, value._2)
-      val key = value._2
-      val previous = aggregate.getOrElse(key, 0L)
-      aggregate.put(key, previous + value._3)
+      val agg = aggregate.getOrElse(value._1, 0L)
+      aggregate += (value._1 -> (agg + value._2))
     }
-    val outIt = aggregate.iterator
-
 
     var afterGcCount = 0L
     var afterGcTime = 0L
@@ -313,9 +313,14 @@ class HashListAggregator(combine: String)
     gcTime.add(afterGcTime - beforeGcTime)
 
 
+    val result = new JTuple2(("", ""), 0L)
+    val outIt = aggregate.iterator
+
     while (outIt.hasNext) {
       val value = outIt.next()
-      out.collect((value._1, value._1, value._2))
+      result._1 = value._1
+      result._2 = value._2
+      out.collect(result)
     }
   }
 }
