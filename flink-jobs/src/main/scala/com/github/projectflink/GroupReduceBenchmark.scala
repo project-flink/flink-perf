@@ -18,7 +18,9 @@
 package com.github.projectflink
 
 import java.lang
+import java.lang.management.ManagementFactory
 
+import org.apache.flink.api.common.accumulators.LongCounter
 import org.apache.flink.api.common.functions.RichMapPartitionFunction
 import org.apache.flink.api.common.operators.Order
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint
@@ -28,6 +30,8 @@ import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.util.Collector
 
 import scala.collection.mutable
+
+import scala.collection.JavaConverters._
 import scala.util.Random
 
 object GroupReduceBenchmarkGenerateData {
@@ -263,13 +267,29 @@ class HashAggregator(combine: String)
 
   private var aggregate: mutable.HashMap[(String, String), Long] = null
 
+  var gcCount = new LongCounter
+  var gcTime = new LongCounter
+
   override def open(config: Configuration) {
     aggregate = mutable.HashMap[(String, String), Long]()
+    val ctx = getRuntimeContext
+    ctx.addAccumulator("gc-time-" + ctx.getIndexOfThisSubtask, gcTime)
+    ctx.addAccumulator("gc-count-" + ctx.getIndexOfThisSubtask, gcCount)
   }
 
   override def mapPartition(
       records: lang.Iterable[(String, String, Long)],
       out: Collector[(String, String, Long)]): Unit = {
+
+    val gcBeans = ManagementFactory.getGarbageCollectorMXBeans.asScala
+    var beforeGcCount = 0L
+    var beforeGcTime = 0L
+    gcBeans foreach {
+      gc =>
+        beforeGcCount += gc.getCollectionCount
+        beforeGcTime += gc.getCollectionTime
+    }
+
     val it = records.iterator
     while (it.hasNext) {
       val value = it.next()
@@ -278,6 +298,19 @@ class HashAggregator(combine: String)
       aggregate.put(key, previous + value._3)
     }
     val outIt = aggregate.iterator
+
+
+    var afterGcCount = 0L
+    var afterGcTime = 0L
+    gcBeans foreach {
+      gc =>
+        afterGcCount += gc.getCollectionCount
+        afterGcTime += gc.getCollectionTime
+    }
+
+    gcCount.add(afterGcCount - beforeGcCount)
+    gcTime.add(afterGcTime - beforeGcTime)
+
 
     while (outIt.hasNext) {
       val value = outIt.next()
