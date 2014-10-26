@@ -184,7 +184,7 @@ object GroupReduceBenchmarkFlinkHashCombine {
     // Group by country and determine top-k books
     val result = readsWithCountryAndBook
       .map { in => (in._1, in._2, 1L) }
-      .mapPartition(new HashAggregator("COMBINER"))
+      .mapPartition(new HashListAggregator("COMBINER"))
       .partitionByHash("_2", "_1")
       .groupBy("_2", "_1")
       .sum("_3")
@@ -237,9 +237,9 @@ object GroupReduceBenchmarkFlinkHash {
     // Group by country and determine top-k books
     val result = readsWithCountryAndBook
       .map { in => (in._1, in._2, 1L) }
-      .mapPartition(new HashAggregator("COMBINER"))
+      .mapPartition(new HashListAggregator("COMBINER"))
       .partitionByHash("_2", "_1")
-      .mapPartition(new HashAggregator("COMBINER"))
+      .mapPartition(new HashListAggregator("COMBINER"))
 //      .groupBy("_1").sortGroup("_3", Order.DESCENDING)
 //      .first(k)
 //      .groupBy("_1")
@@ -261,6 +261,65 @@ object GroupReduceBenchmarkFlinkHash {
 //        println(env.getExecutionPlan())
   }
 }
+
+class HashListAggregator(combine: String)
+  extends RichMapPartitionFunction[(String, String, Long), (String, String, Long)] {
+
+  private var aggregate: mutable.HashMap[String, Long] = null
+
+  var gcCount = new LongCounter
+  var gcTime = new LongCounter
+
+  override def open(config: Configuration) {
+    aggregate = mutable.HashMap[String, Long]()
+    val ctx = getRuntimeContext
+    ctx.addAccumulator("gc-time-" + ctx.getIndexOfThisSubtask, gcTime)
+    ctx.addAccumulator("gc-count-" + ctx.getIndexOfThisSubtask, gcCount)
+  }
+
+  override def mapPartition(
+                             records: lang.Iterable[(String, String, Long)],
+                             out: Collector[(String, String, Long)]): Unit = {
+
+    val gcBeans = ManagementFactory.getGarbageCollectorMXBeans.asScala
+    var beforeGcCount = 0L
+    var beforeGcTime = 0L
+    gcBeans foreach {
+      gc =>
+        beforeGcCount += gc.getCollectionCount
+        beforeGcTime += gc.getCollectionTime
+    }
+
+    val it = records.iterator
+    while (it.hasNext) {
+      val value = it.next()
+//      val key = (value._1, value._2)
+      val key = value._2
+      val previous = aggregate.getOrElse(key, 0L)
+      aggregate.put(key, previous + value._3)
+    }
+    val outIt = aggregate.iterator
+
+
+    var afterGcCount = 0L
+    var afterGcTime = 0L
+    gcBeans foreach {
+      gc =>
+        afterGcCount += gc.getCollectionCount
+        afterGcTime += gc.getCollectionTime
+    }
+
+    gcCount.add(afterGcCount - beforeGcCount)
+    gcTime.add(afterGcTime - beforeGcTime)
+
+
+    while (outIt.hasNext) {
+      val value = outIt.next()
+      out.collect((value._1, value._1, value._2))
+    }
+  }
+}
+
 
 class HashAggregator(combine: String)
   extends RichMapPartitionFunction[(String, String, Long), (String, String, Long)] {
