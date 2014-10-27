@@ -1,5 +1,7 @@
 package com.github.projectflink.als
 
+import java.net.URL
+
 import breeze.stats.distributions.{RandBasis, ThreadLocalRandomGenerator, Gaussian, Rand}
 import org.apache.commons.math3.random.MersenneTwister
 import org.apache.flink.api.scala._
@@ -55,36 +57,17 @@ object ALSDataGeneration{
 
       val env = ExecutionEnvironment.getExecutionEnvironment
 
-      val (rankingMatrix, listeners, songs) = generateData(config, env)
+      val (ratingMatrix, listeners, songs) = generateData(config, env)
 
-      if(config.outputPath == null) {
+      import config._
+
+      if(outputPath == null) {
         // print data
-        songs.print()
-        listeners.print()
-        rankingMatrix.print()
+        ratingMatrix.print()
       }else{
         // write to disk
-        val path = Path(config.outputPath)
-        val rankingPath = path / RANKING_MATRIX
-        val songsPath = path / SONGS_MATRIX
-        val listenersPath = path / LISTENERS_MATRIX
-
-        rankingMatrix.writeAsCsv(
-          filePath = rankingPath.toString,
-          rowDelimiter = "\n",
-          fieldDelimiter = ",",
-          writeMode = WriteMode.OVERWRITE
-        )
-
-        songs.writeAsCsv(
-          filePath = songsPath.toString,
-          rowDelimiter = "\n",
-          fieldDelimiter = ",",
-          writeMode = WriteMode.OVERWRITE
-        )
-
-        listeners.writeAsCsv(
-          filePath = listeners.toString,
+        ratingMatrix.writeAsCsv(
+          filePath = outputPath + s"$numListeners-$numSongs-$numLatentVariables-$meanNumRankingEntries",
           rowDelimiter = "\n",
           fieldDelimiter = ",",
           writeMode = WriteMode.OVERWRITE
