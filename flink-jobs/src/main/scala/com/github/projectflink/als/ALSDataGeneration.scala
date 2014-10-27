@@ -32,14 +32,14 @@ object ALSDataGeneration{
         value)} text { "Number of latent variables." }
       arg[Double]("meanEntries") action { (value, conf) => conf.copy(meanEntries = value) } text
         { "Mean of normal distribution of generated entries."}
-      arg[Double]("stdEntries") action { (value, conf) => conf.copy(varEntries = value) } text {
+      arg[Double]("varEntries") action { (value, conf) => conf.copy(varEntries = value) } text {
         "Variance of normal distribution of generated entries."}
       arg[Double]("meanNumListenEntries") action {
         (value, conf) => conf.copy(meanNumRankingEntries = value)
       } text {
         "Normal distribution mean of number of non zero entries of ranking matrix."
       }
-      arg[Double]("stdNumListenEntries") action {
+      arg[Double]("varNumListenEntries") action {
         (value, conf) => conf.copy(varNumRankingEntries = value)
       } text {
         "Normal distribution variance of number of non zero entries of ranking matrix."

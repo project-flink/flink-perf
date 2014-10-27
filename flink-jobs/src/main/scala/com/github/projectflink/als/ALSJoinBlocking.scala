@@ -1,29 +1,22 @@
 package com.github.projectflink.als
 
 
+import org.apache.flink.api.scala._
 import breeze.linalg.{diag, DenseVector, DenseMatrix}
 import com.github.projectflink.common.als.{Factors, outerProduct, Rating}
 import org.apache.flink.api.scala.ExecutionEnvironment
+import org.apache.flink.core.memory.{DataOutputView, DataInputView}
+import org.apache.flink.types.Value
 import org.apache.flink.util.Collector
-import org.apache.flink.api.scala._
 
+import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.util.{Random, Sorting}
 
 class ALSJoinBlocking(factors: Int, lambda: Double, iterations: Int, userBlocks: Int,
                       itemBlocks: Int,
-                      seed: Long) extends ALSFlinkAlgorithm {
-  class Partitioner(blocks: Int){
-    def apply(id: Int): Int = {
-      id % blocks
-    }
-  }
-
-  case class OutBlockInformation(elementIDs: Array[IDType], outLinks: Array[scala.collection.mutable
-  .BitSet])
-
-  case class InBlockInformation(elementIDs: Array[IDType], ratingsForBlock: Array[Array[
-    (Array[IDType], Array[ElementType])]])
+                      seed: Long) extends ALSFlinkAlgorithm with Serializable {
+  import ALSJoinBlocking._
 
   override def factorize(ratings: DS[RatingType]): Factorization = {
     val ratingsByUserBlock = ratings map {
@@ -40,6 +33,7 @@ class ALSJoinBlocking(factors: Int, lambda: Double, iterations: Int, userBlocks:
       }
     }
 
+
     val (userIn, userOut) = createBlockInformation(userBlocks, itemBlocks, ratingsByUserBlock)
     val (itemIn, itemOut) = createBlockInformation(itemBlocks, userBlocks, ratingsByItemBlock)
 
@@ -52,6 +46,9 @@ class ALSJoinBlocking(factors: Int, lambda: Double, iterations: Int, userBlocks:
         (blockID, infos.elementIDs.map(_ => randomFactors(factors, random)))
       }
     }
+
+    unblock(initialItems, itemOut).print()
+
 
     val items = initialItems.iterate(iterations){
       items => {
@@ -96,12 +93,16 @@ class ALSJoinBlocking(factors: Int, lambda: Double, iterations: Int, userBlocks:
             toSend(userBlock) += factors(item)
           }
         }
-        toSend.zipWithIndex.foreach{ case (buf, idx) => col.collect((idx, (blockID, buf.toArray))) }
+        toSend.zipWithIndex.foreach{
+          case (buf, idx) => col.collect((idx, (blockID, buf.toArray)))
+        }
       }
     }.groupBy(0).reduceGroup{
       it => {
-        val bufferedIT = it.buffered
-        (bufferedIT.head._1, bufferedIT.map(_._2))
+        val array = it.toArray
+        val id = array(0)._1
+        val blocks = array.map(_._2)
+        (id, blocks)
       }
     }.join(userIn).where(0).equalTo(0){
       (left, right) => {
@@ -113,10 +114,10 @@ class ALSJoinBlocking(factors: Int, lambda: Double, iterations: Int, userBlocks:
     }
   }
 
-  def updateBlock(updates: Iterator[(IDType, Array[Array[ElementType]])],
+  def updateBlock(updates: Array[(IDType, Array[Array[ElementType]])],
                   inInfo: InBlockInformation, factors: Int, lambda: Double): Array[Array[Double]]
   = {
-    val blockFactors = updates.toSeq.sortBy(_._1).map(_._2).toArray
+    val blockFactors = updates.sortBy(_._1).map(_._2).toArray
     val numItemBlocks = blockFactors.length
     val numUsers = inInfo.elementIDs.length
 
@@ -140,8 +141,8 @@ class ALSJoinBlocking(factors: Int, lambda: Double, iterations: Int, userBlocks:
           userXy(us(i)) += vector * rs(i)
           i += 1
         }
+        p += 1
       }
-      p += 1
     }
 
     Array.range(0, numUsers) map { index =>
@@ -156,31 +157,21 @@ class ALSJoinBlocking(factors: Int, lambda: Double, iterations: Int, userBlocks:
 
   def createBlockInformation(userBlocks: Int, itemBlocks: Int, ratings: DS[(IDType,
     RatingType)]):(DS[(IDType, InBlockInformation)], DS[(IDType, OutBlockInformation)]) = {
-      val t = ratings.groupBy(0).reduceGroup {
-        itRatings => itRatings.toArray
-      }.map{
-        arRatings => {
-          val partitioner = new Partitioner(itemBlocks)
-          val outBlockInformation = createOutBlockInformation(itemBlocks, arRatings,
-            partitioner)
-          outBlockInformation
-        }
+    val blockInformation = ratings.
+      groupBy(0).
+      reduceGroup{
+      ratings => {
+        import scala.collection.JavaConverters._
+        val partitioner = new Partitioner(itemBlocks)
+        val arrayRatings = ratings.toArray
+        val inBlockInformation = createInBlockInformation(itemBlocks, arrayRatings,
+          partitioner)
+        val outBlockInformation = createOutBlockInformation(itemBlocks, arrayRatings,
+        partitioner)
+        (inBlockInformation, outBlockInformation)
       }
-
-//    val blockInformation = ratings.groupBy(0).reduceGroup{
-//      ratings => {
-//        import scala.collection.JavaConverters._
-//        val partitioner = new Partitioner(itemBlocks)
-//        val inBlockInformation = createInBlockInformation(itemBlocks, ratings.toArray,
-//          partitioner)
-//        val outBlockInformation = createOutBlockInformation(itemBlocks, ratings.toArray,
-//        partitioner)
-//        (inBlockInformation, outBlockInformation)
-//      }
-//    }
-//    (blockInformation.map(_._1), blockInformation.map(_._2))
-
-    (null, null)
+    }
+    (blockInformation.map(_._1), blockInformation.map(_._2))
   }
 
   def createInBlockInformation(numItemBlocks: Int, ratings: Array[(IDType, RatingType)],
@@ -194,9 +185,9 @@ class ALSJoinBlocking(factors: Int, lambda: Double, iterations: Int, userBlocks:
       blockRatings(itemPartitioner(r._2.item)) += r._2
     }
 
-    val ratingsForBlock = new Array[Array[(Array[IDType], Array[ElementType])]](numItemBlocks)
+    val ratingsForBlock = new Array[BlockRating](numItemBlocks)
 
-    for(itemBlock <- 0 until itemBlocks){
+    for(itemBlock <- 0 until numItemBlocks){
       val groupedRatings = blockRatings(itemBlock).groupBy(_.item).toArray
       val ordering = new Ordering[(IDType, ArrayBuffer[RatingType])] {
         def compare(a: (IDType, ArrayBuffer[RatingType]), b: (IDType,
@@ -205,11 +196,11 @@ class ALSJoinBlocking(factors: Int, lambda: Double, iterations: Int, userBlocks:
         }
       }
       Sorting.quickSort(groupedRatings)(ordering)
-      ratingsForBlock(itemBlock) = groupedRatings map {
+      ratingsForBlock(itemBlock) = new BlockRating(groupedRatings map {
         case (p, rs) => {
           (rs.view.map(r => userIDToPos(r.user)).toArray, rs.view.map(_.rating).toArray)
         }
-      }
+      })
     }
 
     (ratings(0)._1, InBlockInformation(userIDs, ratingsForBlock))
@@ -227,11 +218,76 @@ class ALSJoinBlocking(factors: Int, lambda: Double, iterations: Int, userBlocks:
       shouldSend(userIDToPos(r._2.user))(itemPartitioner(r._2.item)) = true
     }
 
-    (ratings(0)._1, OutBlockInformation(userIDs, shouldSend))
+    (ratings(0)._1, OutBlockInformation(userIDs, new OutLinks(shouldSend)))
   }
 }
 
 object ALSJoinBlocking extends ALSFlinkRunner with ALSFlinkToyRatings {
+  class Partitioner(blocks: Int){
+    def apply(id: Int): Int = {
+      id % blocks
+    }
+  }
+
+  case class OutBlockInformation(elementIDs: Array[IDType], outLinks: OutLinks){
+    override def toString: String = {
+      s"((${elementIDs.mkString(",")}), ($outLinks))"
+    }
+  }
+
+  class OutLinks(var links: Array[scala.collection.mutable.BitSet]) extends Value {
+    def this() = this(null)
+
+    override def toString:String = {
+      s"${links.mkString("\n")}"
+    }
+
+    override def write(out: DataOutputView): Unit = {
+      out.writeInt(links.length)
+      links foreach {
+        link => {
+          val bitMask = link.toBitMask
+          out.writeInt(bitMask.length)
+          for(element <- bitMask){
+            out.writeLong(element)
+          }
+        }
+      }
+    }
+
+    override def read(in: DataInputView): Unit = {
+      val length = in.readInt()
+      links = new Array[scala.collection.mutable.BitSet](length)
+
+      for(i <- 0 until length){
+        val bitMaskLength = in.readInt()
+        val bitMask = new Array[Long](bitMaskLength)
+        for(j <- 0 until bitMaskLength){
+          bitMask(j) = in.readLong()
+        }
+        links(i) = mutable.BitSet.fromBitMask(bitMask)
+      }
+    }
+
+    def apply(idx: Int) = links(idx)
+  }
+
+  case class InBlockInformation(elementIDs: Array[IDType], ratingsForBlock: Array[BlockRating]){
+    override def toString: String = {
+      s"((${elementIDs.mkString(",")}), (${ratingsForBlock.mkString("\n")}))"
+    }
+  }
+
+  case class BlockRating(val ratings: Array[(Array[IDType], Array[ElementType])]) {
+    def apply(idx: Int) = ratings(idx)
+
+    override def toString:String = {
+      ratings.map{
+        case (left, right) => s"((${left.mkString(",")}),(${right.mkString(",")}))"
+      }.mkString(",")
+    }
+  }
+
   def main(args: Array[String]): Unit = {
     parseCL(args) map {
       config => {
