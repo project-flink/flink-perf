@@ -4,6 +4,8 @@ import breeze.stats.distributions.Rand
 import org.apache.flink.api.scala._
 import org.apache.flink.core.fs.FileSystem.WriteMode
 
+import scala.util.Random
+
 case class ALSDGConfig(numListeners: Int = 0, numSongs: Int = 0,
                        meanEntries: Double = 0,
                        stdEntries: Double = 0,
@@ -76,14 +78,13 @@ object ALSDataGeneration{
 
     val ratingMatrix = env.generateSequence(1, numListeners).flatMap {
       listenerID =>
-        val numEntries = Rand.gaussian(meanNumRankingEntries, stdNumRankingEntries).draw()
+        val random = new Random(System.currentTimeMillis() ^ (listenerID << 32))
+        val numEntries = random.nextGaussian()*stdNumRankingEntries + meanNumRankingEntries
         val bernoulliProb = numEntries/numSongs
-        val uniform = Rand.uniform
-        val entryDistribution = Rand.gaussian(meanEntries, stdEntries)
 
-        val songs = (1 to numSongs).filter( _ => uniform.draw() <= bernoulliProb ).map {
+        val songs = (1 to numSongs).filter( _ => random.nextDouble() <= bernoulliProb ).map {
           songID => {
-            (listenerID.toInt, songID, entryDistribution.draw())
+            (listenerID.toInt, songID, random.nextGaussian()*stdEntries + meanEntries)
           }
         }
         songs
