@@ -42,8 +42,15 @@ trait ALSRunner extends ALS {
       } text {
         "Number of blocks"
       }
-      arg[Long]("seed") action {
-        (v, c) => c.copy(seed = v)
+      arg[String]("seed") action {
+        (v, c) => {
+          if(v.startsWith("rand")){
+            c.copy(seed = System.currentTimeMillis())
+          }else{
+            c.copy(seed = v.toLong)
+          }
+
+        }
       } text {
         "Seed for random initialization"
       }
@@ -59,13 +66,6 @@ trait ALSRunner extends ALS {
       }
     }
 
-    parser.parse(args, ALSConfig()) map {
-      config =>
-        if(config.seed < 0){
-          config.copy(seed = System.currentTimeMillis())
-        }else{
-          config
-        }
-    }
+    parser.parse(args, ALSConfig())
   }
 }
