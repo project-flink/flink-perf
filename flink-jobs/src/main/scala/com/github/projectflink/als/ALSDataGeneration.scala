@@ -90,7 +90,7 @@ object ALSDataGeneration{
 //        songs
         (1 to numSongs) map {
           songID => {
-            (listenerID.toInt, songID, random.nextDouble)
+            (listenerID.toInt, songID, 1)
           }
         }
     }
