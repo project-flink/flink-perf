@@ -22,12 +22,12 @@ trait ALSSparkRunner extends ALSSpark with ALSRunner {
       factorization.userFactors.foreach(println _)
       factorization.itemFactors.foreach(println _)
     }else{
-      val path = Path(outputPath)
-      val userFactorsPath = path / USER_FACTORS_FILE
-      val itemFactorsPath = path / ITEM_FACTORS_FILE
+      val path = if(outputPath.endsWith("/")) outputPath else outputPath + "/"
+      val userFactorsPath = path + USER_FACTORS_FILE
+      val itemFactorsPath = path + ITEM_FACTORS_FILE
 
-      factorization.userFactors.saveAsTextFile(userFactorsPath.toString)
-      factorization.itemFactors.saveAsTextFile(itemFactorsPath.toString)
+      factorization.userFactors.saveAsTextFile(userFactorsPath)
+      factorization.itemFactors.saveAsTextFile(itemFactorsPath)
     }
   }
 

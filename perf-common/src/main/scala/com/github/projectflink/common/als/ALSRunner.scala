@@ -12,7 +12,7 @@ trait ALSRunner extends ALS {
   case class ALSConfig(master: String = "local[4]", users: Int = -1, items: Int = -1,
                        factors: Int = -1, lambda: Double = 0.0,
                        iterations: Int = 0, inputRatings: String = null, outputPath: String = null,
-                       seed: Long = -1L, blocks: Int = -1)
+                       seed: Long = System.currentTimeMillis(), blocks: Int = -1)
 
   def readRatings(input: String, ctx: Context): DS[RatingType]
 

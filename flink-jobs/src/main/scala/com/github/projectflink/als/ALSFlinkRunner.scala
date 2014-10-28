@@ -22,19 +22,19 @@ trait ALSFlinkRunner extends ALSFlink with ALSRunner {
       factorization.userFactors.print()
       factorization.itemFactors.print()
     }else{
-      val path = Path(outputPath)
-      val userPath = path / USER_FACTORS_FILE
-      val itemPath = path / ITEM_FACTORS_FILE
+      val path = if(outputPath.endsWith("/")) outputPath else outputPath +"/"
+      val userPath = path + USER_FACTORS_FILE
+      val itemPath = path + ITEM_FACTORS_FILE
 
       factorization.userFactors.writeAsCsv(
-        userPath.toString(),
+        userPath,
         "\n",
         ",",
         WriteMode.OVERWRITE
       )
 
       factorization.itemFactors.writeAsCsv(
-        itemPath.toString(),
+        itemPath,
         "\n",
         ",",
         WriteMode.OVERWRITE

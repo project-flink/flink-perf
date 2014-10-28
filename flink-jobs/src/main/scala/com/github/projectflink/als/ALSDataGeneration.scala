@@ -4,7 +4,7 @@ import breeze.stats.distributions.Rand
 import org.apache.flink.api.scala._
 import org.apache.flink.core.fs.FileSystem.WriteMode
 
-case class ALSDGConfig(numListeners: Int = 0, numSongs: Int = 0, numLatentVariables: Int = 0,
+case class ALSDGConfig(numListeners: Int = 0, numSongs: Int = 0,
                        meanEntries: Double = 0,
                        stdEntries: Double = 0,
                        meanNumRankingEntries: Double = 0,
@@ -23,8 +23,6 @@ object ALSDataGeneration{
         "Number of listeners."}
       arg[Int]("numSongs") action { (value, conf) => conf.copy(numSongs = value) } text {
         "Number of songs." }
-      arg[Int]("numLatentVariables") action { (value, conf) => conf.copy(numLatentVariables =
-        value)} text { "Number of latent variables." }
       arg[Double]("meanEntries") action { (value, conf) => conf.copy(meanEntries = value) } text
         { "Mean of normal distribution of generated entries."}
       arg[Double]("stdEntries") action { (value, conf) => conf.copy(stdEntries = value) } text {
@@ -60,7 +58,7 @@ object ALSDataGeneration{
       }else{
         // write to disk
         ratingMatrix.writeAsCsv(
-          filePath = outputPath + s"$numListeners-$numSongs-$numLatentVariables-$meanNumRankingEntries",
+          filePath = outputPath + s"$numListeners-$numSongs-${meanNumRankingEntries.toInt}",
           rowDelimiter = "\n",
           fieldDelimiter = ",",
           writeMode = WriteMode.OVERWRITE

@@ -10,11 +10,9 @@ class ALSJoin(users: Int, items: Int, factors: Int, lambda: Double,
 Serializable {
 
   def factorize(ratings: DS[RatingType]): Factorization = {
-    val randomSeed = if(seed == -1) System.currentTimeMillis() else seed
-
     val itemIDs = ratings map { x => Tuple1(x.item) } distinct
 
-    val initialItemMatrix = generateRandomMatrix(itemIDs map { _._1 }, factors, randomSeed)
+    val initialItemMatrix = generateRandomMatrix(itemIDs map { _._1 }, factors, seed)
 
     val itemMatrix = initialItemMatrix.iterate(iterations){
       itemMatrix => {
