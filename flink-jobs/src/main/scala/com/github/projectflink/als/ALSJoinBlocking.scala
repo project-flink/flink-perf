@@ -297,7 +297,13 @@ object ALSJoinBlocking extends ALSFlinkRunner with ALSFlinkToyRatings {
 
         val ratings = readRatings(inputRatings, env)
 
-        val als = new ALSJoinBlocking(factors, lambda, iterations, blocks, blocks, seed)
+        val numBlocks = if(blocks <= 0){
+          env.getDegreeOfParallelism
+        }else{
+          blocks
+        }
+
+        val als = new ALSJoinBlocking(factors, lambda, iterations, numBlocks, numBlocks, seed)
 
         val factorization = als.factorize(ratings)
 

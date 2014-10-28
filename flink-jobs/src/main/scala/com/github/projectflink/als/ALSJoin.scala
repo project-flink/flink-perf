@@ -5,7 +5,7 @@ import com.github.projectflink.common.als.{outerProduct, Factors, Rating}
 import org.apache.flink.api.scala._
 
 
-class ALSJoin(users: Int, items: Int, factors: Int, lambda: Double,
+class ALSJoin(factors: Int, lambda: Double,
               iterations: Int, seed: Long) extends ALSFlinkAlgorithm with
 Serializable {
 
@@ -134,7 +134,7 @@ object ALSJoin extends ALSFlinkRunner with ALSFlinkToyRatings{
         val env = ExecutionEnvironment.getExecutionEnvironment
         val ratings = readRatings(inputRatings, env)
 
-        val als = new ALSJoin(users, items, factors, lambda, iterations, seed)
+        val als = new ALSJoin(factors, lambda, iterations, seed)
         val factorization = als.factorize(ratings)
 
         outputFactorization(factorization, outputPath)

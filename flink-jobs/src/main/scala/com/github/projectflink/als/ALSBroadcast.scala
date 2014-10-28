@@ -91,7 +91,7 @@ object ALSBroadcast extends ALSFlinkRunner with ALSFlinkToyRatings{
         val env = ExecutionEnvironment.getExecutionEnvironment
         val ratings = readRatings(inputRatings, env)
 
-        val als = new ALSJoin(users, items, factors, lambda, iterations, seed)
+        val als = new ALSJoin(factors, lambda, iterations, seed)
         val factorization = als.factorize(ratings)
 
         outputFactorization(factorization, outputPath)
