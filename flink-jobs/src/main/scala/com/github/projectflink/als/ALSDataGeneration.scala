@@ -79,15 +79,20 @@ object ALSDataGeneration{
     val ratingMatrix = env.generateSequence(1, numListeners).flatMap {
       listenerID =>
         val random = new Random(System.currentTimeMillis() ^ (listenerID << 32))
-        val numEntries = random.nextGaussian()*stdNumRankingEntries + meanNumRankingEntries
-        val bernoulliProb = numEntries/numSongs
-
-        val songs = (1 to numSongs).filter( _ => random.nextDouble() <= bernoulliProb ).map {
+//        val numEntries = random.nextGaussian()*stdNumRankingEntries + meanNumRankingEntries
+//        val bernoulliProb = numEntries/numSongs
+//
+//        val songs = (1 to numSongs).filter( _ => random.nextDouble() <= bernoulliProb ).map {
+//          songID => {
+//            (listenerID.toInt, songID, random.nextGaussian()*stdEntries + meanEntries)
+//          }
+//        }
+//        songs
+        (1 to numSongs) map {
           songID => {
-            (listenerID.toInt, songID, random.nextGaussian()*stdEntries + meanEntries)
+            (listenerID.toInt, songID, random.nextDouble)
           }
         }
-        songs
     }
     ratingMatrix
   }
