@@ -1,10 +1,9 @@
 package com.github.projectflink.als
 
-import breeze.stats.distributions.Rand
+import java.util.Random
+
 import org.apache.flink.api.scala._
 import org.apache.flink.core.fs.FileSystem.WriteMode
-
-import scala.util.Random
 
 case class ALSDGConfig(numListeners: Int = 0, numSongs: Int = 0,
                        meanEntries: Double = 0,
@@ -90,7 +89,7 @@ object ALSDataGeneration{
 //        songs
         (1 to numSongs) map {
           songID => {
-            (listenerID.toInt, songID, 1)
+            (listenerID.toInt, songID, random)
           }
         }
     }
