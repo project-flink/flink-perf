@@ -1,21 +1,14 @@
 package com.github.projectflink.als
 
-import java.net.URL
-
-import breeze.stats.distributions.{RandBasis, ThreadLocalRandomGenerator, Gaussian, Rand}
-import org.apache.commons.math3.random.MersenneTwister
+import breeze.stats.distributions.Rand
 import org.apache.flink.api.scala._
 import org.apache.flink.core.fs.FileSystem.WriteMode
 
-import scala.reflect.io.Path
-
-import breeze.linalg._
-
 case class ALSDGConfig(numListeners: Int = 0, numSongs: Int = 0, numLatentVariables: Int = 0,
                        meanEntries: Double = 0,
-                       varEntries: Double = 0,
+                       stdEntries: Double = 0,
                        meanNumRankingEntries: Double = 0,
-                       varNumRankingEntries: Double = 0,
+                       stdNumRankingEntries: Double = 0,
                        outputPath: String = null)
 
 object ALSDataGeneration{
@@ -34,15 +27,15 @@ object ALSDataGeneration{
         value)} text { "Number of latent variables." }
       arg[Double]("meanEntries") action { (value, conf) => conf.copy(meanEntries = value) } text
         { "Mean of normal distribution of generated entries."}
-      arg[Double]("varEntries") action { (value, conf) => conf.copy(varEntries = value) } text {
+      arg[Double]("stdEntries") action { (value, conf) => conf.copy(stdEntries = value) } text {
         "Variance of normal distribution of generated entries."}
       arg[Double]("meanNumListenEntries") action {
         (value, conf) => conf.copy(meanNumRankingEntries = value)
       } text {
         "Normal distribution mean of number of non zero entries of ranking matrix."
       }
-      arg[Double]("varNumListenEntries") action {
-        (value, conf) => conf.copy(varNumRankingEntries = value)
+      arg[Double]("stdNumListenEntries") action {
+        (value, conf) => conf.copy(stdNumRankingEntries = value)
       } text {
         "Normal distribution variance of number of non zero entries of ranking matrix."
       }
@@ -57,7 +50,7 @@ object ALSDataGeneration{
 
       val env = ExecutionEnvironment.getExecutionEnvironment
 
-      val (ratingMatrix, listeners, songs) = generateData(config, env)
+      val ratingMatrix = generateData(config, env)
 
       import config._
 
@@ -83,44 +76,20 @@ object ALSDataGeneration{
   def generateData(config: ALSDGConfig, env: ExecutionEnvironment) = {
     import config._
 
-    val intermediateListeners = env.generateSequence(1, numListeners) map {
-      x => {
-        val rand = Rand.gaussian(meanEntries, varEntries)
-        val entries = rand.sample(numLatentVariables)
+    val ratingMatrix = env.generateSequence(1, numListeners).flatMap {
+      listenerID =>
+        val numEntries = Rand.gaussian(meanNumRankingEntries, stdNumRankingEntries).draw()
+        val bernoulliProb = numEntries/numSongs
+        val uniform = Rand.uniform
+        val entryDistribution = Rand.gaussian(meanEntries, stdEntries)
 
-        val threshold = Rand.gaussian(meanNumRankingEntries, varNumRankingEntries).draw/numSongs
-
-        (x.toInt, entries.toArray, threshold)
-      }
-    }
-
-    val listeners = intermediateListeners map { x => (x._1, x._2) }
-
-    val songs = env.generateSequence(1, numSongs) map {
-      x => {
-        val rand = Rand.gaussian(meanEntries, varEntries)
-        val entries = rand.sample(numLatentVariables)
-        (x.toInt, entries.toArray)
-      }
-    }
-
-    val rankingMatrix = intermediateListeners.cross(songs).flatMap {
-      x =>
-        val ((row, left, threshold), (col, right)) = x
-        val rnd = Rand.uniform
-        val prob = rnd.sample()
-
-        if (prob <= threshold) {
-          val leftVector = DenseVector(left)
-          val rightVector = DenseVector(right)
-          val result: Double = leftVector dot rightVector
-
-          Some(row, col, result)
-        } else {
-          None
+        val songs = (1 to numSongs).filter( _ => uniform.draw() <= bernoulliProb ).map {
+          songID => {
+            (listenerID.toInt, songID, entryDistribution.draw())
+          }
         }
+        songs
     }
-
-    (rankingMatrix, listeners, songs)
+    ratingMatrix
   }
 }
