@@ -82,7 +82,7 @@ ALSFlinkAlgorithm {
   }
 }
 
-object ALSBroadcast extends ALSFlinkRunner with ALSFlinkToyRatings{
+object ALSBroadcast extends ALSFlinkRunner with ALSFlinkToyRatings {
   def main(args: Array[String]): Unit = {
     parseCL(args) map {
       config => {

@@ -26,17 +26,13 @@ trait ALSFlinkRunner extends ALSFlink with ALSRunner {
       val userPath = path + USER_FACTORS_FILE
       val itemPath = path + ITEM_FACTORS_FILE
 
-      factorization.userFactors.writeAsCsv(
+      factorization.userFactors.writeAsText(
         userPath,
-        "\n",
-        ",",
         WriteMode.OVERWRITE
       )
 
-      factorization.itemFactors.writeAsCsv(
+      factorization.itemFactors.writeAsText(
         itemPath,
-        "\n",
-        ",",
         WriteMode.OVERWRITE
       )
     }

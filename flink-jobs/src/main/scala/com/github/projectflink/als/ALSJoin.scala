@@ -125,7 +125,7 @@ Serializable {
   }
 }
 
-object ALSJoin extends ALSFlinkRunner with ALSFlinkToyRatings{
+object ALSJoin extends ALSFlinkRunner with ALSFlinkToyRatings {
   def main(args: Array[String]): Unit = {
     parseCL(args) map {
       config => {
