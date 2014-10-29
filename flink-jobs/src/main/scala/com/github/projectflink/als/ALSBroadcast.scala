@@ -96,7 +96,6 @@ object ALSBroadcast extends ALSFlinkRunner with ALSFlinkToyRatings {
 
         outputFactorization(factorization, outputPath)
 
-        env.setDegreeOfParallelism(2)
         env.execute("ALS benchmark")
       }
     } getOrElse{
