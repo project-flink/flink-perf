@@ -1,6 +1,6 @@
 package com.github.projectflink.spark.als
 
-import breeze.linalg.{diag, DenseVector}
+import breeze.linalg.{DenseMatrix, diag, DenseVector}
 import com.github.projectflink.common.als.{Factors, outerProduct, Rating}
 import org.apache.spark.{SparkContext, SparkConf}
 import org.apache.spark.SparkContext._
@@ -51,24 +51,28 @@ class ALSJoin(factors: Int, lambda: Double, iterations: Int,
     Array[ElementType])], adjacencies: DS[(IDType, IDType)], lambda: Double):DS[(IDType,
     Array[ElementType])] = {
 
-    val uV = ratings.join(matrix).map {
-      case (_, ((listener, ranking), factorArray)) =>
-        (listener, (DenseVector(factorArray) * ranking):DenseVector[Double])
-    }.reduceByKey(_ + _)
+    ratings.join(matrix).map {
+      case (_, ((userID, ratings), factorArray)) =>
+        (userID, (ratings, factorArray))
+    }.groupByKey().map{
+      case (userID, raitingVectorPairs) => {
+//        val matrix = DenseMatrix.zeros[Double](factors, factors)
+//        val vector = DenseVector.zeros[Double](factors)
+//        var n = 0
+//
+//        for((rating, vectorData) <- raitingVectorPairs){
+//          val v = DenseVector(vectorData)
+//
+//          vector += v * rating
+//          matrix += outerProduct(v,v)
+//
+//          n += 1
+//        }
+//
+//        diag(matrix) += n*lambda
 
-    val uA = adjacencies.join(matrix).map {
-      case (_, (listener, factorVector)) =>{
-        val vector = DenseVector(factorVector)
-        import outerProduct._
-        val partialA = outerProduct(vector, vector)
-        diag(partialA) += lambda
-        (listener, partialA)
+        (userID, null)
       }
-    }.reduceByKey(_ + _)
-
-    uA.join(uV).map{
-      case (listener, (matrix, vector)) =>
-        (listener, (matrix \ vector).data)
     }
   }
 }

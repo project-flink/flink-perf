@@ -11,7 +11,11 @@ class ALSJoin(factors: Int, lambda: Double,
 Serializable {
 
   def factorize(ratings: DS[RatingType]): Factorization = {
-    val transposedRatings = ratings map { x => Rating(x.item, x.user, x.rating)}
+    null
+  }
+
+  def factorize(ratings: DS[RatingType], ratings2: DS[RatingType]): Factorization = {
+    val transposedRatings = ratings2 map { x => Rating(x.item, x.user, x.rating)}
 
     val itemIDs = ratings map { x => Tuple1(x.item) } distinct
 
@@ -74,13 +78,15 @@ object ALSJoin extends ALSFlinkRunner with ALSFlinkToyRatings {
 
         val env = ExecutionEnvironment.getExecutionEnvironment
         val ratings = readRatings(inputRatings, env)
+        val ratings2 = readRatings(inputRatings, env)
 
         val als = new ALSJoin(factors, lambda, iterations, seed)
-        val factorization = als.factorize(ratings)
+        val factorization = als.factorize(ratings, ratings2)
 
         outputFactorization(factorization, outputPath)
 
-        env.execute("ALS benchmark")
+//        env.execute("ALS benchmark")
+        println(env.getExecutionPlan())
       }
     } getOrElse{
       println("Could not parse command line parameters.")
