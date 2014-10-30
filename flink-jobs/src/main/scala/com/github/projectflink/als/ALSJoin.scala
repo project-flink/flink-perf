@@ -14,7 +14,8 @@ Serializable {
     null
   }
 
-  def factorize(ratings: DS[RatingType], ratings2: DS[RatingType]): Factorization = {
+  def factorize(ratings: DS[RatingType], ratings2: DS[RatingType],
+                ratings3: DS[RatingType]): Factorization = {
     val transposedRatings = ratings2 map { x => Rating(x.item, x.user, x.rating)}
 
     val itemIDs = ratings map { x => Tuple1(x.item) } distinct
@@ -28,7 +29,7 @@ Serializable {
       }
     }
 
-    val userMatrix = updateMatrix(ratings, itemMatrix, lambda)
+    val userMatrix = updateMatrix(ratings3, itemMatrix, lambda)
 
     Factorization(userMatrix, itemMatrix)
   }
@@ -79,9 +80,10 @@ object ALSJoin extends ALSFlinkRunner with ALSFlinkToyRatings {
         val env = ExecutionEnvironment.getExecutionEnvironment
         val ratings = readRatings(inputRatings, env)
         val ratings2 = readRatings(inputRatings, env)
+        val ratings3 = readRatings(inputRatings, env)
 
         val als = new ALSJoin(factors, lambda, iterations, seed)
-        val factorization = als.factorize(ratings, ratings2)
+        val factorization = als.factorize(ratings, ratings2, ratings3)
 
         outputFactorization(factorization, outputPath)
 
