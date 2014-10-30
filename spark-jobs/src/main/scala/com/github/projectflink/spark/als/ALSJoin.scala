@@ -55,23 +55,26 @@ class ALSJoin(factors: Int, lambda: Double, iterations: Int,
       case (_, ((userID, ratings), factorArray)) =>
         (userID, (ratings, factorArray))
     }.groupByKey().map{
-      case (userID, raitingVectorPairs) => {
-//        val matrix = DenseMatrix.zeros[Double](factors, factors)
-//        val vector = DenseVector.zeros[Double](factors)
-//        var n = 0
-//
-//        for((rating, vectorData) <- raitingVectorPairs){
-//          val v = DenseVector(vectorData)
-//
-//          vector += v * rating
-//          matrix += outerProduct(v,v)
-//
-//          n += 1
-//        }
-//
-//        diag(matrix) += n*lambda
+      group => {
+        import outerProduct._
+        val userID = group._1
+        val ratingVectorPairs = group._2
+        var matrix = DenseMatrix.zeros[Double](factors, factors)
+        var vector = DenseVector.zeros[Double](factors)
+        var n = 0
 
-        (userID, null)
+        for((rating, vectorData) <- ratingVectorPairs){
+          val v = DenseVector(vectorData)
+
+          vector += v * rating
+          matrix += outerProduct(v,v)
+
+          n += 1
+        }
+
+        diag(matrix) += n*lambda
+
+        (userID, (matrix \ vector).data)
       }
     }
   }
