@@ -9,7 +9,7 @@ import scala.collection.mutable
 import org.apache.flink.api.scala._
 
 class ALSBroadcast(factors: Int, lambda: Double, iterations: Int, seed: Long) extends
-ALSFlinkAlgorithm {
+ALSFlinkAlgorithm with Serializable{
 
   val BROADCAST_MATRIX = "broadcastMatrix"
 
@@ -91,7 +91,7 @@ object ALSBroadcast extends ALSFlinkRunner with ALSFlinkToyRatings {
         val env = ExecutionEnvironment.getExecutionEnvironment
         val ratings = readRatings(inputRatings, env)
 
-        val als = new ALSJoin(factors, lambda, iterations, seed)
+        val als = new ALSBroadcast(factors, lambda, iterations, seed)
         val factorization = als.factorize(ratings)
 
         outputFactorization(factorization, outputPath)
