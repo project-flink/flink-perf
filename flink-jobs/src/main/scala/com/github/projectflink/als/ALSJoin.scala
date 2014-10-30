@@ -3,6 +3,7 @@ package com.github.projectflink.als
 import breeze.linalg.{DenseMatrix, diag, DenseVector}
 import com.github.projectflink.common.als.{outerProduct, Factors, Rating}
 import org.apache.flink.api.scala._
+import org.apache.flink.util.Collector
 
 
 class ALSJoin(factors: Int, lambda: Double,
@@ -33,44 +34,34 @@ Serializable {
     val uVA = items.join(ratings).where(0).equalTo(1) {
       (item, ratingEntry) => {
         val Rating(uID, _, rating) = ratingEntry
-        val vector: DenseVector[ElementType] = DenseVector(item.factors)
-        val ratedVector: DenseVector[ElementType] = vector * rating
 
+        (uID, rating, item.factors)
+      }
+    }
+
+    uVA.groupBy(0).reduceGroup{
+      (vectors, col: Collector[FactorType]) => {
         import outerProduct._
-        val partialMatrix = outerProduct(vector, vector)
 
-        diag(partialMatrix) += lambda
+        var uID = -1
+        var matrix = DenseMatrix.zeros[Double](factors, factors)
+        var vector = DenseVector.zeros[Double](factors)
+        var n = 0
 
-        (new Factors(uID, ratedVector.data), new Factors(uID, partialMatrix.data))
+        for((id, rating, vectorData) <- vectors){
+          uID = id
+          val v = DenseVector(vectorData)
+
+          vector += v * rating
+          matrix += outerProduct(v, v)
+
+          n += 1
+        }
+
+        diag(matrix) += n*lambda
+
+        col.collect(new Factors(uID, (matrix \ vector).data))
       }
-    }
-
-    val uV = uVA.map(_._1).groupBy(0).reduce {
-      (left, right) => {
-        val vectorSum = DenseVector(left.factors) + DenseVector(right.factors)
-        val uID = left.id
-
-        new Factors(uID, vectorSum.data)
-      }
-    }
-
-    val uA = uVA.map(_._2).groupBy(0).reduce {
-      (left, right) => {
-        val t = DenseMatrix.create(factors, factors, left.factors)
-        val matrix = DenseMatrix.create(factors, factors, left.factors) +
-          DenseMatrix.create(factors, factors, right.factors)
-
-        new Factors(left.id, matrix.data)
-      }
-    }
-
-    uA.join(uV).where(0).equalTo(0) {
-      (aMatrix, vVector) =>
-        val uID = aMatrix.id
-        val matrix = DenseMatrix.create(factors, factors, aMatrix.factors)
-        val vector = DenseVector(vVector.factors)
-
-        new Factors(uID, (matrix \ vector).data)
     }
   }
 }
