@@ -85,8 +85,7 @@ object ALSJoin extends ALSFlinkRunner with ALSFlinkToyRatings {
 
         outputFactorization(factorization, outputPath)
 
-//        env.execute("ALS benchmark")
-        println(env.getExecutionPlan())
+        env.execute("ALS benchmark")
       }
     } getOrElse{
       println("Could not parse command line parameters.")
