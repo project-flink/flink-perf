@@ -42,7 +42,7 @@ object ALSMLLib extends ALSSparkRunner with ALSSparkToyRatings {
           case (id, factors) => new Factors(id, factors)
         }
 
-        val itemFactors = model.userFeatures map {
+        val itemFactors = model.productFeatures map {
           case (id, factors) => new Factors(id, factors)
         }
 
