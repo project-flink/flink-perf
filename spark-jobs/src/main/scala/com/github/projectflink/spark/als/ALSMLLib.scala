@@ -2,7 +2,7 @@ package com.github.projectflink.spark.als
 
 import com.esotericsoftware.kryo.Kryo
 import com.github.projectflink.common.als.Factors
-import org.apache.spark.serializer.KryoRegistrator
+import org.apache.spark.serializer.{KryoSerializer, KryoRegistrator}
 import org.apache.spark.{SparkContext, SparkConf}
 
 
@@ -12,6 +12,14 @@ import scala.collection.mutable
 
 object ALSMLLib extends ALSSparkRunner with ALSSparkToyRatings {
 
+  class ALSRegistrator extends KryoRegistrator {
+    override def registerClasses(kryo: Kryo) {
+      kryo.register(classOf[SparkRating])
+      kryo.register(classOf[mutable.HashSet[_]])
+      kryo.register(classOf[mutable.BitSet])
+    }
+  }
+
   def main(args: Array[String]): Unit = {
     parseCL(args) map {
       config => {
@@ -19,6 +27,9 @@ object ALSMLLib extends ALSSparkRunner with ALSSparkToyRatings {
 
         val sparkConf = new SparkConf().setMaster(master).setAppName("ALS")
         sparkConf.set("spark.hadoop.skipOutputChecks", "false")
+          .set("spark.serializer", classOf[KryoSerializer].getName)
+          .set("spark.kryo.registrator", classOf[ALSRegistrator].getName)
+          .set("spark.kryoserializer.buffer.mb", "10")
 
         val sc = new SparkContext(sparkConf)
 
@@ -42,13 +53,5 @@ object ALSMLLib extends ALSSparkRunner with ALSSparkToyRatings {
     } getOrElse{
       println("Could not parse command line arguments.")
     }
-  }
-}
-
-class ALSRegistrator extends KryoRegistrator {
-  override def registerClasses(kryo: Kryo) {
-    kryo.register(classOf[SparkRating])
-    kryo.register(classOf[mutable.HashSet[_]])
-    kryo.register(classOf[mutable.BitSet])
   }
 }
