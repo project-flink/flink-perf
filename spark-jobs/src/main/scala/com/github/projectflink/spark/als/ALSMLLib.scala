@@ -27,6 +27,7 @@ object ALSMLLib extends ALSSparkRunner with ALSSparkToyRatings {
 
         val sparkConf = new SparkConf().setMaster(master).setAppName("ALS")
         sparkConf.set("spark.hadoop.skipOutputChecks", "false")
+          .set("spark.hadoop.validateOutputSpecs", "false")
           .set("spark.serializer", classOf[KryoSerializer].getName)
           .set("spark.kryo.registrator", classOf[ALSRegistrator].getName)
           .set("spark.kryoserializer.buffer.mb", "10")
