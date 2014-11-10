@@ -64,7 +64,7 @@ public class PageRankStephan {
 
 //		System.out.println(env.getExecutionPlan());
 
-		env.execute("Page Rank");
+		env.execute("Page Rank Optimized");
 	}
 
 
