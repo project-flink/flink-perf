@@ -1,10 +1,14 @@
 package com.github.projectflink.spark.als
 
+import com.esotericsoftware.kryo.Kryo
 import com.github.projectflink.common.als.Factors
+import org.apache.spark.serializer.KryoRegistrator
 import org.apache.spark.{SparkContext, SparkConf}
 
 
 import org.apache.spark.mllib.recommendation.{ALS => SparkALS, Rating => SparkRating}
+
+import scala.collection.mutable
 
 object ALSMLLib extends ALSSparkRunner with ALSSparkToyRatings {
 
@@ -38,5 +42,13 @@ object ALSMLLib extends ALSSparkRunner with ALSSparkToyRatings {
     } getOrElse{
       println("Could not parse command line arguments.")
     }
+  }
+}
+
+class ALSRegistrator extends KryoRegistrator {
+  override def registerClasses(kryo: Kryo) {
+    kryo.register(classOf[SparkRating])
+    kryo.register(classOf[mutable.HashSet[_]])
+    kryo.register(classOf[mutable.BitSet])
   }
 }
