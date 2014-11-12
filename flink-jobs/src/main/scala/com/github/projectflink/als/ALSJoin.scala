@@ -67,7 +67,7 @@ Serializable {
 
         col.collect(new Factors(uID, (matrix \ vector).data))
       }
-    }
+    }.withConstantSet("0")
   }
 }
 

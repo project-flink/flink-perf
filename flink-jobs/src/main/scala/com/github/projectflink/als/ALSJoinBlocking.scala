@@ -47,9 +47,6 @@ class ALSJoinBlocking(factors: Int, lambda: Double, iterations: Int, userBlocks:
       }
     }
 
-    unblock(initialItems, itemOut).print()
-
-
     val items = initialItems.iterate(iterations){
       items => {
         val users = updateFactors(userBlocks, items, itemOut, userIn, factors, lambda)
@@ -97,21 +94,22 @@ class ALSJoinBlocking(factors: Int, lambda: Double, iterations: Int, userBlocks:
           case (buf, idx) => col.collect((idx, (blockID, buf.toArray)))
         }
       }
-    }.groupBy(0).reduceGroup{
+    }.groupBy(0).reduceGroup {
       it => {
         val array = it.toArray
         val id = array(0)._1
         val blocks = array.map(_._2)
         (id, blocks)
       }
-    }.join(userIn).where(0).equalTo(0){
+    }.withConstantSet("0").
+      join(userIn).where(0).equalTo(0) {
       (left, right) => {
         val blockID = left._1
         val updates = left._2
         val inInfo = right._2
         (blockID, updateBlock(updates, inInfo, factors, lambda))
       }
-    }
+    }.withConstantSetFirst("0")
   }
 
   def updateBlock(updates: Array[(IDType, Array[Array[ElementType]])],
