@@ -76,9 +76,9 @@ ALSFlinkAlgorithm with Serializable{
       }
     }
 
-    val userMatrix = userRatings.map(updateMatrix).withBroadcastSet(itemMatrix, BROADCAST_MATRIX)
+//    val userMatrix = userRatings.map(updateMatrix).withBroadcastSet(itemMatrix, BROADCAST_MATRIX)
 
-    Factorization(userMatrix, itemMatrix)
+    Factorization(itemMatrix, itemMatrix)
   }
 }
 
