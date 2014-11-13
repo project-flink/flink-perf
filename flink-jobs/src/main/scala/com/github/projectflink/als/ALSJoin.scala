@@ -29,9 +29,9 @@ Serializable {
       }
     }
 
-    val userMatrix = updateMatrix(ratings3, itemMatrix, lambda)
+//    val userMatrix = updateMatrix(ratings3, itemMatrix, lambda)
 
-    Factorization(userMatrix, itemMatrix)
+    Factorization(itemMatrix, itemMatrix)
   }
 
   def updateMatrix(ratings: DataSet[RatingType], items: DataSet[FactorType],

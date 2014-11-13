@@ -54,9 +54,10 @@ class ALSJoinBlocking(factors: Int, lambda: Double, iterations: Int, userBlocks:
       }
     }
 
-    val users = updateFactors(userBlocks, items, itemOut, userIn, factors, lambda)
+//    val users = updateFactors(userBlocks, items, itemOut, userIn, factors, lambda)
 
-    new Factorization(unblock(users, userOut), unblock(items, itemOut))
+//    new Factorization(unblock(users, userOut), unblock(items, itemOut))
+    new Factorization(unblock(items, itemOut), unblock(items, itemOut))
   }
 
   def unblock(users: DS[(IDType, Array[Array[ElementType]])], outInfo: DS[(IDType, OutBlockInformation
@@ -159,7 +160,6 @@ class ALSJoinBlocking(factors: Int, lambda: Double, iterations: Int, userBlocks:
       groupBy(0).
       reduceGroup{
       ratings => {
-        import scala.collection.JavaConverters._
         val partitioner = new Partitioner(itemBlocks)
         val arrayRatings = ratings.toArray
         val inBlockInformation = createInBlockInformation(itemBlocks, arrayRatings,
