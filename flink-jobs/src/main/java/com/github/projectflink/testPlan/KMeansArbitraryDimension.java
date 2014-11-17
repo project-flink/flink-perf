@@ -110,8 +110,9 @@ public class KMeansArbitraryDimension {
 
 		// emit result
 		//clusteredPoints.writeAsCsv(outputPath, "\n", " ", FileSystem.WriteMode.OVERWRITE);
-		clusteredPoints.writeAsText(outputPath);
+		clusteredPoints.writeAsText(outputPath, FileSystem.WriteMode.OVERWRITE);
 		// execute program
+		env.setDegreeOfParallelism(dop);
 		env.execute("KMeans Multi-Dimension");
 
 	}
@@ -191,9 +192,9 @@ public class KMeansArbitraryDimension {
 		@Override
 		public Point map(String s) throws Exception {
 			String [] line = s.split(" ");
-			double [] points = new double[line.length - 1];
-			for (int i = 1; i < line.length; i++) {
-				points[i - 1] = Double.parseDouble(line[i]);
+			double [] points = new double[line.length];
+			for (int i = 0; i < line.length; i++) {
+				points[i] = Double.parseDouble(line[i]);
 			}
 			return new Point(points);
 		}
@@ -282,14 +283,16 @@ public class KMeansArbitraryDimension {
 	private static String centersPath = null;
 	private static String outputPath = null;
 	private static int numIterations = 10;
+	private static int dop;
 
 	private static boolean parseParameters(String[] programArguments) {
 		// parse input arguments
-		if(programArguments.length == 4) {
+		if(programArguments.length == 5) {
 			pointsPath = programArguments[0];
 			centersPath = programArguments[1];
 			outputPath = programArguments[2];
 			numIterations = Integer.parseInt(programArguments[3]);
+			dop = Integer.parseInt(programArguments[4]);
 		} else {
 			System.err.println("Usage: KMeans <points path> <centers path> <result path> <num iterations>");
 			return false;

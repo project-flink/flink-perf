@@ -43,7 +43,7 @@ public class KMeansArbitraryDimension {
 			return;
 		}
 
-		SparkConf conf = new SparkConf().setAppName("KMeans Multi-Dimension").setMaster(master);
+		SparkConf conf = new SparkConf().setAppName("KMeans Multi-Dimension").setMaster(master).set("spark.hadoop.validateOutputSpecs", "false");
 		conf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer");
 		// conf.set("spark.kryo.registrator", ScalaRegistrator.class.getCanonicalName());
 		conf.set("spark.kryo.registrator", MyRegistrator.class.getCanonicalName());
@@ -55,7 +55,7 @@ public class KMeansArbitraryDimension {
 		// ================================ Standard KMeans =============================
 
 		JavaRDD<Point> points = sc
-			.textFile(pointsPath, 400)
+			.textFile(pointsPath, dop)
 			.map(new ConvertToPoint());
 		points.cache();
 
@@ -71,8 +71,7 @@ public class KMeansArbitraryDimension {
 				.mapToPair(new SelectNearestCentroid(brCenters))
 				// count and sum point coordinates for each centroid
 				.mapToPair(new CountAppender())
-			//	.reduceByKey(new CentroidSum())
-				//.groupByKey().map()
+				.reduceByKey(new CentroidSum())
 				// calculate the mean( the new center ) of each cluster
 				.mapToPair(new CentroidAverage());
 
@@ -91,9 +90,9 @@ public class KMeansArbitraryDimension {
 		@Override
 		public Point call(String s) throws Exception {
 			String [] line = s.split(" ");
-			double [] points = new double[line.length - 1];
-			for (int i = 1; i < line.length; i++) {
-				points[i - 1] = Double.parseDouble(line[i]);
+			double [] points = new double[line.length];
+			for (int i = 0; i < line.length; i++) {
+				points[i] = Double.parseDouble(line[i]);
 			}
 			return new Point(points);
 		}
@@ -229,17 +228,19 @@ public class KMeansArbitraryDimension {
 	private static String centersPath = null;
 	private static String outputPath = null;
 	private static int numIterations = 10;
+	private static int dop = 400;
 
 	private static boolean parseParameters(String[] programArguments) {
 		// parse input arguments
-		if(programArguments.length == 5) {
+		if(programArguments.length == 6) {
 			master = programArguments[0];
 			pointsPath = programArguments[1];
 			centersPath = programArguments[2];
 			outputPath = programArguments[3];
 			numIterations = Integer.parseInt(programArguments[4]);
+			dop = Integer.parseInt(programArguments[5]);
 		} else {
-			System.err.println("Usage: KMeans <master> <points path> <centers path> <result path> <num iterations>");
+			System.err.println("Usage: KMeans <master> <points path> <centers path> <result path> <num iterations> <dop>");
 			return false;
 		}
 		return true;

@@ -13,7 +13,6 @@ public class MyRegistrator implements KryoRegistrator {
 
 	}
 	public void registerClasses(Kryo kryo) {
-		System.err.println("++++++++++++++Registered Point with Kryo++++++++++++++++++");
 		kryo.register(KMeansArbitraryDimension.Point.class);
 	}
 
