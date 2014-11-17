@@ -1,4 +1,4 @@
-package com.github.projectflink;
+package com.github.projectflink.utils;
 
 import java.io.BufferedReader;
 import java.io.FileReader;

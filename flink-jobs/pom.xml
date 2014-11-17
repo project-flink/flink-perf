@@ -124,6 +124,12 @@
 		</dependency>
 
 		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-math3</artifactId>
+			<version>3.3</version>
+		</dependency>
+
+		<dependency>
 			<groupId>com.github.project-flink</groupId>
 			<artifactId>perf-common</artifactId>
 			<version>0.1-SNAPSHOT</version>
