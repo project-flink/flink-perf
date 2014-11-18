@@ -26,13 +26,19 @@ public class GrepDriver {
 
         private final Text out = new Text();
 
+        private Pattern p;
+
         @Override
-        protected void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
+        protected void setup(Context context) throws IOException, InterruptedException {
+            super.setup(context);
             String pattern = context.getConfiguration().get("pattern");
             Preconditions.checkArgument(pattern != null);
-            Pattern p = Pattern.compile(pattern);
-            String val = value.toString();
+            p = Pattern.compile(pattern);
+        }
 
+        @Override
+        protected void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
+            String val = value.toString();
             if (val == null || val.length() == 0) {
                 return;
             }
@@ -45,7 +51,7 @@ public class GrepDriver {
         }
     }
 
-    public static void main (String [] args) throws Exception {
+    public static void main(String [] args) throws Exception {
 
         String in = args[0];
         String out = args[1];
@@ -67,6 +73,7 @@ public class GrepDriver {
             job.setInputFormatClass(TextInputFormat.class);
             job.setOutputFormatClass(TextOutputFormat.class);
             job.setNumReduceTasks(0);
+            job.setJarByClass(Grep.class);
             FileInputFormat.addInputPath(job, new Path(args[0]));
             FileOutputFormat.setOutputPath(job, new Path(args[1] + "_" + pattern));
 
