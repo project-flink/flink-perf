@@ -15,6 +15,7 @@
   <modules>
     <module>flink-jobs</module>
     <module>spark-jobs</module>
+    <module>hadoop-jobs</module>
     <module>perf-common</module>
   </modules>
   
