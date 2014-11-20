@@ -29,6 +29,7 @@ import org.apache.spark.api.java.function.Function2;
 import org.apache.spark.broadcast.Broadcast;
 
 import scala.Tuple2;
+import scala.Tuple3;
 
 import java.io.Serializable;
 import java.util.Arrays;
@@ -56,8 +57,11 @@ public class KMeansArbitraryDimension {
 
 		JavaRDD<Point> points = sc
 			.textFile(pointsPath, dop)
-			.map(new ConvertToPoint());
-		points.cache();
+			.map(new ConvertToPoint()).cache();
+		for(Point p : points.collect()) {
+		//	System.err.println("point = "+p);
+		}
+		points.saveAsTextFile(outputPath+"points_after_readin");
 
 		JavaPairRDD<Integer, Point> kCenters = sc
 			.textFile(centersPath)
@@ -118,17 +122,18 @@ public class KMeansArbitraryDimension {
 	 *
 	 */
 	public static final class SelectNearestCentroid implements PairFunction<Point, Integer, Point> {
-		Broadcast<List<Tuple2<Integer, Point>>> brCenters;
+		List<Tuple2<Integer, Point>> brCenters;
 
 		public SelectNearestCentroid(Broadcast<List<Tuple2<Integer, Point>>> brCenters) {
-			this.brCenters = brCenters;
+			this.brCenters = brCenters.getValue();
 		}
 
 		public Tuple2<Integer, Point> call(Point v1) throws Exception {
+			System.err.println("sel nearest center in "+v1);
 			double minDistance = Double.MAX_VALUE;
 			int centerId = 0;
 
-			for(Tuple2<Integer, Point> c : brCenters.getValue()) {
+			for(Tuple2<Integer, Point> c : brCenters) {
 				double d = v1.euclideanDistance(c._2());
 				if(minDistance > d) {
 					minDistance = d;
@@ -142,11 +147,13 @@ public class KMeansArbitraryDimension {
 	/**
 	 * Appends a count variable to the tuple.
 	 */
-	public static final class CountAppender implements PairFunction<Tuple2<Integer, Point>, Integer, Tuple2<Point, Integer>> {
+	public static final class CountAppender implements PairFunction<Tuple2<Integer, Point>, Integer, Tuple3<Point, Long, Integer>> {
 
 		@Override
-		public Tuple2<Integer, Tuple2<Point, Integer>> call(Tuple2<Integer, Point> t) throws Exception {
-			return new Tuple2<Integer, Tuple2<Point, Integer>>(t._1(), new Tuple2<Point, Integer>(t._2(), 1));
+		public Tuple2<Integer, Tuple3<Point, Long, Integer>> call(Tuple2<Integer, Point> t) throws Exception {
+			Tuple2<Integer, Tuple3<Point, Long, Integer>> r = new Tuple2<Integer, Tuple3<Point, Long, Integer>>(t._1(), new Tuple3<Point, Long, Integer>(t._2(), 1L, t._1()));
+		//	System.err.println("spark Count appender "+r);
+			return r;
 		}
 	}
 
@@ -155,11 +162,14 @@ public class KMeansArbitraryDimension {
 	 * Aggregate(sum) all the points in each cluster for calculating mean
 	 *
 	 */
-	public static final class CentroidSum implements Function2<Tuple2<Point, Integer>, Tuple2<Point, Integer>, Tuple2<Point, Integer>> {
+	public static final class CentroidSum implements Function2<Tuple3<Point, Long, Integer>, Tuple3<Point, Long, Integer>, Tuple3<Point, Long, Integer>> {
 
 		@Override
-		public Tuple2<Point, Integer> call(Tuple2<Point, Integer> v1, Tuple2<Point, Integer> v2) throws Exception {
-			return new Tuple2<Point, Integer>(v1._1().add(v2._1()), v1._2() + v2._2());
+		public Tuple3<Point, Long, Integer> call(Tuple3<Point, Long, Integer> v1, Tuple3<Point, Long, Integer> v2) throws Exception {
+		//	System.err.println("sp a1 = "+v1+" a2 = "+v2);
+			Tuple3<Point, Long, Integer> r = new Tuple3<Point, Long, Integer>(v1._1().add(v2._1()), v1._2() + v2._2(), v1._3());
+		//	System.err.println("spark accu out = "+r+" key = "+v1._3()+" (and "+v2._3()+")");
+			return r;
 		}
 	}
 
@@ -167,12 +177,18 @@ public class KMeansArbitraryDimension {
 	 * Calculate the mean(new center) of the cluster ( sum of points / number of points )
 	 *
 	 */
-	public static final class CentroidAverage implements PairFunction<Tuple2<Integer, Tuple2<Point, Integer>>, Integer, Point> {
+	public static final class CentroidAverage implements PairFunction<Tuple2<Integer, Tuple3<Point, Long, Integer>>, Integer, Point> {
 
 		@Override
-		public Tuple2<Integer, Point> call(Tuple2<Integer, Tuple2<Point, Integer>> t) throws Exception {
-			t._2()._1().div(t._2()._2());
-			return new Tuple2<Integer, Point>(t._1(), t._2()._1());
+		public Tuple2<Integer, Point> call(Tuple2<Integer, Tuple3<Point, Long, Integer>> t) throws Exception {
+		//	System.err.println("spark averager in "+t);
+			// t._2()._1().div(t._2()._2());
+			Point p = t._2()._1();
+			Long l = t._2()._2();
+			Point nev = p.div(l);
+			Tuple2<Integer, Point> cen = new Tuple2<Integer, Point>(t._1(), nev);
+		//	System.err.println("spark centroid ="+cen);
+			return cen;
 		}
 	}
 
@@ -183,26 +199,28 @@ public class KMeansArbitraryDimension {
 
 	public static class Point implements Serializable {
 
-		public double [] points;
+		private double [] points;
 
-		public Point() {}
+		public Point() { }
 
-		public Point(double [] points) {
-			this.points = points;
+		public Point(double[] points) {
+			this.points = points.clone();
 		}
 
 		public Point add(Point other) {
+			Point ret = new Point(this.points);
 			for (int i = 0; i < points.length; i++) {
-				points[i] =  points[i] + other.points[i];
+				ret.points[i] =  points[i] + other.points[i];
 			}
-			return this;
+			return ret;
 		}
 
 		public Point div(long val) {
+			Point ret = new Point(this.points);
 			for (int i = 0; i < points.length; i++) {
-				points[i] = points[i] / val;
+				ret.points[i] = points[i] / val;
 			}
-			return this;
+			return ret;
 		}
 
 		public double euclideanDistance(Point other) {

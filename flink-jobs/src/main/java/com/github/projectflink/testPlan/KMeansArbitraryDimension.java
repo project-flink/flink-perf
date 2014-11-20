@@ -86,9 +86,11 @@ public class KMeansArbitraryDimension {
 			.readTextFile(pointsPath)
 			.map(new ConvertToPoint());
 
+
 		DataSet<Centroid> centroids = env
 			.readTextFile(centersPath)
 			.map(new ConvertToCentroid());
+
 
 		// set number of bulk iterations for KMeans algorithm
 		IterativeDataSet<Centroid> loop = centroids.iterate(numIterations);
@@ -253,7 +255,9 @@ public class KMeansArbitraryDimension {
 
 		@Override
 		public Tuple3<Integer, Point, Long> map(Tuple2<Integer, Point> t) {
-			return new Tuple3<Integer, Point, Long>(t.f0, t.f1, 1L);
+			Tuple3<Integer, Point, Long> r = new Tuple3<Integer, Point, Long>(t.f0, t.f1, 1L);
+			System.err.println("flink count appender = "+r);
+			return r;
 		}
 	}
 
@@ -262,7 +266,10 @@ public class KMeansArbitraryDimension {
 
 		@Override
 		public Tuple3<Integer, Point, Long> reduce(Tuple3<Integer, Point, Long> val1, Tuple3<Integer, Point, Long> val2) {
-			return new Tuple3<Integer, Point, Long>(val1.f0, val1.f1.add(val2.f1), val1.f2 + val2.f2);
+			System.err.println("fl a1 ="+val1+" a2 = "+val2);
+			Tuple3<Integer, Point, Long> r = new Tuple3<Integer, Point, Long>(val1.f0, val1.f1.add(val2.f1), val1.f2 + val2.f2);
+			System.err.println("flink accu out = "+r);
+			return r;
 		}
 	}
 
@@ -271,7 +278,10 @@ public class KMeansArbitraryDimension {
 
 		@Override
 		public Centroid map(Tuple3<Integer, Point, Long> value) {
-			return new Centroid(value.f0, value.f1.div(value.f2));
+			System.err.println("flink averager in "+value);
+			Centroid c= new Centroid(value.f0, value.f1.div(value.f2));
+			System.err.println("flink Centroid = "+c);
+			return c;
 		}
 	}
 
