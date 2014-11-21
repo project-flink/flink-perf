@@ -57,7 +57,13 @@ ALSFlinkAlgorithm with Serializable {
       }
 
       persistencePath match {
-        case Some(path) => FlinkTools.persist(userIn, userOut, itemIn, itemOut, initialItems, path)
+        case Some(path) =>
+          val (path1, path2) = if(path.endsWith("/")) (path + "user/", path + "item/") else (path
+            +"/user/", path+"/item/")
+          val (uIn, uOut) = FlinkTools.persist(userIn, userOut, path1)
+          val (iIn, iOut, ii) = FlinkTools.persist(itemIn, itemOut, initialItems,
+            path2)
+          (uIn, uOut, iIn, iOut, ii)
         case None => (userIn, userOut, itemIn, itemOut, initialItems)
       }
     }
@@ -217,6 +223,8 @@ ALSFlinkAlgorithm with Serializable {
   (IDType, InBlockInformation) = {
     val userIDs = ratings.map(_._2.user).distinct.sorted
     val userIDToPos = userIDs.zipWithIndex.toMap
+
+    val t = new ArrayBuffer[Int]()
 
     val blockRatings = Array.fill(numItemBlocks)(new ArrayBuffer[RatingType])
     for(r <- ratings) {
