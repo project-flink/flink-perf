@@ -15,6 +15,6 @@ trait ALSSparkAlgorithm extends ALSSpark with ALSAlgorithm{
   }
 
   def randomFactors(factors: Int, random: Random): Array[ElementType] ={
-    Array.fill(factors)(random.nextDouble())
+    Array.fill(factors)(random.nextDouble().asInstanceOf[ElementType])
   }
 }

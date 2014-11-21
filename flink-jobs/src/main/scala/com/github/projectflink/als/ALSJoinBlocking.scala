@@ -104,10 +104,10 @@ ALSFlinkAlgorithm with Serializable {
         val blockID = left._1
         val outInfo = left._2
         val factors = right._2
-        val toSend = Array.fill(numUserBlocks)(new ArrayBuffer[Array[Double]])
+        val toSend = Array.fill(numUserBlocks)(new ArrayBuffer[Array[ElementType]])
         for (item <- 0 until outInfo.elementIDs.length; userBlock <- 0 until numUserBlocks) {
           if (outInfo.outLinks(item)(userBlock)) {
-            toSend(userBlock) += factors(item).clone()
+            toSend(userBlock) += factors(item)
           }
         }
         toSend.zipWithIndex.foreach {
@@ -152,7 +152,8 @@ ALSFlinkAlgorithm with Serializable {
   }
 
   def updateBlock(blockID: Int, updates: Array[(IDType, Array[Array[ElementType]])],
-                  inInfo: InBlockInformation, factors: Int, lambda: Double): Array[Array[Double]]
+                  inInfo: InBlockInformation, factors: Int, lambda: Double):
+  Array[Array[ElementType]]
   = {
     val blockFactors = updates.sortBy(_._1).map(_._2).toArray
     val numItemBlocks = blockFactors.length
@@ -186,7 +187,7 @@ ALSFlinkAlgorithm with Serializable {
       val matrix = userXtX(index)
       val vector = userXy(index)
 
-      diag(matrix) += lambda*numRatings(index)
+      diag(matrix) += lambda.asInstanceOf[ElementType]*numRatings(index)
 
       (matrix \ vector).data
     }
@@ -352,8 +353,8 @@ object ALSJoinBlocking extends ALSFlinkRunner with ALSFlinkToyRatings {
 
         outputBlockedFactorization(blockFactorization, outputPath)
 
-//        env.execute("ALSJoinBlocking")
-        println(env.getExecutionPlan())
+        env.execute("ALSJoinBlocking")
+//        println(env.getExecutionPlan())
       }
     } getOrElse{
       println("Could not parse command line arguments.")

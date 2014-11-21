@@ -62,8 +62,8 @@ Option[String]) extends ALSFlinkAlgorithm with Serializable {
         import outerProduct._
 
         var uID = -1
-        var matrix = DenseMatrix.zeros[Double](factors, factors)
-        var vector = DenseVector.zeros[Double](factors)
+        var matrix = DenseMatrix.zeros[ElementType](factors, factors)
+        var vector = DenseVector.zeros[ElementType](factors)
         var n = 0
 
         for((id, rating, vectorData) <- vectors){
@@ -76,7 +76,7 @@ Option[String]) extends ALSFlinkAlgorithm with Serializable {
           n += 1
         }
 
-        diag(matrix) += n*lambda
+        diag(matrix) += n*lambda.asInstanceOf[ElementType]
         col.collect(new Factors(uID, (matrix \ vector).data))
       }
     }.withConstantSet("0")

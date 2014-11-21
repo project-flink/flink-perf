@@ -5,6 +5,6 @@ import org.apache.spark.rdd.RDD
 
 trait ALSSpark extends ALS {
   type DS[T] = RDD[T]
-  type ElementType = Double
+  type ElementType = Float
   type IDType = Int
 }

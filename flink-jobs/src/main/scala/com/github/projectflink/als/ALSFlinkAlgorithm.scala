@@ -16,6 +16,6 @@ trait ALSFlinkAlgorithm extends ALSFlink with ALSAlgorithm {
   }
 
   def randomFactors(factors: Int, random: Random): Array[ElementType] ={
-    Array.fill(factors)(random.nextDouble())
+    Array.fill(factors)(random.nextDouble().asInstanceOf[ElementType])
   }
 }

@@ -59,8 +59,8 @@ class ALSJoin(factors: Int, lambda: Double, iterations: Int,
         import outerProduct._
         val userID = group._1
         val ratingVectorPairs = group._2
-        var matrix = DenseMatrix.zeros[Double](factors, factors)
-        var vector = DenseVector.zeros[Double](factors)
+        var matrix = DenseMatrix.zeros[ElementType](factors, factors)
+        var vector = DenseVector.zeros[ElementType](factors)
         var n = 0
 
         for((rating, vectorData) <- ratingVectorPairs){
@@ -72,7 +72,7 @@ class ALSJoin(factors: Int, lambda: Double, iterations: Int,
           n += 1
         }
 
-        diag(matrix) += n*lambda
+        diag(matrix) += n*lambda.asInstanceOf[ElementType]
 
         (userID, (matrix \ vector).data)
       }

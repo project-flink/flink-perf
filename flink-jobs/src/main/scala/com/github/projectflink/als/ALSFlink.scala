@@ -5,6 +5,6 @@ import org.apache.flink.api.scala.{DataSet}
 
 trait ALSFlink extends ALS{
   type DS[T] = DataSet[T]
-  type ElementType = Double
+  type ElementType = Float
   type IDType = Int
 }

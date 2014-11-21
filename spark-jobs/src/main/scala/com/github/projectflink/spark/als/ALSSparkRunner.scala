@@ -12,7 +12,8 @@ trait ALSSparkRunner extends ALSSpark with ALSRunner {
     ctx.textFile(input) map {
       line => {
         val splits = line.split(",")
-        Rating[IDType, ElementType](splits(0).toInt, splits(1).toInt, splits(2).toDouble)
+        Rating[IDType, ElementType](splits(0).toInt, splits(1).toInt, splits(2).toDouble
+          .asInstanceOf[ElementType])
       }
     }
   }

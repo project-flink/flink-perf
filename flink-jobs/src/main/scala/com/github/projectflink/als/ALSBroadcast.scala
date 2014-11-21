@@ -1,5 +1,7 @@
 package com.github.projectflink.als
 
+import java.lang.annotation.ElementType
+
 import breeze.linalg.{diag, DenseVector, DenseMatrix}
 import com.github.projectflink.common.als.{Rating, Factors, outerProduct}
 import org.apache.flink.api.common.functions.{RichMapFunction}
@@ -33,8 +35,8 @@ ALSFlinkAlgorithm with Serializable{
       override def map(ratings: Array[RatingType]): FactorType = {
         val n = ratings.length
 
-        val v = DenseVector.zeros[Double](factors)
-        val A = DenseMatrix.zeros[Double](factors, factors)
+        val v = DenseVector.zeros[ElementType](factors)
+        val A = DenseMatrix.zeros[ElementType](factors, factors)
 
         for(Rating(_, id, rating) <- ratings){
 
@@ -47,7 +49,7 @@ ALSFlinkAlgorithm with Serializable{
           A += outerProduct(vector, vector)
         }
 
-        diag(A) += lambda * n
+        diag(A) += lambda.asInstanceOf[ElementType] * n
 
         val targetID = ratings(0).user
 

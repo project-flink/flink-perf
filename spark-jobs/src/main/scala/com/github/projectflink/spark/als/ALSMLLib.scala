@@ -40,11 +40,11 @@ object ALSMLLib extends ALSSparkRunner with ALSSparkToyRatings {
         val model = SparkALS.train(ratings, factors, iterations, lambda, blocks)
 
         val userFactors = model.userFeatures map {
-          case (id, factors) => new Factors(id, factors)
+          case (id, factors) => new Factors(id, factors map {_.asInstanceOf[ElementType]})
         }
 
         val itemFactors = model.productFeatures map {
-          case (id, factors) => new Factors(id, factors)
+          case (id, factors) => new Factors(id, factors map {_.asInstanceOf[ElementType]})
         }
 
         val factorization = Factorization(userFactors, itemFactors)
