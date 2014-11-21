@@ -12,7 +12,7 @@ trait ALSRunner extends ALS {
   case class ALSConfig(master: String = "local[4]",
                        factors: Int = -1, lambda: Double = 0.0,
                        iterations: Int = 0, inputRatings: String = null, outputPath: String = null,
-                       blocks: Int = -1, seed: Long = -1)
+                       blocks: Int = -1, seed: Long = -1, persistencePath: Option[String] = None)
 
   def readRatings(input: String, ctx: Context): DS[RatingType]
 
@@ -53,6 +53,17 @@ trait ALSRunner extends ALS {
         }
       } text {
         "Seed for random initialization"
+      }
+      arg[String]("persistencePath") optional() action {
+        (v, c) => {
+          if(!v.toLowerCase.equals("none")){
+            c.copy(persistencePath = Some(v))
+          }else{
+            c
+          }
+        }
+      } text {
+        "Persistence path for the preprocessing data"
       }
       arg[String]("input") optional() action {
         (v, c) => c.copy(inputRatings = v)

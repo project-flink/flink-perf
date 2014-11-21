@@ -10,7 +10,7 @@ trait ALSFlinkToyRatings extends ALSFlink with ALSRunner with ALSToyRatings {
     if(input != null && input.nonEmpty){
       super.readRatings(input, ctx)
     }else {
-      ctx.fromCollection(toyRatings)
+      ctx.fromCollection(toyRatings).rebalance()
     }
   }
 }

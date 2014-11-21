@@ -18,7 +18,7 @@ trait ALSFlinkRunner extends ALSFlink with ALSRunner {
   }
 
   def outputFactorization(factorization: ALSFlink#Factorization, outputPath: String): Unit = {
-    if(outputPath == null){
+    if(outputPath == null || outputPath.isEmpty){
       factorization.userFactors.print()
       factorization.itemFactors.print()
     }else{

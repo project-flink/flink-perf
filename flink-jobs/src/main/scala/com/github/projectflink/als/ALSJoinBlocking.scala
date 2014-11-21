@@ -1,24 +1,31 @@
 package com.github.projectflink.als
 
 
+import com.github.projectflink.util.FlinkTools
 import org.apache.flink.api.scala._
 import breeze.linalg.{diag, DenseVector, DenseMatrix}
 import com.github.projectflink.common.als.{Factors, outerProduct, Rating}
 import org.apache.flink.api.scala.ExecutionEnvironment
+import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.core.memory.{DataOutputView, DataInputView}
 import org.apache.flink.types.Value
 import org.apache.flink.util.Collector
+import org.apache.flink.api.common.functions.{Partitioner => FlinkPartitioner}
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.util.{Random, Sorting}
 
-class ALSJoinBlocking(factors: Int, lambda: Double, iterations: Int, userBlocks: Int,
-                      itemBlocks: Int,
-                      seed: Long) extends ALSFlinkAlgorithm with Serializable {
+class ALSJoinBlocking(dop: Int, factors: Int, lambda: Double, iterations: Int, userBlocks: Int,
+                      itemBlocks: Int, seed: Long, persistencePath: Option[String]) extends
+ALSFlinkAlgorithm with Serializable {
   import ALSJoinBlocking._
 
   override def factorize(ratings: DS[RatingType]): Factorization = {
+    null
+  }
+
+  def blockedFactorize(ratings: DS[RatingType]): BlockedFactorization = {
     val ratingsByUserBlock = ratings map {
       rating => {
         val blockID = rating.user % userBlocks
@@ -33,31 +40,42 @@ class ALSJoinBlocking(factors: Int, lambda: Double, iterations: Int, userBlocks:
       }
     }
 
+    val blockIDPartitioner = new BlockIDPartitioner()
 
-    val (userIn, userOut) = createBlockInformation(userBlocks, itemBlocks, ratingsByUserBlock)
-    val (itemIn, itemOut) = createBlockInformation(itemBlocks, userBlocks, ratingsByItemBlock)
+    val (userIn, userOut, itemIn, itemOut, initialItems) = {
+      val (userIn, userOut) = createBlockInformation(userBlocks, itemBlocks, ratingsByUserBlock)
+      val (itemIn, itemOut) = createBlockInformation(itemBlocks, userBlocks, ratingsByItemBlock)
 
-    val initialItems = itemOut map {
-      outInfos =>{
-        val blockID = outInfos._1
-        val random = new Random(blockID ^ seed)
-        val infos = outInfos._2
+      val initialItems = itemOut map {
+        outInfos =>{
+          val blockID = outInfos._1
+          val random = new Random(blockID ^ seed)
+          val infos = outInfos._2
 
-        (blockID, infos.elementIDs.map(_ => randomFactors(factors, random)))
+          (blockID, infos.elementIDs.map(_ => randomFactors(factors, random)))
+        }
+      }
+
+      persistencePath match {
+        case Some(path) => FlinkTools.persist(userIn, userOut, itemIn, itemOut, initialItems, path)
+        case None => (userIn, userOut, itemIn, itemOut, initialItems)
       }
     }
 
-    val items = initialItems.iterate(iterations){
+    val pInitialItems = initialItems.partitionCustom(blockIDPartitioner, 0)
+
+    val items = pInitialItems.iterate(iterations){
       items => {
-        val users = updateFactors(userBlocks, items, itemOut, userIn, factors, lambda)
-        updateFactors(itemBlocks, users, userOut, itemIn, factors, lambda)
+        val users = updateFactors(userBlocks, items, itemOut, userIn, factors, lambda,
+          blockIDPartitioner)
+        updateFactors(itemBlocks, users, userOut, itemIn, factors, lambda, blockIDPartitioner)
       }
     }
 
 //    val users = updateFactors(userBlocks, items, itemOut, userIn, factors, lambda)
-
 //    new Factorization(unblock(users, userOut), unblock(items, itemOut))
-    new Factorization(unblock(items, itemOut), unblock(items, itemOut))
+
+    new BlockedFactorization(items, items)
   }
 
   def unblock(users: DS[(IDType, Array[Array[ElementType]])], outInfo: DS[(IDType, OutBlockInformation
@@ -78,42 +96,62 @@ class ALSJoinBlocking(factors: Int, lambda: Double, iterations: Int, userBlocks:
     itemOut: DS[(IDType, OutBlockInformation)],
     userIn: DS[(IDType, InBlockInformation)],
     factors: Int,
-    lambda: Double): DS[(IDType, Array[Array[ElementType]])] = {
-    itemOut.join(items).where(0).equalTo(0){
+    lambda: Double, blockIDPartitioner: FlinkPartitioner[IDType]):
+      DS[(IDType, Array[Array[ElementType]])] = {
+    val partialBlockMsgs = itemOut.join(items).where(0).equalTo(0).
+      withPartitioner(blockIDPartitioner).apply {
       (left, right, col: Collector[(IDType, (IDType, Array[Array[ElementType]]))]) => {
         val blockID = left._1
         val outInfo = left._2
         val factors = right._2
-
         val toSend = Array.fill(numUserBlocks)(new ArrayBuffer[Array[Double]])
-        for(item <- 0 until outInfo.elementIDs.length; userBlock <- 0 until numUserBlocks){
-          if(outInfo.outLinks(item)(userBlock)){
-            toSend(userBlock) += factors(item)
+        for (item <- 0 until outInfo.elementIDs.length; userBlock <- 0 until numUserBlocks) {
+          if (outInfo.outLinks(item)(userBlock)) {
+            toSend(userBlock) += factors(item).clone()
           }
         }
-        toSend.zipWithIndex.foreach{
-          case (buf, idx) => col.collect((idx, (blockID, buf.toArray)))
+        toSend.zipWithIndex.foreach {
+          case (buf, idx) =>
+            if(buf.nonEmpty) {
+              col.collect((idx, (blockID, buf.toArray)))
+            }
         }
       }
-    }.groupBy(0).reduceGroup {
-      it => {
-        val array = it.toArray
-        val id = array(0)._1
-        val blocks = array.map(_._2)
-        (id, blocks)
+    }
+
+    val blockMsgs =
+      if (numUserBlocks == dop) {
+       partialBlockMsgs.partitionCustom(blockIDPartitioner, 0)
+        .mapPartition {
+          partialMsgs => {
+            val array = partialMsgs.toArray
+            val id = array(0)._1
+            val blocks = array.map(_._2)
+            List((id, blocks))
+          }
+        }.withConstantSet("0")
+      }else{
+        partialBlockMsgs.groupBy(0).withPartitioner(blockIDPartitioner).reduceGroup {
+          it => {
+            val array = it.toArray
+            val id = array(0)._1
+            val blocks = array.map(_._2)
+            (id, blocks)
+          }
+        }.withConstantSet("0")
       }
-    }.withConstantSet("0").
-      join(userIn).where(0).equalTo(0) {
+
+    blockMsgs.join(userIn).where(0).equalTo(0).withPartitioner(blockIDPartitioner).apply{
       (left, right) => {
         val blockID = left._1
         val updates = left._2
         val inInfo = right._2
-        (blockID, updateBlock(updates, inInfo, factors, lambda))
+        (blockID, updateBlock(blockID, updates, inInfo, factors, lambda))
       }
     }.withConstantSetFirst("0")
   }
 
-  def updateBlock(updates: Array[(IDType, Array[Array[ElementType]])],
+  def updateBlock(blockID: Int, updates: Array[(IDType, Array[Array[ElementType]])],
                   inInfo: InBlockInformation, factors: Int, lambda: Double): Array[Array[Double]]
   = {
     val blockFactors = updates.sortBy(_._1).map(_._2).toArray
@@ -155,7 +193,8 @@ class ALSJoinBlocking(factors: Int, lambda: Double, iterations: Int, userBlocks:
   }
 
   def createBlockInformation(userBlocks: Int, itemBlocks: Int, ratings: DS[(IDType,
-    RatingType)]):(DS[(IDType, InBlockInformation)], DS[(IDType, OutBlockInformation)]) = {
+    RatingType)]):(DS[(IDType, InBlockInformation)],
+    DS[(IDType, OutBlockInformation)]) = {
     val blockInformation = ratings.
       groupBy(0).
       reduceGroup{
@@ -184,6 +223,7 @@ class ALSJoinBlocking(factors: Int, lambda: Double, iterations: Int, userBlocks:
     }
 
     val ratingsForBlock = new Array[BlockRating](numItemBlocks)
+    var blockCounter = 0
 
     for(itemBlock <- 0 until numItemBlocks){
       val groupedRatings = blockRatings(itemBlock).groupBy(_.item).toArray
@@ -194,11 +234,15 @@ class ALSJoinBlocking(factors: Int, lambda: Double, iterations: Int, userBlocks:
         }
       }
       Sorting.quickSort(groupedRatings)(ordering)
-      ratingsForBlock(itemBlock) = new BlockRating(groupedRatings map {
-        case (p, rs) => {
-          (rs.view.map(r => userIDToPos(r.user)).toArray, rs.view.map(_.rating).toArray)
-        }
-      })
+
+      if(groupedRatings.nonEmpty){
+        ratingsForBlock(blockCounter) = new BlockRating(groupedRatings map {
+          case (p, rs) => {
+            (rs.view.map(r => userIDToPos(r.user)).toArray, rs.view.map(_.rating).toArray)
+          }
+        })
+        blockCounter += 1
+      }
     }
 
     (ratings(0)._1, InBlockInformation(userIDs, ratingsForBlock))
@@ -229,7 +273,7 @@ object ALSJoinBlocking extends ALSFlinkRunner with ALSFlinkToyRatings {
 
   case class OutBlockInformation(elementIDs: Array[IDType], outLinks: OutLinks){
     override def toString: String = {
-      s"((${elementIDs.mkString(",")}), ($outLinks))"
+      s"OutBlockInformation:((${elementIDs.mkString(",")}), ($outLinks))"
     }
   }
 
@@ -272,7 +316,7 @@ object ALSJoinBlocking extends ALSFlinkRunner with ALSFlinkToyRatings {
 
   case class InBlockInformation(elementIDs: Array[IDType], ratingsForBlock: Array[BlockRating]){
     override def toString: String = {
-      s"((${elementIDs.mkString(",")}), (${ratingsForBlock.mkString("\n")}))"
+      s"InBlockInformation:((${elementIDs.mkString(",")}), (${ratingsForBlock.mkString("\n")}))"
     }
   }
 
@@ -301,16 +345,64 @@ object ALSJoinBlocking extends ALSFlinkRunner with ALSFlinkToyRatings {
           blocks
         }
 
-        val als = new ALSJoinBlocking(factors, lambda, iterations, numBlocks, numBlocks, seed)
+        val als = new ALSJoinBlocking(env.getDegreeOfParallelism, factors, lambda, iterations,
+          numBlocks, numBlocks, seed, persistencePath)
 
-        val factorization = als.factorize(ratings)
+        val blockFactorization = als.blockedFactorize(ratings)
 
-        outputFactorization(factorization, outputPath)
+        outputBlockedFactorization(blockFactorization, outputPath)
 
-        env.execute("ALSJoinBlocking")
+//        env.execute("ALSJoinBlocking")
+        println(env.getExecutionPlan())
       }
     } getOrElse{
       println("Could not parse command line arguments.")
+    }
+  }
+
+  case class BlockedFactorization(userFactors: DS[(IDType, Array[Array[ElementType]])],
+                                  itemFactors: DS[(IDType, Array[Array[ElementType]])])
+
+  class BlockIDPartitioner extends FlinkPartitioner[IDType]{
+    override def partition(blockID: ALSJoinBlocking.IDType, numberOfPartitions: Int): Int = {
+      blockID % numberOfPartitions
+    }
+  }
+
+  def generateBlockOutput(ds: DataSet[(IDType, Array[Array[ElementType]])]): DS[String] = {
+    ds.map {
+      block => {
+        val factorArrayStr = block._2.map{
+          factors =>
+            s"(${factors.mkString(", ")})"
+        }.mkString("\n")
+        s"Block: ${block._1}\n" + factorArrayStr
+      }
+    }
+  }
+
+  def outputBlockedFactorization(factorization: BlockedFactorization, outputPath: String): Unit = {
+
+    val userStrs = generateBlockOutput(factorization.userFactors)
+    val itemStrs = generateBlockOutput(factorization.itemFactors)
+
+    if(outputPath == null || outputPath.isEmpty){
+      userStrs.print()
+      itemStrs.print()
+    }else{
+      val path = if(outputPath.endsWith("/")) outputPath else outputPath +"/"
+      val userPath = path + USER_FACTORS_FILE
+      val itemPath = path + ITEM_FACTORS_FILE
+
+      userStrs.writeAsText(
+        userPath,
+        WriteMode.OVERWRITE
+      )
+
+      itemStrs.writeAsText(
+        itemPath,
+        WriteMode.OVERWRITE
+      )
     }
   }
 }
