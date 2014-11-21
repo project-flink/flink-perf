@@ -3,7 +3,6 @@ package com.github.projectflink.util
 import org.apache.flink.api.common.io.FileOutputFormat.OutputDirectoryMode
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.io.{TypeSerializerInputFormat, TypeSerializerOutputFormat}
-import org.apache.flink.api.java.record.io.FileOutputFormat
 import org.apache.flink.api.scala.DataSet
 import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.core.fs.Path
@@ -21,7 +20,7 @@ object FlinkTools {
     outputFormat.setWriteMode(WriteMode.OVERWRITE)
 
     dataset.output(outputFormat)
-    env.execute()
+    env.execute("FlinkTools persist")
 
     val inputFormat = new TypeSerializerInputFormat[T](dataset.getType.createSerializer())
     inputFormat.setFilePath(filePath)
@@ -49,7 +48,7 @@ object FlinkTools {
 
     ds2.output(of2)
 
-    env.execute()
+    env.execute("FlinkTools persist")
 
     val if1 = new TypeSerializerInputFormat[A](ds1.getType.createSerializer())
     if1.setFilePath(f1)
@@ -89,7 +88,7 @@ object FlinkTools {
 
     ds3.output(of3)
 
-    env.execute()
+    env.execute("FlinkTools persist")
 
     val if1 = new TypeSerializerInputFormat[A](ds1.getType.createSerializer())
     if1.setFilePath(f1)
@@ -142,7 +141,7 @@ object FlinkTools {
 
     ds4.output(of4)
 
-    env.execute()
+    env.execute("FlinkTools persist")
 
     val if1 = new TypeSerializerInputFormat[A](ds1.getType.createSerializer())
     if1.setFilePath(f1)
@@ -206,7 +205,7 @@ object FlinkTools {
 
     ds5.output(of5)
 
-    env.execute()
+    env.execute("FlinkTools persist")
 
     val if1 = new TypeSerializerInputFormat[A](ds1.getType.createSerializer())
     if1.setFilePath(f1)
