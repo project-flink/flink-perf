@@ -38,7 +38,7 @@ public class AdjacencyBuilder {
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		DataSet<Tuple2<String, String>> edges = env.readCsvFile(inPath).fieldDelimiter(' ').types(String.class, String.class);
+		DataSet<Tuple2<String, String>> edges = env.readCsvFile(inPath).ignoreFirstLine().fieldDelimiter(' ').types(String.class, String.class);
 
 		edges.coGroup(edges).where(0).equalTo(1).with(new AdjacencyCoGroup())
 				.writeAsText(outPath, WriteMode.OVERWRITE);
