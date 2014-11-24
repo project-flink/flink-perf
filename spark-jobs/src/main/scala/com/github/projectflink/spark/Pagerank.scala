@@ -26,6 +26,8 @@ object Pagerank {
 
     val dampingFactor = 0.85
 
+    val threshold: Double = 0.005 / numVertices
+
     val conf = new SparkConf().setAppName("Spark pagerank").setMaster(master)
     conf.set("spark.hadoop.skipOutputChecks", "false")
     implicit val sc = new SparkContext(conf)
@@ -38,13 +40,16 @@ object Pagerank {
     }
 
     val adjacencyMatrixCached = adjacencyMatrix.cache();
-    var pagerank = adjacencyMatrixCached.map { tup =>
+    var inPagerank = adjacencyMatrixCached.map { tup =>
       (tup._1, 1.0/numVertices)
     }
 
-    for(i <- 1 to maxIterations) {
+    var i = 0
+    var terminated = false;
+    while( i < maxIterations && !terminated) {
+      i = i + 1
       System.out.println("++++ Starting next iteration");
-      pagerank = pagerank.join(adjacencyMatrixCached, dop).flatMap {
+      val outPagerank = inPagerank.join(adjacencyMatrixCached, dop).flatMap {
         case (node, (rank, neighboursIt)) => {
           val neighbours = neighboursIt.toSeq
           neighbours.map {
@@ -52,14 +57,33 @@ object Pagerank {
           } :+ (node, (1 - dampingFactor) / numVertices)
         }
       }.reduceByKey(_ + _, dop)
-      //pagerank.foreach( println(_))
+
+      //compute termination criterion
+      val count = outPagerank.join(inPagerank).flatMap {
+        case (node, (r1, r2)) => {
+          val delta = Math.abs(r1 - r2);
+          if(delta > threshold) {
+            Some(1)
+          }else{
+            None
+          }
+        }
+      }.count()
+
+      print("count = "+count+" at iteration "+i)
+      if(count == 0) {
+        terminated = true;
+      }
+      // set new inPr
+      inPagerank = outPagerank
 
     }
 
+    // inPagerank is the outPageRank at this point.
     if(output != null) {
-      pagerank.saveAsTextFile(output+"_spark")
+      inPagerank.saveAsTextFile(output+"_spark")
     }else{
-      pagerank.foreach(println _)
+      inPagerank.foreach(println _)
     }
   }
 

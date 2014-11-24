@@ -44,6 +44,8 @@ public class PageRankStephan {
 		long numVertices = Integer.valueOf(args[3]);
 
 
+		final double threshold = 0.005 / numVertices;
+
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -60,7 +62,17 @@ public class PageRankStephan {
 				.groupBy(0)
 				.reduceGroup(new Adder());
 
-		iteration.closeWith(newRanks).writeAsCsv(outpath+"_fastbulk", WriteMode.OVERWRITE);
+		DataSet<Integer> tc = iteration.join(newRanks).where(0).equalTo(0).with(new FlatJoinFunction<Tuple2<Long, Double>, Tuple2<Long, Double>, Integer>() {
+			@Override
+			public void join(Tuple2<Long, Double> longDoubleTuple2, Tuple2<Long, Double> longDoubleTuple22, Collector<Integer> collector) throws Exception {
+				double delta = Math.abs(longDoubleTuple2.f1 - longDoubleTuple22.f1);
+				if(delta > threshold) {
+					collector.collect(1);
+				}
+			}
+		});
+
+		iteration.closeWith(newRanks, tc).writeAsCsv(outpath+"_fastbulk", WriteMode.OVERWRITE);
 
 //		System.out.println(env.getExecutionPlan());
 
