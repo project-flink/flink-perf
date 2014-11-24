@@ -67,7 +67,7 @@ object Pagerank {
     }
 
     val solution = initialPagerank.iterate(maxIterations) {
-        _.join(adjacencyMatrix, JoinHint.REPARTITION_HASH_FIRST).where(_.node).equalTo(_.node)
+        _.join(adjacencyMatrix, JoinHint.REPARTITION_HASH_FIRST).where("node").equalTo("node")
           .flatMap {
           _ match{
             case (Pagerank(node, rank), AdjacencyRow(_, neighbours)) =>{
@@ -77,7 +77,7 @@ object Pagerank {
               }) :+ Pagerank(node, (1-dampingFactor)/numVertices)
             }
           }
-        }.groupBy(_.node).reduce(_ + _)
+        }.groupBy("node").reduce(_ + _).withConstantSet("0->0")
     }
 
     solution.writeAsText(outPath+"_flink", WriteMode.OVERWRITE)
