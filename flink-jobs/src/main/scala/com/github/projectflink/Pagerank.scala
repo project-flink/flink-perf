@@ -1,5 +1,6 @@
 package com.github.projectflink
 
+import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint
 import org.apache.flink.api.java.io.CsvInputFormat
 import org.apache.flink.api.java.typeutils.TypeInfoParser
 import org.apache.flink.api.scala._
@@ -66,7 +67,7 @@ object Pagerank {
     }
 
     val solution = initialPagerank.iterate(maxIterations) {
-        _.join(adjacencyMatrix).where(_.node).equalTo(_.node)
+        _.join(adjacencyMatrix, JoinHint.REPARTITION_HASH_SECOND).where(_.node).equalTo(_.node)
           .flatMap {
           _ match{
             case (Pagerank(node, rank), AdjacencyRow(_, neighbours)) =>{
