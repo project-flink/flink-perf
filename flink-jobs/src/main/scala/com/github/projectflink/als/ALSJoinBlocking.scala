@@ -2,6 +2,7 @@ package com.github.projectflink.als
 
 
 import com.github.projectflink.util.FlinkTools
+import org.apache.flink.api.common.operators.Order
 import org.apache.flink.api.scala._
 import breeze.linalg.{diag, DenseVector, DenseMatrix}
 import com.github.projectflink.common.als.{Factors, outerProduct, Rating}
@@ -10,7 +11,8 @@ import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.core.memory.{DataOutputView, DataInputView}
 import org.apache.flink.types.Value
 import org.apache.flink.util.Collector
-import org.apache.flink.api.common.functions.{Partitioner => FlinkPartitioner}
+import org.apache.flink.api.common.functions.{Partitioner => FlinkPartitioner,
+RichCoGroupFunction, CoGroupFunction}
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -60,13 +62,15 @@ ALSFlinkAlgorithm with Serializable {
         case Some(path) =>
           val (path1, path2) = if(path.endsWith("/")) (path + "user/", path + "item/") else (path
             +"/user/", path+"/item/")
-          val (uIn, uOut) = FlinkTools.persist(userIn, userOut, path1)
-          val (iIn, iOut, ii) = FlinkTools.persist(itemIn, itemOut, initialItems,
-            path2)
-          (uIn, uOut, iIn, iOut, ii)
+          FlinkTools.persist(userIn, userOut, itemIn, itemOut, initialItems,
+            path1)
         case None => (userIn, userOut, itemIn, itemOut, initialItems)
       }
     }
+
+    userIn map { _.toString() } print()
+    userOut map { _.toString() } print()
+    userIn.getExecutionEnvironment.execute()
 
     val pInitialItems = initialItems.partitionCustom(blockIDPartitioner, 0)
 
@@ -202,20 +206,97 @@ ALSFlinkAlgorithm with Serializable {
   def createBlockInformation(userBlocks: Int, itemBlocks: Int, ratings: DS[(IDType,
     RatingType)]):(DS[(IDType, InBlockInformation)],
     DS[(IDType, OutBlockInformation)]) = {
-    val blockInformation = ratings.
-      groupBy(0).
-      reduceGroup{
-      ratings => {
-        val partitioner = new Partitioner(itemBlocks)
-        val arrayRatings = ratings.toArray
-        val inBlockInformation = createInBlockInformation(itemBlocks, arrayRatings,
-          partitioner)
-        val outBlockInformation = createOutBlockInformation(itemBlocks, arrayRatings,
-        partitioner)
-        (inBlockInformation, outBlockInformation)
+    val users = ratings.map{ x => (x._1, x._2.user)}.distinct(0,1).groupBy(0).
+      sortGroup(1, Order.ASCENDING).reduceGroup{
+      users => {
+        val bufferedUsers = users.buffered
+        val id = bufferedUsers.head._1
+        val userIDs = bufferedUsers.map{ x => x._2 }.toArray
+        (id, userIDs)
       }
     }
-    (blockInformation.map(_._1), blockInformation.map(_._2))
+
+    val partitioner = new Partitioner(itemBlocks)
+
+    val outBlockInfos = ratings.coGroup(users).where(0).equalTo(0){
+      (ratings,users) =>
+        val userIDs = users.next()._2
+        val numUsers = userIDs.length
+
+        val userIDToPos = userIDs.zipWithIndex.toMap
+
+        val shouldSend = Array.fill(numUsers)(new scala.collection.mutable.BitSet(itemBlocks))
+        var blockID = -1
+        while(ratings.hasNext){
+          val r = ratings.next
+
+          blockID = r._1
+          shouldSend(userIDToPos(r._2.user))(partitioner(r._2.item)) = true
+        }
+
+        (blockID, OutBlockInformation(userIDs, new OutLinks(shouldSend)))
+    }
+
+    val partialInInfos = ratings.map{ x => (x._1, partitioner(x._2.item), x._2.user, x._2.item, x
+      ._2.rating)}.
+      groupBy(0,1).sortGroup(3, Order.ASCENDING).reduceGroup{
+      x =>
+        var uBlockID = -1
+        var iBlockID = -1
+        val ratings = ArrayBuffer[RatingType]()
+        while(x.hasNext){
+          val (userBlockID, itemBlockID, user, item, rating) = x.next
+          uBlockID = userBlockID
+          iBlockID = itemBlockID
+
+          ratings += Rating(user, item, rating)
+        }
+
+        val userRatings = ratings.toArray.groupBy(_.item).values.map{
+          x => (x.view.map{ _.user}.toArray, x.view.map{_.rating}.toArray)
+        }.toArray
+
+        (uBlockID, iBlockID, userRatings)
+    }
+
+    // TODO: Sort coGroup!!!
+//    partialInInfos.coGroup(users).sortFirst(1, Order.ASCENDING).where(0).equalTo(0){
+    val inBlockInfos = partialInInfos.coGroup(users).where(0).equalTo(0){
+      (partialInfos, users) => {
+        val userWrapper = users.next()
+        val id = userWrapper._1
+        val userIDs = userWrapper._2
+        val userIDToPos = userIDs.zipWithIndex.toMap
+
+        val mappedInfos = partialInfos map { x => (x._2, (x._3 map { p =>
+          (p._1 map { userIDToPos(_) }, p._2)
+        }))}
+
+        val blockRatings = mappedInfos.toArray.sortBy(_._1).map{
+          x => { new BlockRating(x._2) }
+        }
+
+        (id, InBlockInformation(userIDs, blockRatings))
+      }
+    }
+
+    (inBlockInfos, outBlockInfos)
+
+//
+//    val blockInformation = ratings.
+//      groupBy(0).
+//      reduceGroup{
+//      ratings => {
+//        val partitioner = new Partitioner(itemBlocks)
+//        val arrayRatings = ratings.toArray
+//        val inBlockInformation = createInBlockInformation(itemBlocks, arrayRatings,
+//          partitioner)
+//        val outBlockInformation = createOutBlockInformation(itemBlocks, arrayRatings,
+//        partitioner)
+//        (inBlockInformation, outBlockInformation)
+//      }
+//    }
+//    (blockInformation.map(_._1), blockInformation.map(_._2))
   }
 
   def createInBlockInformation(numItemBlocks: Int, ratings: Array[(IDType, RatingType)],
@@ -223,8 +304,6 @@ ALSFlinkAlgorithm with Serializable {
   (IDType, InBlockInformation) = {
     val userIDs = ratings.map(_._2.user).distinct.sorted
     val userIDToPos = userIDs.zipWithIndex.toMap
-
-    val t = new ArrayBuffer[Int]()
 
     val blockRatings = Array.fill(numItemBlocks)(new ArrayBuffer[RatingType])
     for(r <- ratings) {
@@ -274,7 +353,7 @@ ALSFlinkAlgorithm with Serializable {
 }
 
 object ALSJoinBlocking extends ALSFlinkRunner with ALSFlinkToyRatings {
-  class Partitioner(blocks: Int){
+  class Partitioner(blocks: Int) extends Serializable{
     def apply(id: Int): Int = {
       id % blocks
     }
