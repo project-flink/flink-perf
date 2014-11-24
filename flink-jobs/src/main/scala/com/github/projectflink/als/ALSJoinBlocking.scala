@@ -129,7 +129,7 @@ ALSFlinkAlgorithm with Serializable {
       if (numUserBlocks == dop) {
        partialBlockMsgs.partitionCustom(blockIDPartitioner, 0)
         .mapPartition {
-          partialMsgs => {
+         partialMsgs => {
             val array = partialMsgs.toArray
             val id = array(0)._1
             val blocks = array.map(_._2)
@@ -173,15 +173,15 @@ ALSFlinkAlgorithm with Serializable {
     for(itemBlock <- 0 until numItemBlocks){
       var p = 0
       while(p < blockFactors(itemBlock).length){
+        import outerProduct._
         val vector = DenseVector(blockFactors(itemBlock)(p))
-
+        val matrix = outerProduct(vector, vector)
         val (us, rs) = inInfo.ratingsForBlock(itemBlock)(p)
 
         var i = 0
         while(i < us.length){
           numRatings(us(i)) += 1
-          import outerProduct._
-          userXtX(us(i)) += outerProduct(vector, vector)
+          userXtX(us(i)) += matrix
           userXy(us(i)) += vector * rs(i)
           i += 1
         }
