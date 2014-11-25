@@ -237,46 +237,67 @@ ALSFlinkAlgorithm with Serializable {
         (blockID, OutBlockInformation(userIDs, new OutLinks(shouldSend)))
     }
 
-    val partialInInfos = ratings.map{ x => (x._1, partitioner(x._2.item), x._2.user, x._2.item, x
-      ._2.rating)}.
-      groupBy(0,1).sortGroup(3, Order.ASCENDING).reduceGroup{
+    val partialInInfos = ratings.map{ x => (x._1, x._2.user, x._2.item, x._2.rating)}.
+      groupBy(0,2).sortGroup(1, Order.ASCENDING).reduceGroup{
       x =>
-        var uBlockID = -1
-        var iBlockID = -1
-        val ratings = ArrayBuffer[RatingType]()
+        var userBlockID = -1
+        var itemID = -1
+        val userIDs = ArrayBuffer[IDType]()
+        val ratings = ArrayBuffer[ElementType]()
         while(x.hasNext){
-          val (userBlockID, itemBlockID, user, item, rating) = x.next
-          uBlockID = userBlockID
-          iBlockID = itemBlockID
+          val (uBlockID, user, item, rating) = x.next
+          userBlockID = uBlockID
+          itemID = item
 
-          ratings += Rating(user, item, rating)
+          userIDs += user
+          ratings += rating
         }
 
-        val userRatings = ratings.toArray.groupBy(_.item).values.map{
-          x => (x.view.map{ _.user}.toArray, x.view.map{_.rating}.toArray)
-        }.toArray
+        if(userBlockID == 4){
+          println("foo")
+        }
 
-        (uBlockID, iBlockID, userRatings)
+        (userBlockID, partitioner(itemID), (userIDs.toArray, ratings.toArray))
     }
 
-    // TODO: Sort coGroup!!!
-//    partialInInfos.coGroup(users).sortFirst(1, Order.ASCENDING).where(0).equalTo(0){
-    val inBlockInfos = partialInInfos.coGroup(users).where(0).equalTo(0){
+    val collectedPartialInfos = partialInInfos.groupBy(0,1).sortGroup(1, Order.ASCENDING).
+      reduceGroup{
+      infos => {
+        val buffer = new ArrayBuffer[(Array[IDType], Array[ElementType])]()
+        var blockID = -1
+
+        while(infos.hasNext){
+          val info = infos.next()
+          blockID = info._1
+
+          buffer += info._3
+        }
+
+        (blockID, buffer.toArray)
+      }
+    }
+
+    val inBlockInfos = collectedPartialInfos.coGroup(users).where(0).equalTo(0){
       (partialInfos, users) => {
         val userWrapper = users.next()
         val id = userWrapper._1
         val userIDs = userWrapper._2
         val userIDToPos = userIDs.zipWithIndex.toMap
 
-        val mappedInfos = partialInfos map { x => (x._2, (x._3 map { p =>
-          (p._1 map { userIDToPos(_) }, p._2)
-        }))}
+        val buffer = ArrayBuffer[BlockRating]()
 
-        val blockRatings = mappedInfos.toArray.sortBy(_._1).map{
-          x => { new BlockRating(x._2) }
+        while(partialInfos.hasNext){
+          val partialInfo = partialInfos.next()
+          val entry = partialInfo._2
+
+          for(row <- 0 until entry.length; col <- 0 until entry(row)._1.length){
+            entry(row)._1(col) = userIDToPos(entry(row)._1(col))
+          }
+
+          buffer += new BlockRating(entry)
         }
 
-        (id, InBlockInformation(userIDs, blockRatings))
+        (id, InBlockInformation(userIDs, buffer.toArray))
       }
     }
 
