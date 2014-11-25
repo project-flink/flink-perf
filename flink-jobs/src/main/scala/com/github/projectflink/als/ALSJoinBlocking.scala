@@ -238,7 +238,7 @@ ALSFlinkAlgorithm with Serializable {
     }
 
     val partialInInfos = ratings.map{ x => (x._1, x._2.user, x._2.item, x._2.rating)}.
-      groupBy(0,2).sortGroup(1, Order.ASCENDING).reduceGroup{
+      groupBy(0,2).reduceGroup{
       x =>
         var userBlockID = -1
         var itemID = -1
@@ -257,23 +257,25 @@ ALSFlinkAlgorithm with Serializable {
           println("foo")
         }
 
-        (userBlockID, partitioner(itemID), (userIDs.toArray, ratings.toArray))
+        (userBlockID, partitioner(itemID), itemID, (userIDs.toArray, ratings.toArray))
     }
 
-    val collectedPartialInfos = partialInInfos.groupBy(0,1).sortGroup(1, Order.ASCENDING).
+    val collectedPartialInfos = partialInInfos.groupBy(0,1).sortGroup(2, Order.ASCENDING).
       reduceGroup{
       infos => {
         val buffer = new ArrayBuffer[(Array[IDType], Array[ElementType])]()
         var blockID = -1
+        var itemBlockID = -1
 
         while(infos.hasNext){
           val info = infos.next()
           blockID = info._1
+          itemBlockID = info._2
 
-          buffer += info._3
+          buffer += info._4
         }
 
-        (blockID, buffer.toArray)
+        (blockID, itemBlockID, buffer.toArray)
       }
     }
 
@@ -285,19 +287,31 @@ ALSFlinkAlgorithm with Serializable {
         val userIDToPos = userIDs.zipWithIndex.toMap
 
         val buffer = ArrayBuffer[BlockRating]()
+        val idBuffer = ArrayBuffer[(IDType, Int)]()
+
+        var counter = 0
 
         while(partialInfos.hasNext){
           val partialInfo = partialInfos.next()
-          val entry = partialInfo._2
+          val entry = partialInfo._3
 
           for(row <- 0 until entry.length; col <- 0 until entry(row)._1.length){
             entry(row)._1(col) = userIDToPos(entry(row)._1(col))
           }
 
           buffer += new BlockRating(entry)
+          idBuffer += Tuple2(partialInfo._2, counter)
+          counter += 1
         }
 
-        (id, InBlockInformation(userIDs, buffer.toArray))
+        val sortedIDs = idBuffer.sortBy(_._1)
+        val blockRatings = new Array[BlockRating](idBuffer.length)
+
+        for(i <- 0 until sortedIDs.length){
+          blockRatings(i) = buffer(sortedIDs(i)._2)
+        }
+
+        (id, InBlockInformation(userIDs, blockRatings))
       }
     }
 
