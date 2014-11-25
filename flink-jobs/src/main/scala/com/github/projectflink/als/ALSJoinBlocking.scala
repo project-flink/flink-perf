@@ -28,7 +28,9 @@ ALSFlinkAlgorithm with Serializable {
   }
 
   def blockedFactorize(ratings: DS[RatingType]): BlockedFactorization = {
-    val ratingsByUserBlock = ratings map {
+    val blockIDPartitioner = new BlockIDPartitioner()
+
+    val ratingsByUserBlock = ratings.map{
       rating => {
         val blockID = rating.user % userBlocks
         (blockID, rating)
@@ -41,8 +43,6 @@ ALSFlinkAlgorithm with Serializable {
         (blockID, new Rating(rating.item, rating.user, rating.rating))
       }
     }
-
-    val blockIDPartitioner = new BlockIDPartitioner()
 
     val (userIn, userOut, itemIn, itemOut, initialItems) = {
       val (userIn, userOut) = createBlockInformation(userBlocks, itemBlocks, ratingsByUserBlock)
@@ -69,23 +69,20 @@ ALSFlinkAlgorithm with Serializable {
       }
     }
 
-    userIn map {
-      _.toString()
-    } print()
-    userOut map {
-      _.toString()
-    } print()
-    userIn.getExecutionEnvironment.execute()
-
     val pInitialItems = initialItems.partitionCustom(blockIDPartitioner, 0)
 
-    val items = pInitialItems.iterate(iterations) {
+    val items = initialItems.iterate(iterations) {
       items => {
         val users = updateFactors(userBlocks, items, itemOut, userIn, factors, lambda,
           blockIDPartitioner)
         updateFactors(itemBlocks, users, userOut, itemIn, factors, lambda, blockIDPartitioner)
       }
     }
+
+//    val users = updateFactors(userBlocks, pInitialItems, itemOut, userIn, factors, lambda,
+//      blockIDPartitioner)
+//    val items = updateFactors(itemBlocks, users, userOut, itemIn, factors, lambda,
+//      blockIDPartitioner)
 
     //    val users = updateFactors(userBlocks, items, itemOut, userIn, factors, lambda)
     //    new Factorization(unblock(users, userOut), unblock(items, itemOut))
@@ -135,56 +132,62 @@ ALSFlinkAlgorithm with Serializable {
       }
     }
 
-    val blockMsgs =
-      if (numUserBlocks == dop) {
-        partialBlockMsgs.partitionCustom(blockIDPartitioner, 0)
-          .mapPartition {
-          partialMsgs => {
-            val array = partialMsgs.toArray
-            val id = array(0)._1
-            val blocks = array.map(_._2)
-            List((id, blocks))
-          }
-        }.withConstantSet("0")
-      } else {
-        partialBlockMsgs.groupBy(0).withPartitioner(blockIDPartitioner).reduceGroup {
-          it => {
-            val array = it.toArray
-            val id = array(0)._1
-            val blocks = array.map(_._2)
-            (id, blocks)
-          }
-        }.withConstantSet("0")
-      }
+//    val blockMsgs =
+//      if (numUserBlocks == dop) {
+//        partialBlockMsgs.partitionCustom(blockIDPartitioner, 0)
+//          .mapPartition {
+//          partialMsgs => {
+//            val array = partialMsgs.toArray
+//            val id = array(0)._1
+//            val blocks = array.map(_._2)
+//            List((id, blocks))
+//          }
+//        }.withConstantSet("0")
+//      } else {
+//        partialBlockMsgs.groupBy(0).withPartitioner(blockIDPartitioner).reduceGroup {
+//          it => {
+//            val array = it.toArray
+//            val id = array(0)._1
+//            val blocks = array.map(_._2)
+//            (id, blocks)
+//          }
+//        }.withConstantSet("0")
+//      }
 
-    blockMsgs.join(userIn).where(0).equalTo(0).withPartitioner(blockIDPartitioner).apply {
+    //partialBlockMsgs.coGroup(userIn).where(0).equalTo(0).withPartitioner(blockIDPartitioner).apply
+
+
+    partialBlockMsgs.coGroup(userIn).where(0).equalTo(0) {
       (left, right) => {
-        val blockID = left._1
-        val updates = left._2
-        val inInfo = right._2
-        (blockID, updateBlock(blockID, updates, inInfo, factors, lambda))
+        val inInfo = right.next()._2
+        updateBlock(left, inInfo, factors, lambda)
       }
-    }.withConstantSetFirst("0")
+    }
   }
 
-  def updateBlock(blockID: Int, updates: Array[(IDType, Array[Array[ElementType]])],
-                  inInfo: InBlockInformation, factors: Int, lambda: Double):
-  Array[Array[ElementType]]
-  = {
-    val blockFactors = updates.sortBy(_._1).map(_._2).toArray
-    val numItemBlocks = blockFactors.length
+  def updateBlock(updates: Iterator[(IDType, (IDType, Array[Array[ElementType]]))],
+                  inInfo: InBlockInformation, factors: Int, lambda: Double):(IDType,
+    Array[Array[ElementType]]) = {
+    val sortedUpdates = updates.toArray.sortBy(_._2._1).toIterator
     val numUsers = inInfo.elementIDs.length
+    var blockID = -1
 
     val userXtX = Array.fill(numUsers)(DenseMatrix.zeros[ElementType](factors, factors))
     val userXy = Array.fill(numUsers)(DenseVector.zeros[ElementType](factors))
 
     val numRatings = Array.fill(numUsers)(0)
 
-    for (itemBlock <- 0 until numItemBlocks) {
+    var itemBlock = 0
+
+    while(sortedUpdates.hasNext){
+      val update = sortedUpdates.next()
+      val blockFactors = update._2._2
+      blockID = update._1
+
       var p = 0
-      while (p < blockFactors(itemBlock).length) {
+      while(p < blockFactors.length){
         import outerProduct._
-        val vector = DenseVector(blockFactors(itemBlock)(p))
+        val vector = DenseVector(blockFactors(p))
         val matrix = outerProduct(vector, vector)
         val (us, rs) = inInfo.ratingsForBlock(itemBlock)(p)
 
@@ -197,16 +200,18 @@ ALSFlinkAlgorithm with Serializable {
         }
         p += 1
       }
+
+      itemBlock += 1
     }
 
-    Array.range(0, numUsers) map { index =>
+    (blockID, Array.range(0, numUsers) map { index =>
       val matrix = userXtX(index)
       val vector = userXy(index)
 
       diag(matrix) += lambda.asInstanceOf[ElementType] * numRatings(index)
 
       (matrix \ vector).data
-    }
+    })
   }
 
   def createBlockInformation(userBlocks: Int, itemBlocks: Int, ratings: DS[(IDType,
@@ -241,7 +246,7 @@ ALSFlinkAlgorithm with Serializable {
         }
 
         (blockID, OutBlockInformation(userIDs, new OutLinks(shouldSend)))
-    }.withConstantSet("0")
+    }.withConstantSetFirst("0").withConstantSetSecond("0")
 
     val partialInInfos = ratings.map { x => (x._1, x._2.user, x._2.item, x._2.rating)}.
       groupBy(0, 2).reduceGroup {
