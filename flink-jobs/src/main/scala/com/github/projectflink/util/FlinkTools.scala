@@ -206,6 +206,7 @@ object FlinkTools {
     ds5.output(of5)
 
     env.execute("FlinkTools persist")
+//    println(env.getExecutionPlan())
 
     val if1 = new TypeSerializerInputFormat[A](ds1.getType.createSerializer())
     if1.setFilePath(f1)

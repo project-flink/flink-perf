@@ -35,18 +35,20 @@ ALSFlinkAlgorithm with Serializable {
         val blockID = rating.user % userBlocks
         (blockID, rating)
       }
-    }
+    }.partitionCustom(blockIDPartitioner, 0)
 
     val ratingsByItemBlock = ratings map {
       rating => {
         val blockID = rating.item % itemBlocks
         (blockID, new Rating(rating.item, rating.user, rating.rating))
       }
-    }
+    } partitionCustom(blockIDPartitioner, 0)
 
     val (userIn, userOut, itemIn, itemOut, initialItems) = {
-      val (userIn, userOut) = createBlockInformation(userBlocks, itemBlocks, ratingsByUserBlock)
-      val (itemIn, itemOut) = createBlockInformation(itemBlocks, userBlocks, ratingsByItemBlock)
+      val (userIn, userOut) = createBlockInformation(userBlocks, itemBlocks, ratingsByUserBlock,
+        blockIDPartitioner)
+      val (itemIn, itemOut) = createBlockInformation(itemBlocks, userBlocks, ratingsByItemBlock,
+        blockIDPartitioner)
 
       val initialItems = itemOut map {
         outInfos => {
@@ -157,7 +159,7 @@ ALSFlinkAlgorithm with Serializable {
     //partialBlockMsgs.coGroup(userIn).where(0).equalTo(0).withPartitioner(blockIDPartitioner).apply
 
 
-    partialBlockMsgs.coGroup(userIn).where(0).equalTo(0) {
+    partialBlockMsgs.coGroup(userIn).where(0).equalTo(0).withPartitioner(blockIDPartitioner).apply{
       (left, right) => {
         val inInfo = right.next()._2
         updateBlock(left, inInfo, factors, lambda)
@@ -215,21 +217,21 @@ ALSFlinkAlgorithm with Serializable {
   }
 
   def createBlockInformation(userBlocks: Int, itemBlocks: Int, ratings: DS[(IDType,
-    RatingType)]): (DS[(IDType, InBlockInformation)],
+    RatingType)], blockIDPartitioner: BlockIDPartitioner): (DS[(IDType, InBlockInformation)],
     DS[(IDType, OutBlockInformation)]) = {
-    val users = ratings.map { x => (x._1, x._2.user)}.distinct(0, 1).groupBy(0).
-      sortGroup(1, Order.ASCENDING).reduceGroup {
+    val users = ratings.map { x => (x._1, x._2.user)}.withConstantSet("0").distinct(0, 1).
+      groupBy(0).sortGroup(1, Order.ASCENDING).reduceGroup {
       users => {
         val bufferedUsers = users.buffered
         val id = bufferedUsers.head._1
         val userIDs = bufferedUsers.map { x => x._2}.toArray
         (id, userIDs)
       }
-    }
+    }.withConstantSet("0")
 
     val partitioner = new Partitioner(itemBlocks)
 
-    val outBlockInfos = ratings.coGroup(users).where(0).equalTo(0) {
+    val outBlockInfos = ratings.coGroup(users).where(0).equalTo(0).apply {
       (ratings, users) =>
         val userIDs = users.next()._2
         val numUsers = userIDs.length
@@ -248,8 +250,8 @@ ALSFlinkAlgorithm with Serializable {
         (blockID, OutBlockInformation(userIDs, new OutLinks(shouldSend)))
     }.withConstantSetFirst("0").withConstantSetSecond("0")
 
-    val partialInInfos = ratings.map { x => (x._1, x._2.user, x._2.item, x._2.rating)}.
-      groupBy(0, 2).reduceGroup {
+    val partialInInfos = ratings.map { x => (x._1, x._2.user, x._2.item, x._2.rating)}
+      .withConstantSet("0").groupBy(0, 2).reduceGroup {
       x =>
         var userBlockID = -1
         var itemID = -1
