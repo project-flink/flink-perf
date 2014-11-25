@@ -47,15 +47,14 @@ public class AdaptivePageRank {
 
 	public static void main(String[] args) throws Exception {
 
-		int numIterations = 100;
 		long numVertices = 41652230;
 
 		double threshold = 0.005 / numVertices;
 		double dampeningFactor = 0.85;
 
 		String adjacencyPath = args.length > 1 ? args[0] : "/data/demodata/pagerank/edges/edges.csv";
-		String outpath = args.length > 1 ? args[1] : "/data/demodata/pagerank/adacency_comp";
-
+		String outpath = args.length > 2 ? args[1] : "/data/demodata/pagerank/adacency_comp";
+		int numIterations = args.length > 3 ? Integer.valueOf(args[2]) : 100;
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 	//	env.setDegreeOfParallelism(4);
