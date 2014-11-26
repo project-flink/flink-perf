@@ -26,7 +26,7 @@ public class GrepCaching {
 		SparkConf conf = new SparkConf().setAppName("Grep job").setMaster(master).set("spark.hadoop.validateOutputSpecs", "false");
 		JavaSparkContext sc = new JavaSparkContext(conf);
 
-		JavaRDD<String> file = sc.textFile(inFile).persist(StorageLevel.MEMORY_AND_DISK());
+		JavaRDD<String> file = sc.textFile(inFile).persist(StorageLevel.MEMORY_ONLY());
 		for(int p = 0; p < patterns.length; p++) {
 			final String pattern = patterns[p];
 			JavaRDD<String> res = file.filter(new Function<String, Boolean>() {
