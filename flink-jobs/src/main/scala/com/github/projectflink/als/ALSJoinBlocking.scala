@@ -1,17 +1,19 @@
 package com.github.projectflink.als
 
 
+import java.{lang}
+
 import com.github.projectflink.util.FlinkTools
 import org.apache.flink.api.common.operators.Order
 import org.apache.flink.api.scala._
-import breeze.linalg.{diag, DenseVector, DenseMatrix}
-import com.github.projectflink.common.als.{Factors, outerProduct, Rating}
+import com.github.projectflink.common.als.{Factors, Rating}
 import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.core.memory.{DataOutputView, DataInputView}
 import org.apache.flink.types.Value
 import org.apache.flink.util.Collector
-import org.apache.flink.api.common.functions.{Partitioner => FlinkPartitioner}
+import org.apache.flink.api.common.functions.{Partitioner => FlinkPartitioner, CoGroupFunction}
+import org.jblas.{Solve, SimpleBlas, FloatMatrix}
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -161,70 +163,153 @@ ALSFlinkAlgorithm with Serializable {
 
     partialBlockMsgs.coGroup(userIn).where(0).equalTo(0).sortFirstGroup(1, Order.ASCENDING).
       withPartitioner(blockIDPartitioner).apply{
-      (left, right) => {
-        val inInfo = right.next()._2
-        updateBlock(left, inInfo, factors, lambda)
+          new CoGroupFunction[(IDType, IDType, Array[Array[ElementType]]), (IDType,
+            InBlockInformation), (IDType, Array[Array[ElementType]])](){
+
+            val userXtX = ArrayBuffer[FloatMatrix]()
+            val userXy = ArrayBuffer[FloatMatrix]()
+            val numRatings = ArrayBuffer[Int]()
+            val triangleSize = (factors*factors - factors)/2 + factors
+            val matrix = FloatMatrix.zeros(triangleSize)
+            val fullMatrix = FloatMatrix.zeros(factors, factors)
+
+            override def coGroup(left: lang.Iterable[(IDType, IDType,
+              Array[Array[ElementType]])], right: lang.Iterable[(IDType, InBlockInformation)
+              ], collector: Collector[(IDType, Array[Array[ElementType]])]): Unit = {
+              val inInfo = right.iterator().next()._2
+              val updates = left.iterator()
+
+              val numUsers = inInfo.elementIDs.length
+              var blockID = -1
+
+              val matricesToClear = if(numUsers > userXtX.length){
+                val oldLength = userXtX.length
+                var i = 0
+                while(i < (numUsers - oldLength)) {
+                  userXtX += FloatMatrix.zeros(triangleSize)
+                  userXy += FloatMatrix.zeros(factors)
+                  numRatings.+=(0)
+
+                  i += 1
+                }
+
+                oldLength
+              }else{
+                numUsers
+              }
+
+              var i = 0
+              while(i  < matricesToClear){
+                numRatings(i) = 0
+                userXtX(i).fill(0.0f)
+                userXy(i).fill(0.0f)
+
+                i += 1
+              }
+
+              var itemBlock = 0
+
+              while(updates.hasNext){
+                val update = updates.next()
+                val blockFactors = update._3
+                blockID = update._1
+
+                var p = 0
+                while(p < blockFactors.length){
+                  val vector = new FloatMatrix(blockFactors(p))
+                  outerProduct(vector, matrix)
+
+                  val (us, rs) = inInfo.ratingsForBlock(itemBlock)(p)
+
+                  var i = 0
+                  while (i < us.length) {
+                    numRatings(us(i)) += 1
+                    userXtX(us(i)).addi(matrix)
+                    SimpleBlas.axpy(rs(i), vector, userXy(us(i)))
+
+                    i += 1
+                  }
+                  p += 1
+                }
+
+                itemBlock += 1
+              }
+
+              val array = new Array[Array[ElementType]](numUsers)
+
+              i = 0
+              while(i < numUsers){
+                generateFullMatrix(userXtX(i), fullMatrix)
+
+                var f = 0
+                while(f < factors){
+                  fullMatrix.data(f*factors + f) += lambda.asInstanceOf[ElementType] * numRatings(i)
+                  f += 1
+                }
+
+                array(i) = Solve.solvePositive(fullMatrix, userXy(i)).data
+
+                i += 1
+              }
+
+              collector.collect((blockID, array))
+            }
+          }
+    }.withConstantSetFirst("0").withConstantSetSecond("0")
+  }
+
+  def outerProduct(vector: FloatMatrix, matrix: FloatMatrix): Unit = {
+    val vd =  vector.data
+    val md = matrix.data
+
+    var row = 0
+    var pos = 0
+    while(row < factors){
+      var col = 0
+      while(col <= row){
+        md(pos) = vd(row) * vd(col)
+        col += 1
+        pos += 1
       }
+
+      row += 1
     }
   }
 
-  def updateBlock(updates: Iterator[(IDType, IDType, Array[Array[ElementType]])],
-                  inInfo: InBlockInformation, factors: Int, lambda: Double):(IDType,
-    Array[Array[ElementType]]) = {
-    val numUsers = inInfo.elementIDs.length
-    var blockID = -1
+  def generateFullMatrix(triangularMatrix: FloatMatrix, fmatrix: FloatMatrix): Unit = {
+    var row = 0
+    var pos = 0
+    val fmd = fmatrix.data
+    val tmd = triangularMatrix.data
 
-    val userXtX = Array.fill(numUsers)(DenseMatrix.zeros[ElementType](factors, factors))
-    val userXy = Array.fill(numUsers)(DenseVector.zeros[ElementType](factors))
+    while(row < factors){
+      var col = 0
+      while(col < row){
+        fmd(row*factors + col) = tmd(pos)
+        fmd(col*factors + row) = tmd(pos)
 
-    val numRatings = Array.fill(numUsers)(0)
-
-    var itemBlock = 0
-
-    while(updates.hasNext){
-      val update = updates.next()
-      val blockFactors = update._3
-      blockID = update._1
-
-      var p = 0
-      while(p < blockFactors.length){
-        import outerProduct._
-        val vector = DenseVector(blockFactors(p))
-        val matrix = outerProduct(vector, vector)
-        val (us, rs) = inInfo.ratingsForBlock(itemBlock)(p)
-
-        var i = 0
-        while (i < us.length) {
-          numRatings(us(i)) += 1
-          userXtX(us(i)) += matrix
-          userXy(us(i)) += vector * rs(i)
-          i += 1
-        }
-        p += 1
+        pos += 1
+        col += 1
       }
 
-      itemBlock += 1
+      fmd(row*factors + row) = tmd(pos)
+      
+      pos += 1
+      row += 1
     }
-
-    (blockID, Array.range(0, numUsers) map { index =>
-      val matrix = userXtX(index)
-      val vector = userXy(index)
-
-      diag(matrix) += lambda.asInstanceOf[ElementType] * numRatings(index)
-
-      (matrix \ vector).data
-    })
   }
 
   def createBlockInformation(userBlocks: Int, itemBlocks: Int, ratings: DS[(IDType,
     RatingType)], blockIDPartitioner: BlockIDPartitioner): (DS[(IDType, InBlockInformation)],
     DS[(IDType, OutBlockInformation)]) = {
     val users = ratings.map { x => (x._1, x._2.user)}.withConstantSet("0").distinct(0, 1).
-      groupBy(0).sortGroup(1, Order.ASCENDING).reduceGroup {
+      groupBy(0).reduceGroup {
       users => {
         val bufferedUsers = users.buffered
+        val head = bufferedUsers.head
         val id = bufferedUsers.head._1
-        val userIDs = bufferedUsers.map { x => x._2}.toArray
+        val userIDs = bufferedUsers.map { x => x._2}.toArray.sortBy(x => x)
+        println(s"ID:$id [Users:${userIDs.mkString(", ")}] $head")
         (id, userIDs)
       }
     }.withConstantSet("0")
@@ -243,8 +328,18 @@ ALSFlinkAlgorithm with Serializable {
         while (ratings.hasNext) {
           val r = ratings.next
 
+          val pos =
+            try {
+              userIDToPos(r._2.user)
+            }catch{
+              case e: NoSuchElementException => throw new RuntimeException(s"Key ${r._2.user} not" +
+                s" found. BlockID ${blockID}. Elements in block ${userIDs.take(5).mkString(", ")}" +
+                s". UserIDList contains ${userIDs.contains(r._2.user)}.",
+                e)
+            }
+
           blockID = r._1
-          shouldSend(userIDToPos(r._2.user))(partitioner(r._2.item)) = true
+          shouldSend(pos)(partitioner(r._2.item)) = true
         }
 
         (blockID, OutBlockInformation(userIDs, new OutLinks(shouldSend)))

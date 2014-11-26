@@ -3,6 +3,8 @@ package com.github.projectflink.als
 import breeze.linalg.{DenseMatrix, diag, DenseVector}
 import com.github.projectflink.common.als.{outerProduct, Factors, Rating}
 import com.github.projectflink.util.FlinkTools
+import org.apache.flink.api.common.functions.GroupReduceFunction
+import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint
 import org.apache.flink.api.scala._
 import org.apache.flink.util.Collector
 
@@ -17,11 +19,11 @@ Option[String]) extends ALSFlinkAlgorithm with Serializable {
   def factorize(ratings: DS[RatingType], ratings2: DS[RatingType],
                 ratings3: DS[RatingType], ratings4: DS[RatingType]): Factorization = {
 
-    val (transposedRatings, initialItemMatrix) = {
-      val transposedRatings = ratings2 map { x => Rating(x.item, x.user, x
-        .rating)
-      }
+    val transposedRatings = ratings2 map { x => Rating(x.item, x.user, x
+      .rating)
+    }
 
+    val initialItemMatrix = {
       val itemIDs = ratings.map { x => Tuple1(x.item)} distinct
 
       val initialItemMatrix = generateRandomMatrix(itemIDs map {
@@ -30,8 +32,8 @@ Option[String]) extends ALSFlinkAlgorithm with Serializable {
 
       persistencePath match {
         case Some(path) =>
-          FlinkTools.persist(transposedRatings, initialItemMatrix, path)
-        case None => (transposedRatings, initialItemMatrix)
+          FlinkTools.persist(initialItemMatrix, path)
+        case None => (initialItemMatrix)
       }
     }
 
@@ -49,7 +51,7 @@ Option[String]) extends ALSFlinkAlgorithm with Serializable {
 
   def updateMatrix(ratings: DataSet[RatingType], items: DataSet[FactorType],
                    lambda: Double): DataSet[FactorType] = {
-    val uVA = items.join(ratings).where(0).equalTo(1) {
+    val uVA = items.join(ratings, JoinHint.REPARTITION_HASH_SECOND).where(0).equalTo(1) {
       (item, ratingEntry) => {
         val Rating(uID, _, rating) = ratingEntry
 
