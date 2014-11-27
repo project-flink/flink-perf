@@ -1,5 +1,6 @@
 package com.github.projectflink.spark;
 
+import org.apache.hadoop.hdfs.server.common.Storage;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
@@ -17,16 +18,33 @@ public class GrepCaching {
 		String master = args[0];
 		String inFile = args[1];
 		String outFile = args[2];
+		String storageLevel = args[3];
 
-		String patterns[] = new String[args.length-3];
-		System.arraycopy(args, 3, patterns, 0, args.length - 3);
+		String patterns[] = new String[args.length-4];
+		System.arraycopy(args, 4, patterns, 0, args.length - 4);
 		System.err.println("Starting spark with master="+master+" in="+inFile);
 		System.err.println("Using patterns: "+ Arrays.toString(patterns));
 
 		SparkConf conf = new SparkConf().setAppName("Grep job").setMaster(master).set("spark.hadoop.validateOutputSpecs", "false");
 		JavaSparkContext sc = new JavaSparkContext(conf);
 
-		JavaRDD<String> file = sc.textFile(inFile).persist(StorageLevel.MEMORY_ONLY());
+		StorageLevel sl;
+		switch(storageLevel) {
+			case "MEMORY_ONLY":
+				sl = StorageLevel.MEMORY_ONLY(); break;
+			case "MEMORY_AND_DISK":
+				sl = StorageLevel.MEMORY_AND_DISK(); break;
+			case "MEMORY_ONLY_SER":
+				sl = StorageLevel.MEMORY_ONLY_SER(); break;
+			case "MEMORY_AND_DISK_SER":
+				sl = StorageLevel.MEMORY_AND_DISK_SER(); break;
+			case "NONE":
+				sl = StorageLevel.NONE(); break;
+			default:
+				throw new RuntimeException("Unknown storage level "+storageLevel);
+		}
+
+		JavaRDD<String> file = sc.textFile(inFile).persist(sl);
 		for(int p = 0; p < patterns.length; p++) {
 			final String pattern = patterns[p];
 			JavaRDD<String> res = file.filter(new Function<String, Boolean>() {
