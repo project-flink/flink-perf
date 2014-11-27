@@ -90,7 +90,7 @@ public class WordCountHashAgg {
 				<String, Integer>> out) throws Exception {
 			for (Tuple2<String, Integer> pair: records) {
 				Integer value = words.get(pair.f0);
-				if(value == 0) value = 0;
+				if(value == null) value = 0;
 				words.put(pair.f0, pair.f1 + value);
 			}
 			Tuple2<String, Integer> result = new Tuple2<String, Integer>();
