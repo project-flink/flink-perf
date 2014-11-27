@@ -1,7 +1,7 @@
 package com.github.projectflink.als
 
 
-import java.{lang}
+import java.lang
 
 import com.github.projectflink.util.FlinkTools
 import org.apache.flink.api.common.operators.Order
@@ -12,7 +12,8 @@ import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.core.memory.{DataOutputView, DataInputView}
 import org.apache.flink.types.Value
 import org.apache.flink.util.Collector
-import org.apache.flink.api.common.functions.{Partitioner => FlinkPartitioner, CoGroupFunction}
+import org.apache.flink.api.common.functions.{Partitioner => FlinkPartitioner,
+RichGroupReduceFunction, CoGroupFunction}
 import org.jblas.{Solve, SimpleBlas, FloatMatrix}
 
 import scala.collection.mutable
@@ -302,17 +303,50 @@ ALSFlinkAlgorithm with Serializable {
   def createBlockInformation(userBlocks: Int, itemBlocks: Int, ratings: DS[(IDType,
     RatingType)], blockIDPartitioner: BlockIDPartitioner): (DS[(IDType, InBlockInformation)],
     DS[(IDType, OutBlockInformation)]) = {
-    val users = ratings.map { x => (x._1, x._2.user)}.withConstantSet("0").distinct(0, 1).
-      groupBy(0).reduceGroup {
-      users => {
-        val bufferedUsers = users.buffered
-        val head = bufferedUsers.head
-        val id = bufferedUsers.head._1
-        val userIDs = bufferedUsers.map { x => x._2}.toArray.sortBy(x => x)
-        println(s"ID:$id [Users:${userIDs.mkString(", ")}] $head")
-        (id, userIDs)
-      }
+    val users = ratings.map { x => (x._1, x._2.user)}.withConstantSet("0").distinct(0,1).
+      groupBy(0).sortGroup(1, Order.ASCENDING).reduceGroup {
+          new RichGroupReduceFunction[(IDType, IDType), (IDType, Array[IDType])] {
+            override def reduce(iterable: lang.Iterable[(IDType, IDType)], collector: Collector[
+              (IDType, Array[IDType])]): Unit = {
+              import scala.collection.JavaConverters._
+              val users = iterable.iterator().asScala
+
+              val bufferedUsers = users.buffered
+              val head = bufferedUsers.head
+              val id = bufferedUsers.head._1
+              val userIDs = bufferedUsers.map { x => x._2}.toArray
+
+              if(this.getRuntimeContext.getIndexOfThisSubtask==0) {
+                println(s"ID:$id [Users:${userIDs.mkString(", ")}] head: $head")
+              }
+              collector.collect((id, userIDs))
+            }
+          }
     }.withConstantSet("0")
+
+//    val users = ratings.map { x => (x._1, x._2.user)}.withConstantSet("0").
+//      groupBy(0).sortGroup(1, Order.ASCENDING).reduceGroup {
+//      users => {
+//        val result = ArrayBuffer[Int]()
+//        var id = -1
+//        var oldUser = -1
+//
+//        while(users.hasNext) {
+//          val user = users.next()
+//
+//          id = user._1
+//
+//          if (user._2 != oldUser) {
+//            result.+=(user._2)
+//            oldUser = user._2
+//          }
+//        }
+//
+//        val userIDs = result.toArray
+//        println(s"ID:$id [Users:${userIDs.mkString(", ")}]")
+//        (id, userIDs)
+//      }
+//    }.withConstantSet("0")
 
     val partitioner = new Partitioner(itemBlocks)
 
