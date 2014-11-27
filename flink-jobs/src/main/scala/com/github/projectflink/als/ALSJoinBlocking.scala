@@ -303,50 +303,50 @@ ALSFlinkAlgorithm with Serializable {
   def createBlockInformation(userBlocks: Int, itemBlocks: Int, ratings: DS[(IDType,
     RatingType)], blockIDPartitioner: BlockIDPartitioner): (DS[(IDType, InBlockInformation)],
     DS[(IDType, OutBlockInformation)]) = {
-    val users = ratings.map { x => (x._1, x._2.user)}.withConstantSet("0").distinct(0,1).
-      groupBy(0).sortGroup(1, Order.ASCENDING).reduceGroup {
-          new RichGroupReduceFunction[(IDType, IDType), (IDType, Array[IDType])] {
-            override def reduce(iterable: lang.Iterable[(IDType, IDType)], collector: Collector[
-              (IDType, Array[IDType])]): Unit = {
-              import scala.collection.JavaConverters._
-              val users = iterable.iterator().asScala
-
-              val bufferedUsers = users.buffered
-              val head = bufferedUsers.head
-              val id = bufferedUsers.head._1
-              val userIDs = bufferedUsers.map { x => x._2}.toArray
-
-              if(this.getRuntimeContext.getIndexOfThisSubtask==0) {
-                println(s"ID:$id [Users:${userIDs.mkString(", ")}] head: $head")
-              }
-              collector.collect((id, userIDs))
-            }
-          }
-    }.withConstantSet("0")
-
-//    val users = ratings.map { x => (x._1, x._2.user)}.withConstantSet("0").
+//    val users = ratings.map { x => (x._1, x._2.user)}.withConstantSet("0").distinct(0, 1).
 //      groupBy(0).sortGroup(1, Order.ASCENDING).reduceGroup {
-//      users => {
-//        val result = ArrayBuffer[Int]()
-//        var id = -1
-//        var oldUser = -1
+//          new RichGroupReduceFunction[(IDType, IDType), (IDType, Array[IDType])] {
+//            override def reduce(iterable: lang.Iterable[(IDType, IDType)], collector: Collector[
+//              (IDType, Array[IDType])]): Unit = {
+//              import scala.collection.JavaConverters._
+//              val users = iterable.iterator().asScala
 //
-//        while(users.hasNext) {
-//          val user = users.next()
+//              val bufferedUsers = users.buffered
+//              val head = bufferedUsers.head
+//              val id = bufferedUsers.head._1
+//              val userIDs = bufferedUsers.map { x => x._2}.toArray
 //
-//          id = user._1
-//
-//          if (user._2 != oldUser) {
-//            result.+=(user._2)
-//            oldUser = user._2
+//              if(this.getRuntimeContext.getIndexOfThisSubtask==0) {
+//                println(s"ID:$id [Users:${userIDs.mkString(", ")}] head: $head")
+//              }
+//              collector.collect((id, userIDs))
+//            }
 //          }
-//        }
-//
-//        val userIDs = result.toArray
-//        println(s"ID:$id [Users:${userIDs.mkString(", ")}]")
-//        (id, userIDs)
-//      }
 //    }.withConstantSet("0")
+
+    val users = ratings.map { x => (x._1, x._2.user)}.withConstantSet("0").
+      groupBy(0).sortGroup(1, Order.ASCENDING).reduceGroup {
+      users => {
+        val result = ArrayBuffer[Int]()
+        var id = -1
+        var oldUser = -1
+
+        while(users.hasNext) {
+          val user = users.next()
+
+          id = user._1
+
+          if (user._2 != oldUser) {
+            result.+=(user._2)
+            oldUser = user._2
+          }
+        }
+
+        val userIDs = result.toArray
+//        println(s"ID:$id [Users:${userIDs.mkString(", ")}]")
+        (id, userIDs)
+      }
+    }.withConstantSet("0")
 
     val partitioner = new Partitioner(itemBlocks)
 
@@ -379,15 +379,15 @@ ALSFlinkAlgorithm with Serializable {
         (blockID, OutBlockInformation(userIDs, new OutLinks(shouldSend)))
     }.withConstantSetFirst("0").withConstantSetSecond("0")
 
-    val partialInInfos = ratings.map { x => (x._1, x._2.user, x._2.item, x._2.rating)}
-      .withConstantSet("0").groupBy(0, 2).reduceGroup {
+    val partialInInfos = ratings.map { x => (x._1, x._2.item, x._2.user, x._2.rating)}
+      .withConstantSet("0").groupBy(0, 1).reduceGroup {
       x =>
         var userBlockID = -1
         var itemID = -1
         val userIDs = ArrayBuffer[IDType]()
         val ratings = ArrayBuffer[ElementType]()
         while (x.hasNext) {
-          val (uBlockID, user, item, rating) = x.next
+          val (uBlockID, item, user, rating) = x.next
           userBlockID = uBlockID
           itemID = item
 
@@ -396,7 +396,7 @@ ALSFlinkAlgorithm with Serializable {
         }
 
         (userBlockID, partitioner(itemID), itemID, (userIDs.toArray, ratings.toArray))
-    }.withConstantSet("0", "2")
+    }.withConstantSet("0")
 
     val collectedPartialInfos = partialInInfos.groupBy(0, 1).sortGroup(2, Order.ASCENDING).
       reduceGroup {
