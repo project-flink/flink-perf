@@ -13,7 +13,7 @@ import org.apache.flink.core.memory.{DataOutputView, DataInputView}
 import org.apache.flink.types.Value
 import org.apache.flink.util.Collector
 import org.apache.flink.api.common.functions.{Partitioner => FlinkPartitioner,
-RichGroupReduceFunction, CoGroupFunction}
+GroupReduceFunction, RichGroupReduceFunction, CoGroupFunction}
 import org.jblas.{Solve, SimpleBlas, FloatMatrix}
 
 import scala.collection.mutable
@@ -400,21 +400,47 @@ ALSFlinkAlgorithm with Serializable {
 
     val collectedPartialInfos = partialInInfos.groupBy(0, 1).sortGroup(2, Order.ASCENDING).
       reduceGroup {
-      infos => {
-        val buffer = new ArrayBuffer[(Array[IDType], Array[ElementType])]()
-        var blockID = -1
-        var itemBlockID = -1
+          new GroupReduceFunction[(Int, Int, Int, (Array[IDType], Array[ElementType])), (IDType,
+            IDType, Array[(Array[IDType], Array[ElementType])])](){
+            val buffer = new ArrayBuffer[(Array[IDType], Array[ElementType])]
 
-        while (infos.hasNext) {
-          val info = infos.next()
-          blockID = info._1
-          itemBlockID = info._2
+            override def reduce(iterable: lang.Iterable[(Int, Int, Int, (Array[IDType],
+              Array[ElementType]))], collector: Collector[(IDType, IDType, Array[(Array[IDType],
+              Array[ElementType])])]): Unit = {
 
-          buffer += info._4
-        }
+              val infos = iterable.iterator()
+              var counter = 0
 
-        (blockID, itemBlockID, buffer.toArray)
-      }
+              var blockID = -1
+              var itemBlockID = -1
+
+              while (infos.hasNext && counter < buffer.length) {
+                val info = infos.next()
+                blockID = info._1
+                itemBlockID = info._2
+
+                buffer(counter) = info._4
+
+                counter += 1
+              }
+
+              while (infos.hasNext) {
+                val info = infos.next()
+                blockID = info._1
+                itemBlockID = info._2
+
+                buffer += info._4
+
+                counter += 1
+              }
+
+              val array = new Array[(Array[IDType], Array[ElementType])](counter)
+
+              buffer.copyToArray(array)
+
+              collector.collect((blockID, itemBlockID, array))
+            }
+          }
     }.withConstantSet("0", "1")
 
     val inBlockInfos = collectedPartialInfos.coGroup(users).where(0).equalTo(0).sortFirstGroup(1,
