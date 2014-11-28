@@ -29,10 +29,10 @@ object FlinkTools {
   }
 
   def persist[A: ClassTag: TypeInformation ,B: ClassTag: TypeInformation](ds1: DataSet[A], ds2:
-  DataSet[B], path: String):(DataSet[A], DataSet[B])  = {
+  DataSet[B], path1: String, path2: String):(DataSet[A], DataSet[B])  = {
     val env = ds1.getExecutionEnvironment
 
-    val f1 = new Path(path, "ds1")
+    val f1 = new Path(path1)
 
     val of1 = new TypeSerializerOutputFormat[A]
     of1.setOutputFilePath(f1)
@@ -40,7 +40,7 @@ object FlinkTools {
 
     ds1.output(of1)
 
-    val f2 = new Path(path, "ds2")
+    val f2 = new Path(path2)
 
     val of2 = new TypeSerializerOutputFormat[B]
     of2.setOutputFilePath(f2)
@@ -49,6 +49,7 @@ object FlinkTools {
     ds2.output(of2)
 
     env.execute("FlinkTools persist")
+//    println(env.getExecutionPlan())
 
     val if1 = new TypeSerializerInputFormat[A](ds1.getType.createSerializer())
     if1.setFilePath(f1)
@@ -60,11 +61,11 @@ object FlinkTools {
   }
 
   def persist[A: ClassTag: TypeInformation ,B: ClassTag: TypeInformation,
-  C: ClassTag: TypeInformation](ds1: DataSet[A], ds2:  DataSet[B], ds3: DataSet[C], path: String):
-  (DataSet[A], DataSet[B], DataSet[C])  = {
+  C: ClassTag: TypeInformation](ds1: DataSet[A], ds2:  DataSet[B], ds3: DataSet[C], path1:
+  String, path2: String, path3: String): (DataSet[A], DataSet[B], DataSet[C])  = {
     val env = ds1.getExecutionEnvironment
 
-    val f1 = new Path(path, "ds1")
+    val f1 = new Path(path1)
 
     val of1 = new TypeSerializerOutputFormat[A]
     of1.setOutputFilePath(f1)
@@ -72,7 +73,7 @@ object FlinkTools {
 
     ds1.output(of1)
 
-    val f2 = new Path(path, "ds2")
+    val f2 = new Path(path2)
 
     val of2 = new TypeSerializerOutputFormat[B]
     of2.setOutputFilePath(f2)
@@ -80,7 +81,7 @@ object FlinkTools {
 
     ds2.output(of2)
 
-    val f3 = new Path(path, "ds3")
+    val f3 = new Path(path3)
 
     val of3 = new TypeSerializerOutputFormat[C]
     of3.setOutputFilePath(f3)
@@ -105,11 +106,12 @@ object FlinkTools {
   def persist[A: ClassTag: TypeInformation ,B: ClassTag: TypeInformation,
   C: ClassTag: TypeInformation, D: ClassTag: TypeInformation](ds1: DataSet[A], ds2:  DataSet[B],
                                                              ds3: DataSet[C], ds4: DataSet[D],
-                                                             path: String):
+                                                             path1: String, path2: String, path3:
+  String, path4: String):
   (DataSet[A], DataSet[B], DataSet[C], DataSet[D])  = {
     val env = ds1.getExecutionEnvironment
 
-    val f1 = new Path(path, "ds1")
+    val f1 = new Path(path1)
 
     val of1 = new TypeSerializerOutputFormat[A]
     of1.setOutputFilePath(f1)
@@ -117,7 +119,7 @@ object FlinkTools {
 
     ds1.output(of1)
 
-    val f2 = new Path(path, "ds2")
+    val f2 = new Path(path2)
 
     val of2 = new TypeSerializerOutputFormat[B]
     of2.setOutputFilePath(f2)
@@ -125,7 +127,7 @@ object FlinkTools {
 
     ds2.output(of2)
 
-    val f3 = new Path(path, "ds3")
+    val f3 = new Path(path3)
 
     val of3 = new TypeSerializerOutputFormat[C]
     of3.setOutputFilePath(f3)
@@ -133,7 +135,7 @@ object FlinkTools {
 
     ds3.output(of3)
 
-    val f4 = new Path(path, "ds4")
+    val f4 = new Path(path4)
 
     val of4 = new TypeSerializerOutputFormat[D]
     of4.setOutputFilePath(f4)
@@ -160,11 +162,12 @@ object FlinkTools {
 
   def persist[A: ClassTag: TypeInformation ,B: ClassTag: TypeInformation,
   C: ClassTag: TypeInformation, D: ClassTag: TypeInformation, E: ClassTag: TypeInformation]
-  (ds1: DataSet[A], ds2:  DataSet[B], ds3: DataSet[C], ds4: DataSet[D], ds5: DataSet[E], path:
-  String): (DataSet[A], DataSet[B], DataSet[C], DataSet[D], DataSet[E])  = {
+  (ds1: DataSet[A], ds2:  DataSet[B], ds3: DataSet[C], ds4: DataSet[D], ds5: DataSet[E], path1:
+  String, path2: String, path3: String, path4: String, path5: String): (DataSet[A], DataSet[B],
+    DataSet[C], DataSet[D], DataSet[E])  = {
     val env = ds1.getExecutionEnvironment
 
-    val f1 = new Path(path, "ds1")
+    val f1 = new Path(path1)
 
     val of1 = new TypeSerializerOutputFormat[A]
     of1.setOutputFilePath(f1)
@@ -172,7 +175,7 @@ object FlinkTools {
 
     ds1.output(of1)
 
-    val f2 = new Path(path, "ds2")
+    val f2 = new Path(path2)
 
     val of2 = new TypeSerializerOutputFormat[B]
     of2.setOutputFilePath(f2)
@@ -181,7 +184,7 @@ object FlinkTools {
 
     ds2.output(of2)
 
-    val f3 = new Path(path, "ds3")
+    val f3 = new Path(path3)
 
     val of3 = new TypeSerializerOutputFormat[C]
     of3.setOutputFilePath(f3)
@@ -189,7 +192,7 @@ object FlinkTools {
 
     ds3.output(of3)
 
-    val f4 = new Path(path, "ds4")
+    val f4 = new Path(path4)
 
     val of4 = new TypeSerializerOutputFormat[D]
     of4.setOutputFilePath(f4)
@@ -197,7 +200,7 @@ object FlinkTools {
 
     ds4.output(of4)
 
-    val f5 = new Path(path, "ds5")
+    val f5 = new Path(path5)
 
     val of5 = new TypeSerializerOutputFormat[E]
     of5.setOutputFilePath(f5)
@@ -206,7 +209,6 @@ object FlinkTools {
     ds5.output(of5)
 
     env.execute("FlinkTools persist")
-//    println(env.getExecutionPlan())
 
     val if1 = new TypeSerializerInputFormat[A](ds1.getType.createSerializer())
     if1.setFilePath(f1)

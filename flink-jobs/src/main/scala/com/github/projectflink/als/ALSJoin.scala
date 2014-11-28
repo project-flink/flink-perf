@@ -63,23 +63,27 @@ Option[String]) extends ALSFlinkAlgorithm with Serializable {
       (vectors, col: Collector[FactorType]) => {
         import outerProduct._
 
+        println("UpdateMatrix: groupReduce :-)")
+
         var uID = -1
         var matrix = DenseMatrix.zeros[ElementType](factors, factors)
         var vector = DenseVector.zeros[ElementType](factors)
         var n = 0
 
         for((id, rating, vectorData) <- vectors){
-          uID = id
-          val v = DenseVector(vectorData)
+//          uID = id
+          vector = DenseVector(vectorData)
 
-          vector += v * rating
-          matrix += outerProduct(v, v)
+//          vector += v * rating
+//          matrix += outerProduct(v, v)
 
-          n += 1
+//          n += 1
         }
 
-        diag(matrix) += n*lambda.asInstanceOf[ElementType]
-        col.collect(new Factors(uID, (matrix \ vector).data))
+        println("UpdateMatrix: Calculated intermediate matrix")
+
+//        diag(matrix) += n*lambda.asInstanceOf[ElementType]
+        col.collect(new Factors(uID, vector.data))
       }
     }.withConstantSet("0")
   }

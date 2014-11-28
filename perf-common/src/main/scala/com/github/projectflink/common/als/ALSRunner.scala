@@ -57,7 +57,7 @@ trait ALSRunner extends ALS {
       arg[String]("persistencePath") optional() action {
         (v, c) => {
           if(!v.toLowerCase.equals("none")){
-            c.copy(persistencePath = Some(v))
+            c.copy(persistencePath = Some(if(v.endsWith("/")) v else v+"/"))
           }else{
             c
           }
