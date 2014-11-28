@@ -14,13 +14,13 @@ object GraphX {
     print(s"GraphX pageRank master=$master maxIter=$maxIterations input=$input output=$output")
 
     val conf = new SparkConf().setAppName("Spark GraphX PageRank").setMaster(master)
-    conf.set("spark.hadoop.skipOutputChecks", "false")
+    conf.set("spark.hadoop.skipOutputChecks", "true")
     implicit val sc = new SparkContext(conf)
 
     // Load the edges as a graph
     val graph = GraphLoader.edgeListFile(sc, input)
     // Run PageRank
-    val ranks = graph.pageRank(maxIterations).vertices
+    val ranks = graph.staticPageRank(maxIterations).vertices
 
     ranks.saveAsTextFile(output)
   }
