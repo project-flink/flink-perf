@@ -1,5 +1,7 @@
 package com.github.projectflink.spark.pagerank
 
+import java.util.Date
+
 import org.apache.spark.{SparkContext, SparkConf}
 import org.apache.spark.graphx.GraphLoader
 
@@ -14,7 +16,7 @@ object GraphX {
     print(s"GraphX pageRank master=$master maxIter=$maxIterations input=$input output=$output")
 
     val conf = new SparkConf().setAppName("Spark GraphX PageRank").setMaster(master)
-    conf.set("spark.hadoop.skipOutputChecks", "true")
+    conf.set("spark.hadoop.skipOutputChecks", "false")
     implicit val sc = new SparkContext(conf)
 
     // Load the edges as a graph
@@ -22,6 +24,6 @@ object GraphX {
     // Run PageRank
     val ranks = graph.staticPageRank(maxIterations).vertices
 
-    ranks.saveAsTextFile(output)
+    ranks.saveAsTextFile(output+"-"+new Date().getTime)
   }
 }
