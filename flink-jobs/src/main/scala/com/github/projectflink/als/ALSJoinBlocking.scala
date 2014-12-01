@@ -13,7 +13,7 @@ import org.apache.flink.core.memory.{DataOutputView, DataInputView}
 import org.apache.flink.types.Value
 import org.apache.flink.util.Collector
 import org.apache.flink.api.common.functions.{Partitioner => FlinkPartitioner,
-GroupReduceFunction, RichGroupReduceFunction, CoGroupFunction}
+GroupReduceFunction, CoGroupFunction}
 import org.jblas.{Solve, SimpleBlas, FloatMatrix}
 
 import scala.collection.mutable
@@ -69,12 +69,17 @@ ALSFlinkAlgorithm with Serializable {
     val initialItems = itemOut.partitionCustom(blockIDPartitioner, 0).map{
       outInfos => {
         val blockID = outInfos._1
-        val random = new Random(blockID ^ seed)
         val infos = outInfos._2
 
-        (blockID, infos.elementIDs.map(_ => randomFactors(factors, random)))
+        (blockID, infos.elementIDs.map{
+          id =>
+            val random = new Random(id ^ seed)
+            randomFactors(factors, random)
+        })
       }
     }.withConstantSet("0")
+
+    generateBlockOutput(initialItems).print()
 
     val items = initialItems.iterate(iterations) {
       items => {
@@ -93,8 +98,6 @@ ALSFlinkAlgorithm with Serializable {
       blockIDPartitioner)
 
     new Factorization(unblock(users, userOut), unblock(pItems, itemOut))
-
-//    new BlockedFactorization(items, items)
   }
 
   def unblock(users: DS[(IDType, Array[Array[ElementType]])], outInfo: DS[(IDType, OutBlockInformation
@@ -195,7 +198,7 @@ ALSFlinkAlgorithm with Serializable {
                 var p = 0
                 while(p < blockFactors.length){
                   val vector = new FloatMatrix(blockFactors(p))
-                  outerProduct(vector, matrix)
+                  ALS.outerProduct(vector, matrix, factors)
 
                   val (us, rs) = inInfo.ratingsForBlock(itemBlock)(p)
 
@@ -217,7 +220,7 @@ ALSFlinkAlgorithm with Serializable {
 
               i = 0
               while(i < numUsers){
-                generateFullMatrix(userXtX(i), fullMatrix)
+                ALS.generateFullMatrix(userXtX(i), fullMatrix, factors)
 
                 var f = 0
                 while(f < factors){
@@ -234,47 +237,6 @@ ALSFlinkAlgorithm with Serializable {
             }
           }
     }.withConstantSetFirst("0").withConstantSetSecond("0")
-  }
-
-  def outerProduct(vector: FloatMatrix, matrix: FloatMatrix): Unit = {
-    val vd =  vector.data
-    val md = matrix.data
-
-    var row = 0
-    var pos = 0
-    while(row < factors){
-      var col = 0
-      while(col <= row){
-        md(pos) = vd(row) * vd(col)
-        col += 1
-        pos += 1
-      }
-
-      row += 1
-    }
-  }
-
-  def generateFullMatrix(triangularMatrix: FloatMatrix, fmatrix: FloatMatrix): Unit = {
-    var row = 0
-    var pos = 0
-    val fmd = fmatrix.data
-    val tmd = triangularMatrix.data
-
-    while(row < factors){
-      var col = 0
-      while(col < row){
-        fmd(row*factors + col) = tmd(pos)
-        fmd(col*factors + row) = tmd(pos)
-
-        pos += 1
-        col += 1
-      }
-
-      fmd(row*factors + row) = tmd(pos)
-      
-      pos += 1
-      row += 1
-    }
   }
 
   def createUsersPerBlock(ratings: DS[(IDType, RatingType)]): DS[(IDType, Array[IDType])] = {

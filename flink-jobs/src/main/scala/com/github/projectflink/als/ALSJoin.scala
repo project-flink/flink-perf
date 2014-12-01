@@ -1,12 +1,10 @@
 package com.github.projectflink.als
 
-import breeze.linalg.{DenseMatrix, diag, DenseVector}
-import com.github.projectflink.common.als.{outerProduct, Factors, Rating}
+import com.github.projectflink.common.als.{Factors, Rating}
 import com.github.projectflink.util.FlinkTools
-import org.apache.flink.api.common.functions.GroupReduceFunction
-import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint
 import org.apache.flink.api.scala._
 import org.apache.flink.util.Collector
+import org.jblas.{Solve, SimpleBlas, FloatMatrix}
 
 
 class ALSJoin(factors: Int, lambda: Double, iterations: Int, seed: Long, persistencePath:
@@ -32,26 +30,33 @@ Option[String]) extends ALSFlinkAlgorithm with Serializable {
 
       persistencePath match {
         case Some(path) =>
-          FlinkTools.persist(initialItemMatrix, path)
+          FlinkTools.persist(initialItemMatrix, path + "initialItemMatrix")
         case None => (initialItemMatrix)
       }
     }
 
-    val itemMatrix = initialItemMatrix.iterate(iterations){
+    val iMatrix = initialItemMatrix.iterate(iterations){
       itemMatrix => {
         val userMatrix = updateMatrix(ratings4, itemMatrix, lambda)
         updateMatrix(transposedRatings, userMatrix, lambda)
       }
     }
 
-//    val userMatrix = updateMatrix(ratings3, itemMatrix, lambda)
+    val itemMatrix = persistencePath match {
+      case Some(path) =>
+        FlinkTools.persist(iMatrix, path + "items")
+      case None =>
+        iMatrix
+    }
 
-    Factorization(itemMatrix, itemMatrix)
+    val userMatrix = updateMatrix(ratings3, itemMatrix, lambda)
+
+    Factorization(userMatrix, itemMatrix)
   }
 
   def updateMatrix(ratings: DataSet[RatingType], items: DataSet[FactorType],
                    lambda: Double): DataSet[FactorType] = {
-    val uVA = items.join(ratings, JoinHint.REPARTITION_HASH_SECOND).where(0).equalTo(1) {
+    val uVA = items.join(ratings).where(0).equalTo(1) {
       (item, ratingEntry) => {
         val Rating(uID, _, rating) = ratingEntry
 
@@ -61,29 +66,39 @@ Option[String]) extends ALSFlinkAlgorithm with Serializable {
 
     uVA.groupBy(0).reduceGroup{
       (vectors, col: Collector[FactorType]) => {
-        import outerProduct._
-
-        println("UpdateMatrix: groupReduce :-)")
 
         var uID = -1
-        var matrix = DenseMatrix.zeros[ElementType](factors, factors)
-        var vector = DenseVector.zeros[ElementType](factors)
+        val triangleSize = (factors*factors - factors)/2 + factors
+        val matrix = FloatMatrix.zeros(triangleSize)
+        val xtx = FloatMatrix.zeros(triangleSize)
+
+        val vector = FloatMatrix.zeros(factors)
         var n = 0
 
         for((id, rating, vectorData) <- vectors){
-//          uID = id
-          vector = DenseVector(vectorData)
+          uID = id
 
-//          vector += v * rating
-//          matrix += outerProduct(v, v)
+          val v = new FloatMatrix(vectorData)
 
-//          n += 1
+          SimpleBlas.axpy(rating, v, vector)
+          ALS.outerProduct(v, matrix, factors)
+          xtx.addi(matrix)
+
+          n += 1
         }
 
-        println("UpdateMatrix: Calculated intermediate matrix")
+        val fullMatrix = FloatMatrix.zeros(factors, factors)
 
-//        diag(matrix) += n*lambda.asInstanceOf[ElementType]
-        col.collect(new Factors(uID, vector.data))
+        ALS.generateFullMatrix(xtx, fullMatrix, factors)
+
+        var counter = 0
+
+        while(counter < factors){
+          fullMatrix.data(counter*factors + counter) += lambda.asInstanceOf[ElementType] * n
+          counter += 1
+        }
+
+        col.collect(new Factors(uID, Solve.solvePositive(fullMatrix, vector).data))
       }
     }.withConstantSet("0")
   }
