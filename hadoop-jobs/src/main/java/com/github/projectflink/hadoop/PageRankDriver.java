@@ -186,6 +186,7 @@ public class PageRankDriver {
 			fs.delete(seqFile, true);
 		}
 		Job job = Job.getInstance(conf);
+		job.setJarByClass(InitialRankAssigner.class);
 		job.setMapperClass(InitialRankAssigner.class);
 		job.setReducerClass(Reducer.class);
 		job.setNumReduceTasks(0);
@@ -206,6 +207,7 @@ public class PageRankDriver {
 			fs.delete(outFile, true);
 		}
 		Job job = Job.getInstance(conf);
+		job.setJarByClass(PageRankMapper.class);
 		job.setMapperClass(PageRankMapper.class);
 		job.setReducerClass(PageRankReducer.class);
 		job.setMapOutputKeyClass(LongWritable.class);
@@ -234,6 +236,7 @@ public class PageRankDriver {
 		job.setOutputValueClass(Text.class);
 		job.setInputFormatClass(SequenceFileInputFormat.class);
 		job.setOutputFormatClass(TextOutputFormat.class);
+		job.setJarByClass(RankPrinter.class);
 		FileInputFormat.addInputPath(job, new Path(inputPath));
 		FileOutputFormat.setOutputPath(job, outFile);
 		job.waitForCompletion(true);
