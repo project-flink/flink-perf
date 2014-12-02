@@ -151,6 +151,7 @@ public class PageRankDriver {
 
 		@Override
 		protected void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
+			LOG.info("value="+value.toString());
 			String line = value.toString();
 			StringTokenizer tokenizer = new StringTokenizer(line, " ");
 			int count = tokenizer.countTokens();
