@@ -147,6 +147,9 @@ public class PageRankDriver {
 		protected void setup(Context context) throws IOException, InterruptedException {
 			super.setup(context);
 			randomJump = Double.parseDouble(context.getConfiguration().get("random_jump"));
+
+
+			LOG.info("memory = "+Runtime.getRuntime().maxMemory());
 		}
 
 		@Override
