@@ -150,12 +150,12 @@ public class PageRankDriver {
 			randomJump = Double.parseDouble(context.getConfiguration().get("random_jump"));
 
 
-			LOG.info("memory = "+Runtime.getRuntime().maxMemory());
+	//		LOG.info("memory = "+Runtime.getRuntime().maxMemory());
 		}
 
 		@Override
 		protected void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
-			LOG.info("len="+value.getLength());
+		//	LOG.info("len="+value.getLength());
 
 			String line = value.toString();
 			StringTokenizer tokenizer = new StringTokenizer(line, " ");
