@@ -17,6 +17,7 @@ import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
+import org.apache.hadoop.util.GenericOptionsParser;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -250,13 +251,16 @@ public class PageRankDriver {
 
 	public static void main (String [] args) throws Exception {
 
-		String adjacencyFile = args[0];
-		String resultFile = args[1];
-		int numVertices = Integer.valueOf(args[2]);
-		int numIterations = Integer.valueOf(args[3]);
+		GenericOptionsParser parser = new GenericOptionsParser(args);
+
+		String[] remArgs = parser.getRemainingArgs();
+		String adjacencyFile = remArgs[0];
+		String resultFile = remArgs[1];
+		int numVertices = Integer.valueOf(remArgs[2]);
+		int numIterations = Integer.valueOf(remArgs[3]);
 
 
-		Configuration conf = new Configuration();
+		Configuration conf = parser.getConfiguration();
 		RANDOM_JUMP = 1.0 / ((double) numVertices);
 		conf.set("random_jump", String.valueOf(RANDOM_JUMP));
 		conf.set("dampening_factor", String.valueOf(DAMPENING_FACTOR));
