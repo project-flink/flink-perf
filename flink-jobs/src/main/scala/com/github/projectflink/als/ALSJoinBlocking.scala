@@ -79,8 +79,6 @@ ALSFlinkAlgorithm with Serializable {
       }
     }.withConstantSet("0")
 
-    generateBlockOutput(initialItems).print()
-
     val items = initialItems.iterate(iterations) {
       items => {
         val users = updateFactors(userBlocks, items, itemOut, userIn, factors, lambda,
