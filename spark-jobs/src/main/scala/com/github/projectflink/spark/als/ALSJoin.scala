@@ -1,9 +1,9 @@
 package com.github.projectflink.spark.als
 
-import breeze.linalg.{DenseMatrix, diag, DenseVector}
-import com.github.projectflink.common.als.{Factors, outerProduct, Rating}
+import com.github.projectflink.common.als.{ALSUtils, Factors, Rating}
 import org.apache.spark.{SparkContext, SparkConf}
 import org.apache.spark.SparkContext._
+import org.jblas.{Solve, SimpleBlas, FloatMatrix}
 
 class ALSJoin(factors: Int, lambda: Double, iterations: Int,
               seed: Long) extends ALSSparkAlgorithm with Serializable{
@@ -56,25 +56,37 @@ class ALSJoin(factors: Int, lambda: Double, iterations: Int,
         (userID, (ratings, factorArray))
     }.groupByKey().map{
       group => {
-        import outerProduct._
         val userID = group._1
         val ratingVectorPairs = group._2
-        var matrix = DenseMatrix.zeros[ElementType](factors, factors)
-        var vector = DenseVector.zeros[ElementType](factors)
+        val triangleSize = (factors*factors - factors)/2 + factors
+        val xtx = FloatMatrix.zeros(triangleSize)
+
+        val vector = FloatMatrix.zeros(factors)
         var n = 0
 
         for((rating, vectorData) <- ratingVectorPairs){
-          val v = DenseVector(vectorData)
 
-          vector += v * rating
-          matrix += outerProduct(v,v)
+          val v = new FloatMatrix(vectorData)
+
+          SimpleBlas.axpy(rating, v, vector)
+          ALSUtils.outerProductInPlace(v, xtx, factors)
 
           n += 1
         }
 
-        diag(matrix) += n*lambda.asInstanceOf[ElementType]
+        val fullMatrix = FloatMatrix.zeros(factors, factors)
 
-        (userID, (matrix \ vector).data)
+        ALSUtils.generateFullMatrix(xtx, fullMatrix, factors)
+
+        var counter = 0
+
+        while(counter < factors){
+          fullMatrix.data(counter*factors + counter) += lambda.asInstanceOf[ElementType] * n
+          counter += 1
+        }
+
+        (userID, Solve.solvePositive(fullMatrix, vector). data)
+
       }
     }
   }

@@ -6,7 +6,7 @@ import java.lang
 import com.github.projectflink.util.FlinkTools
 import org.apache.flink.api.common.operators.Order
 import org.apache.flink.api.scala._
-import com.github.projectflink.common.als.{Factors, Rating}
+import com.github.projectflink.common.als.{ALSUtils, Factors, Rating}
 import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.core.memory.{DataOutputView, DataInputView}
@@ -145,9 +145,6 @@ ALSFlinkAlgorithm with Serializable {
           new CoGroupFunction[(IDType, IDType, Array[Array[ElementType]]), (IDType,
             InBlockInformation), (IDType, Array[Array[ElementType]])](){
 
-            val userXtX = ArrayBuffer[FloatMatrix]()
-            val userXy = ArrayBuffer[FloatMatrix]()
-            val numRatings = ArrayBuffer[Int]()
             val triangleSize = (factors*factors - factors)/2 + factors
             val matrix = FloatMatrix.zeros(triangleSize)
             val fullMatrix = FloatMatrix.zeros(factors, factors)
@@ -161,30 +158,43 @@ ALSFlinkAlgorithm with Serializable {
               val numUsers = inInfo.elementIDs.length
               var blockID = -1
 
-              val matricesToClear = if(numUsers > userXtX.length){
-                val oldLength = userXtX.length
-                var i = 0
-                while(i < (numUsers - oldLength)) {
-                  userXtX += FloatMatrix.zeros(triangleSize)
-                  userXy += FloatMatrix.zeros(factors)
-                  numRatings.+=(0)
-
-                  i += 1
-                }
-
-                oldLength
-              }else{
-                numUsers
-              }
+              val userXtX = new Array[FloatMatrix](numUsers)
+              val userXy = new Array[FloatMatrix](numUsers)
+              val numRatings = new Array[Int](numUsers)
 
               var i = 0
-              while(i  < matricesToClear){
-                numRatings(i) = 0
-                userXtX(i).fill(0.0f)
-                userXy(i).fill(0.0f)
+
+              while(i < numUsers){
+                userXtX(i) = FloatMatrix.zeros(triangleSize)
+                userXy(i) = FloatMatrix.zeros(factors)
 
                 i += 1
               }
+
+//              val matricesToClear = if(numUsers > userXtX.length){
+//                val oldLength = userXtX.length
+//                var i = 0
+//                while(i < (numUsers - oldLength)) {
+//                  userXtX += FloatMatrix.zeros(triangleSize)
+//                  userXy += FloatMatrix.zeros(factors)
+//                  numRatings.+=(0)
+//
+//                  i += 1
+//                }
+//
+//                oldLength
+//              }else{
+//                numUsers
+//              }
+//
+//              var i = 0
+//              while(i  < matricesToClear){
+//                numRatings(i) = 0
+//                userXtX(i).fill(0.0f)
+//                userXy(i).fill(0.0f)
+//
+//                i += 1
+//              }
 
               var itemBlock = 0
 
@@ -196,7 +206,7 @@ ALSFlinkAlgorithm with Serializable {
                 var p = 0
                 while(p < blockFactors.length){
                   val vector = new FloatMatrix(blockFactors(p))
-                  ALS.outerProduct(vector, matrix, factors)
+                  ALSUtils.outerProduct(vector, matrix, factors)
 
                   val (us, rs) = inInfo.ratingsForBlock(itemBlock)(p)
 
@@ -218,7 +228,7 @@ ALSFlinkAlgorithm with Serializable {
 
               i = 0
               while(i < numUsers){
-                ALS.generateFullMatrix(userXtX(i), fullMatrix, factors)
+                ALSUtils.generateFullMatrix(userXtX(i), fullMatrix, factors)
 
                 var f = 0
                 while(f < factors){

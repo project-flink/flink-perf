@@ -1,6 +1,6 @@
 package com.github.projectflink.als
 
-import com.github.projectflink.common.als.{Factors, Rating}
+import com.github.projectflink.common.als.{ALSUtils, Factors, Rating}
 import com.github.projectflink.util.FlinkTools
 import org.apache.flink.api.scala._
 import org.apache.flink.util.Collector
@@ -69,7 +69,6 @@ Option[String]) extends ALSFlinkAlgorithm with Serializable {
 
         var uID = -1
         val triangleSize = (factors*factors - factors)/2 + factors
-        val matrix = FloatMatrix.zeros(triangleSize)
         val xtx = FloatMatrix.zeros(triangleSize)
 
         val vector = FloatMatrix.zeros(factors)
@@ -81,15 +80,14 @@ Option[String]) extends ALSFlinkAlgorithm with Serializable {
           val v = new FloatMatrix(vectorData)
 
           SimpleBlas.axpy(rating, v, vector)
-          ALS.outerProduct(v, matrix, factors)
-          xtx.addi(matrix)
+          ALSUtils.outerProductInPlace(v, xtx, factors)
 
           n += 1
         }
 
         val fullMatrix = FloatMatrix.zeros(factors, factors)
 
-        ALS.generateFullMatrix(xtx, fullMatrix, factors)
+        ALSUtils.generateFullMatrix(xtx, fullMatrix, factors)
 
         var counter = 0
 

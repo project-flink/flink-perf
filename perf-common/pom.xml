@@ -23,9 +23,9 @@
 			<version>3.2.0</version>
 		</dependency>
 		<dependency>
-			<groupId>org.scalanlp</groupId>
-			<artifactId>breeze_2.10</artifactId>
-			<version>0.10</version>
+			<groupId>org.jblas</groupId>
+			<artifactId>jblas</artifactId>
+			<version>1.2.3</version>
 		</dependency>
 	</dependencies>
 
