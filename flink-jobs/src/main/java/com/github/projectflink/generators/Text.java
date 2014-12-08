@@ -21,16 +21,21 @@ public class Text {
         int dop = Integer.valueOf(args[0]);
         String outPath = args[1];
         long finalSizeGB = Integer.valueOf(args[2]);
-        final long bytesPerMapper = ((finalSizeGB * 1024 * 1024 * 1024) / dop);
+		int numberOfFiles = dop;
+		if(args.length > 3) {
+			numberOfFiles = Integer.valueOf(args[3]);
+		}
+        final long bytesPerMapper = ((finalSizeGB * 1024 * 1024 * 1024) / numberOfFiles);
         System.err.println("Generating Text data with the following properties:\n"
-                + "dop="+dop+" outPath="+outPath+" finalSizeGB="+finalSizeGB+" bytesPerMapper="+bytesPerMapper);
+                + "dop="+dop+" outPath="+outPath+" finalSizeGB="+finalSizeGB+" bytesPerMapper="+bytesPerMapper+" number of files="+numberOfFiles);
 
-        DataSet<Long> empty = env.generateSequence(1, dop);
+        DataSet<Long> empty = env.generateSequence(1, numberOfFiles);
         DataSet<String> logLine = empty.flatMap(new FlatMapFunction<Long, String>() {
             private static final long serialVersionUID = 1L;
             @Override
             public void flatMap(Long value, Collector<String> out) throws Exception {
-                Random rnd = new Utils.XORShiftRandom();
+				System.err.println("got value="+value);
+				Random rnd = new Utils.XORShiftRandom();
                 StringBuffer sb = new StringBuffer();
                 long bytesGenerated = 0;
                 while(true) {
@@ -46,13 +51,14 @@ public class Text {
                     out.collect(str);
                     // System.err.println("line ="+str);
                     if(bytesGenerated > bytesPerMapper) {
-                        break;
+						System.err.println("value="+value+" done with "+bytesGenerated);
+						break;
                     }
                 }
             }
-        }).setParallelism(dop);
+        }).setParallelism(numberOfFiles);
         logLine.writeAsText(outPath, FileSystem.WriteMode.OVERWRITE);
-        env.setDegreeOfParallelism(dop);
+        env.setDegreeOfParallelism(numberOfFiles);
         env.execute("Flink Distributed Text Data Generator");
     }
 }
