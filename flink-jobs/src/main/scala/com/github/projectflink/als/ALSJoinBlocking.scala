@@ -247,7 +247,8 @@ ALSFlinkAlgorithm with Serializable {
     }.withConstantSetFirst("0").withConstantSetSecond("0")
   }
 
-  def createUsersPerBlock(ratings: DS[(IDType, RatingType)]): DS[(IDType, Array[IDType])] = {
+  def createUsersPerBlock(ratings: DS[(IDType, RatingType)]):
+  DS[(IDType, Array[IDType])] = {
     //    ratings.map { x => (x._1, x._2.user)}.withConstantSet("0").distinct(0, 1).
     //      groupBy(0).sortGroup(1, Order.ASCENDING).reduceGroup {
     //          new RichGroupReduceFunction[(IDType, IDType), (IDType, Array[IDType])] {

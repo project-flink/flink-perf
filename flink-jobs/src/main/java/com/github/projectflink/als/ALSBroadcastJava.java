@@ -101,9 +101,10 @@ public class ALSBroadcastJava {
 		// group the ratings by Item
 		DataSet<Tuple2<Integer, Pair[]>> ratingsPerItem = groupAndCollectAsArray(swappedRatings);
 
-
 		// use a random ratings matrix
-		DataSet<Factors> initialItemMatrix = generateRandomMatrix(ratings.project(1).types(Integer.class).distinct(), numLatentFactors, RANDOM_SEED);
+		DataSet<Factors> initialItemMatrix = generateRandomMatrix(
+				ratings.<Tuple1<Integer>>project(1).distinct(),
+				numLatentFactors, RANDOM_SEED);
 
 		if(persistencePath != null){
 			String path;
