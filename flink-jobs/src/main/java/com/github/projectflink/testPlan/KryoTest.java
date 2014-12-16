@@ -29,6 +29,7 @@ import org.apache.flink.types.Value;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.hadoop.fs.shell.Count;
+import scala.reflect.internal.Trees;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -62,7 +63,11 @@ public class KryoTest {
 					for (String split : splits) {
 						if(split == null || split.length() == 0) continue;
 						if (StringUtils.isNumeric(split)) {
-							kt.elements.add(Integer.valueOf(split));
+							try {
+								kt.elements.add(Integer.valueOf(split));
+							} catch (Throwable t) {
+								kt.elements.add(Integer.valueOf(0));
+							}
 						} else {
 							kt.elements.add(split);
 						}
@@ -76,8 +81,7 @@ public class KryoTest {
 					return new Tuple2<Object, Integer>(valueType.elements.iterator().next(), valueType.elements.size());
 				}
 			});
-			ds1.print();
-			ds.output(new DiscardingOuputFormat<KryoType>());
+			ds1.output(new DiscardingOuputFormat<Tuple2<Object, Integer>>());
 		} else {
 			DataSet<ValueType> ds = text.map(new MapFunction<String, ValueType>() {
 				@Override
@@ -88,7 +92,12 @@ public class KryoTest {
 					for (String split : splits) {
 						if(split == null || split.length() == 0) continue;
 						if (StringUtils.isNumeric(split)) {
-							vt.elements.add(Integer.valueOf(split));
+							try {
+								vt.elements.add(Integer.valueOf(split));
+							} catch (Throwable t) {
+								vt.elements.add(Integer.valueOf(0));
+							}
+
 						} else {
 							vt.elements.add(split);
 						}
@@ -102,8 +111,7 @@ public class KryoTest {
 					return new Tuple2<Object, Integer>(valueType.elements.iterator().next(), valueType.elements.size());
 				}
 			});
-			ds1.print();
-			ds.output(new DiscardingOuputFormat<ValueType>());
+			ds1.output(new DiscardingOuputFormat<Tuple2<Object, Integer>>());
 		}
 
 		// execute program
