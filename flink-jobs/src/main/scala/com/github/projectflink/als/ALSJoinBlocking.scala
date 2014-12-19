@@ -95,17 +95,21 @@ ALSFlinkAlgorithm with Serializable {
     val users = updateFactors(userBlocks, pItems, itemOut, userIn, factors, lambda,
       blockIDPartitioner)
 
-    new Factorization(unblock(users, userOut), unblock(pItems, itemOut))
+    new Factorization(unblock(users, userOut, blockIDPartitioner), unblock(pItems, itemOut,
+      blockIDPartitioner))
   }
 
   def unblock(users: DS[(IDType, Array[Array[ElementType]])], outInfo: DS[(IDType, OutBlockInformation
-    )]): DS[FactorType] = {
-    users.join(outInfo).where(0).equalTo(0) {
+    )], blockIDPartitioner: BlockIDPartitioner): DS[FactorType] = {
+    users.join(outInfo).where(0).equalTo(0).withPartitioner(blockIDPartitioner).apply {
       (left, right, col: Collector[FactorType]) => {
         val outInfo = right._2
         val factors = left._2
-        outInfo.elementIDs.zip(factors).foreach { case (id, factors) => col.collect(new Factors(id,
-          factors))
+
+        for(i <- 0 until outInfo.elementIDs.length){
+          val id = outInfo.elementIDs(i)
+          val factorVector = factors(i)
+          col.collect(Factors(id, factorVector))
         }
       }
     }
@@ -119,12 +123,14 @@ ALSFlinkAlgorithm with Serializable {
                      factors: Int,
                      lambda: Double, blockIDPartitioner: FlinkPartitioner[IDType]):
   DS[(IDType, Array[Array[ElementType]])] = {
+    // send the item vectors to the blocks whose users have rated the items
     val partialBlockMsgs = itemOut.join(items).where(0).equalTo(0).
       withPartitioner(blockIDPartitioner).apply {
       (left, right, col: Collector[(IDType, IDType, Array[Array[ElementType]])]) => {
         val blockID = left._1
         val outInfo = left._2
         val factors = right._2
+        // array which stores for every user block the item vectors it will receive
         val toSend = Array.fill(numUserBlocks)(new ArrayBuffer[Array[ElementType]])
         for (item <- 0 until outInfo.elementIDs.length; userBlock <- 0 until numUserBlocks) {
           if (outInfo.outLinks(item)(userBlock)) {
@@ -148,53 +154,56 @@ ALSFlinkAlgorithm with Serializable {
             val triangleSize = (factors*factors - factors)/2 + factors
             val matrix = FloatMatrix.zeros(triangleSize)
             val fullMatrix = FloatMatrix.zeros(factors, factors)
+            val userXtX = new ArrayBuffer[FloatMatrix]()
+            val userXy = new ArrayBuffer[FloatMatrix]()
+            val numRatings = new ArrayBuffer[Int]()
 
             override def coGroup(left: lang.Iterable[(IDType, IDType,
               Array[Array[ElementType]])], right: lang.Iterable[(IDType, InBlockInformation)
               ], collector: Collector[(IDType, Array[Array[ElementType]])]): Unit = {
+              // there is only one InBlockInformation per user block
               val inInfo = right.iterator().next()._2
               val updates = left.iterator()
 
               val numUsers = inInfo.elementIDs.length
               var blockID = -1
 
-              val userXtX = new Array[FloatMatrix](numUsers)
-              val userXy = new Array[FloatMatrix](numUsers)
-              val numRatings = new Array[Int](numUsers)
-
               var i = 0
 
-              while(i < numUsers){
-                userXtX(i) = FloatMatrix.zeros(triangleSize)
-                userXy(i) = FloatMatrix.zeros(factors)
-
-                i += 1
-              }
-
-//              val matricesToClear = if(numUsers > userXtX.length){
-//                val oldLength = userXtX.length
-//                var i = 0
-//                while(i < (numUsers - oldLength)) {
-//                  userXtX += FloatMatrix.zeros(triangleSize)
-//                  userXy += FloatMatrix.zeros(factors)
-//                  numRatings.+=(0)
+//              val userXtX = new Array[FloatMatrix](numUsers)
+//              val userXy = new Array[FloatMatrix](numUsers)
+//              val numRatings = new Array[Int](numUsers)
 //
-//                  i += 1
-//                }
-//
-//                oldLength
-//              }else{
-//                numUsers
-//              }
-//
-//              var i = 0
-//              while(i  < matricesToClear){
-//                numRatings(i) = 0
-//                userXtX(i).fill(0.0f)
-//                userXy(i).fill(0.0f)
+//              while(i < numUsers){
+//                userXtX(i) = FloatMatrix.zeros(triangleSize)
+//                userXy(i) = FloatMatrix.zeros(factors)
 //
 //                i += 1
 //              }
+
+              val matricesToClear = if(numUsers > userXtX.length){
+                val oldLength = userXtX.length
+                while(i < (numUsers - oldLength)) {
+                  userXtX += FloatMatrix.zeros(triangleSize)
+                  userXy += FloatMatrix.zeros(factors)
+                  numRatings.+=(0)
+
+                  i += 1
+                }
+
+                oldLength
+              }else{
+                numUsers
+              }
+
+              i = 0
+              while(i  < matricesToClear){
+                numRatings(i) = 0
+                userXtX(i).fill(0.0f)
+                userXy(i).fill(0.0f)
+
+                i += 1
+              }
 
               var itemBlock = 0
 
@@ -208,13 +217,13 @@ ALSFlinkAlgorithm with Serializable {
                   val vector = new FloatMatrix(blockFactors(p))
                   ALSUtils.outerProduct(vector, matrix, factors)
 
-                  val (us, rs) = inInfo.ratingsForBlock(itemBlock)(p)
+                  val (users, ratings) = inInfo.ratingsForBlock(itemBlock)(p)
 
                   var i = 0
-                  while (i < us.length) {
-                    numRatings(us(i)) += 1
-                    userXtX(us(i)).addi(matrix)
-                    SimpleBlas.axpy(rs(i), vector, userXy(us(i)))
+                  while (i < users.length) {
+                    numRatings(users(i)) += 1
+                    userXtX(users(i)).addi(matrix)
+                    SimpleBlas.axpy(ratings(i), vector, userXy(users(i)))
 
                     i += 1
                   }
@@ -294,7 +303,19 @@ ALSFlinkAlgorithm with Serializable {
     }.withConstantSet("0")
   }
 
-  def createOutBlockInfos(ratings: DS[(IDType, RatingType)], usersPerBlock: DS[
+  /**
+   * Creates for every user block the out-going block information. The out block information
+   * contains for every user vector a bitset which indicates to which item block the respective user
+   * vector has to be sent. If a vector v has to be sent to a block b, then bitsets(v)'s bit b is
+   * set to 1, otherwise 0. Additionally the user IDs are replaced by the user vector's index value.
+   *
+   * @param ratings
+   * @param usersPerBlock
+   * @param itemBlocks
+   * @param partitioner
+   * @return
+   */
+  def createOutBlockInformation(ratings: DS[(IDType, RatingType)], usersPerBlock: DS[
     (IDType, Array[IDType])], itemBlocks: Int, partitioner: Partitioner): DS[(IDType, OutBlockInformation)]
   = {
     ratings.coGroup(usersPerBlock).where(0).equalTo(0).apply {
@@ -327,8 +348,23 @@ ALSFlinkAlgorithm with Serializable {
     }.withConstantSetFirst("0").withConstantSetSecond("0")
   }
 
-  def createInBlockInfos(ratings: DS[(IDType, RatingType)], usersPerBlock: DS[(IDType,
+  /**
+   * Creates for every user block the incoming block information. The incoming block information
+   * contains the userIDs of the users in the respective block and for every item block a
+   * BlockRating instance. The BlockRating instance describes for every incoming set of item
+   * vectors of an item block, which user rated these items and what the rating was. For that
+   * purpose it contains for every incoming item vector a tuple of an id array us and a rating
+   * array rs. The array us contains the indices of the users having rated the respective
+   * item vector with the ratings in rs.
+   *
+   * @param ratings
+   * @param usersPerBlock
+   * @param partitioner
+   * @return
+   */
+  def createInBlockInformation(ratings: DS[(IDType, RatingType)], usersPerBlock: DS[(IDType,
     Array[IDType])], partitioner: Partitioner): DS[(IDType, InBlockInformation)] = {
+    // Group for every user block the users which have rated the same item and collect their ratings
     val partialInInfos = ratings.map { x => (x._1, x._2.item, x._2.user, x._2.rating)}
       .withConstantSet("0").groupBy(0, 1).reduceGroup {
       x =>
@@ -348,6 +384,9 @@ ALSFlinkAlgorithm with Serializable {
         (userBlockID, partitioner(itemID), itemID, (userIDs.toArray, ratings.toArray))
     }.withConstantSet("0")
 
+    // Aggregate all ratings for items belonging to the same item block. Sort ascending with
+    // respect to the itemID, because later the item vectors of the update message are sorted
+    // accordingly.
     val collectedPartialInfos = partialInInfos.groupBy(0, 1).sortGroup(2, Order.ASCENDING).
       reduceGroup {
       new GroupReduceFunction[(Int, Int, Int, (Array[IDType], Array[ElementType])), (IDType,
@@ -393,6 +432,8 @@ ALSFlinkAlgorithm with Serializable {
       }
     }.withConstantSet("0", "1")
 
+    // Aggregate all item block ratings with respect to their user block ID. Sort the blocks with
+    // respect to their itemBlockID, because the block update messages are sorted the same way
     collectedPartialInfos.coGroup(usersPerBlock).where(0).equalTo(0).sortFirstGroup(1,
       Order.ASCENDING).apply{
       new CoGroupFunction[(IDType, IDType, Array[(Array[IDType], Array[ElementType])]),
@@ -415,8 +456,10 @@ ALSFlinkAlgorithm with Serializable {
 
           while (partialInfos.hasNext && counter < buffer.length) {
             val partialInfo = partialInfos.next()
+            // entry contains the ratings and userIDs of a complete item block
             val entry = partialInfo._3
 
+            // transform userIDs to positional indices
             for (row <- 0 until entry.length; col <- 0 until entry(row)._1.length) {
               entry(row)._1(col) = userIDToPos(entry(row)._1(col))
             }
@@ -428,8 +471,10 @@ ALSFlinkAlgorithm with Serializable {
 
           while (partialInfos.hasNext) {
             val partialInfo = partialInfos.next()
+            // entry contains the ratings and userIDs of a complete item block
             val entry = partialInfo._3
 
+            // transform userIDs to positional indices
             for (row <- 0 until entry.length; col <- 0 until entry(row)._1.length) {
               entry(row)._1(col) = userIDToPos(entry(row)._1(col))
             }
@@ -456,9 +501,9 @@ ALSFlinkAlgorithm with Serializable {
 
     val usersPerBlock = createUsersPerBlock(ratings)
 
-    val outBlockInfos = createOutBlockInfos(ratings, usersPerBlock, itemBlocks, partitioner)
+    val outBlockInfos = createOutBlockInformation(ratings, usersPerBlock, itemBlocks, partitioner)
 
-    val inBlockInfos = createInBlockInfos(ratings, usersPerBlock, partitioner)
+    val inBlockInfos = createInBlockInformation(ratings, usersPerBlock, partitioner)
 
     (inBlockInfos, outBlockInfos)
   }
