@@ -131,17 +131,24 @@ ALSFlinkAlgorithm with Serializable {
         val outInfo = left._2
         val factors = right._2
         // array which stores for every user block the item vectors it will receive
-        val toSend = Array.fill(numUserBlocks)(new ArrayBuffer[Array[ElementType]])
-        for (item <- 0 until outInfo.elementIDs.length; userBlock <- 0 until numUserBlocks) {
-          if (outInfo.outLinks(item)(userBlock)) {
-            toSend(userBlock) += factors(item)
-          }
-        }
-        toSend.zipWithIndex.foreach {
-          case (buf, idx) =>
-            if (buf.nonEmpty) {
-              col.collect((idx, blockID, buf.toArray))
+        var userBlock = 0
+        var item = 0
+
+        while(userBlock < numUserBlocks){
+          item = 0
+          val buffer = new ArrayBuffer[Array[ElementType]]
+          while(item < outInfo.elementIDs.length){
+            if(outInfo.outLinks(userBlock)(item)){
+              buffer += factors(item)
             }
+            item += 1
+          }
+
+          if(buffer.nonEmpty){
+            col.collect(userBlock, blockID, buffer.toArray)
+          }
+
+          userBlock += 1
         }
       }
     }
@@ -305,8 +312,8 @@ ALSFlinkAlgorithm with Serializable {
 
   /**
    * Creates for every user block the out-going block information. The out block information
-   * contains for every user vector a bitset which indicates to which item block the respective user
-   * vector has to be sent. If a vector v has to be sent to a block b, then bitsets(v)'s bit b is
+   * contains for every item block a bitset which indicates which user vector has to be sent to
+   * this block. If a vector v has to be sent to a block b, then bitsets(b)'s bit v is
    * set to 1, otherwise 0. Additionally the user IDs are replaced by the user vector's index value.
    *
    * @param ratings
@@ -325,7 +332,7 @@ ALSFlinkAlgorithm with Serializable {
 
         val userIDToPos = userIDs.zipWithIndex.toMap
 
-        val shouldSend = Array.fill(numUsers)(new scala.collection.mutable.BitSet(itemBlocks))
+        val shouldSend = Array.fill(itemBlocks)(new scala.collection.mutable.BitSet(numUsers))
         var blockID = -1
         while (ratings.hasNext) {
           val r = ratings.next
@@ -341,7 +348,7 @@ ALSFlinkAlgorithm with Serializable {
             }
 
           blockID = r._1
-          shouldSend(pos)(partitioner(r._2.item)) = true
+          shouldSend(partitioner(r._2.item))(pos) = true
         }
 
         (blockID, OutBlockInformation(userIDs, new OutLinks(shouldSend)))
