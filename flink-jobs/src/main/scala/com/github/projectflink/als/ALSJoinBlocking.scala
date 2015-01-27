@@ -34,7 +34,7 @@ ALSFlinkAlgorithm with Serializable {
         val blockID = rating.user % userBlocks
         (blockID, rating)
       }
-    }.partitionCustom(blockIDPartitioner, 0)
+    } partitionCustom(blockIDPartitioner, 0)
 
     val ratingsByItemBlock = ratings map {
       rating => {

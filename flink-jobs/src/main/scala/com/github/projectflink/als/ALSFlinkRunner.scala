@@ -19,8 +19,8 @@ trait ALSFlinkRunner extends ALSFlink with ALSRunner {
 
   def outputFactorization(factorization: ALSFlink#Factorization, outputPath: String): Unit = {
     if(outputPath == null || outputPath.isEmpty){
-      factorization.userFactors.print()
-      factorization.itemFactors.print()
+      factorization.userFactors.map("User: " + _).print()
+      factorization.itemFactors.map("Item: " + _).print()
     }else{
       val path = if(outputPath.endsWith("/")) outputPath else outputPath +"/"
       val userPath = path + USER_FACTORS_FILE

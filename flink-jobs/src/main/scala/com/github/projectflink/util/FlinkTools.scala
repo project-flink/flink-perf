@@ -21,6 +21,7 @@ object FlinkTools {
 
     dataset.output(outputFormat)
     env.execute("FlinkTools persist")
+//    println(env.getExecutionPlan())
 
     val inputFormat = new TypeSerializerInputFormat[T](dataset.getType.createSerializer())
     inputFormat.setFilePath(filePath)
@@ -49,6 +50,7 @@ object FlinkTools {
     ds2.output(of2)
 
     env.execute("FlinkTools persist")
+//    println(env.getExecutionPlan());
 
     val if1 = new TypeSerializerInputFormat[A](ds1.getType.createSerializer())
     if1.setFilePath(f1)
