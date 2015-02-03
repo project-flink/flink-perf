@@ -18,7 +18,7 @@
 
 package com.github.projectflink.cocoa
 
-import org.apache.flink.api.common.functions.{RichMapFunction, Partitioner}
+import org.apache.flink.api.common.functions.{RichMapFunction, RichJoinFunction, Partitioner}
 import org.apache.flink.api.scala.{ExecutionEnvironment, DataSet}
 import org.apache.flink.configuration.Configuration
 import org.jblas.DoubleMatrix
@@ -28,9 +28,9 @@ import org.apache.flink.api.scala._
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
 
-class CoCoA(n: Int, numBlocks: Int, outerIterations: Int, innerIterations: Int,
+class CoCoAStateless(n: Int, numBlocks: Int, outerIterations: Int, innerIterations: Int,
             lambda: Double, scalingParameter: Double, seed: Long) extends Serializable {
-  import CoCoA._
+  import CoCoAStateless._
 
   val scaling = scalingParameter/numBlocks
 
@@ -60,31 +60,46 @@ class CoCoA(n: Int, numBlocks: Int, outerIterations: Int, innerIterations: Int,
         }
 
         Datapoints(blockIndex, data.toArray, labels.toArray)
+    }.withConstantSet("0")
+
+    val initialAW = new RichMapFunction[Datapoints, (Int, Array[Element], Array[Element])] {
+      var w: Array[Element] = _
+
+      override def open(parameters: Configuration): Unit = {
+        w = getRuntimeContext.getBroadcastVariable(WEIGHT_VECTOR).get(0)
+      }
+
+      override def map(datapoints: Datapoints): (Int, Array[Element], Array[Element]) = {
+          (datapoints.index, Array.fill(datapoints.data.length)(0.0), w)
+      }
     }
+
+    val initialAlphaWUpdates = blockedInput.map(initialAW).
+      withBroadcastSet(initialW, WEIGHT_VECTOR).withConstantSet("0")
 
     // calculate the weight vector
-    initialW.iterate(outerIterations) {
-      w =>
-        val deltaWs = localDualMethod(w, blockedInput)
-        val weightedDeltaWs = deltaWs map {
-          _.muli(scaling).data
-        }
+    val finalAlphaWUpdates = initialAlphaWUpdates.iterate(outerIterations) {
+      alphaWUpdates =>
+        val wUpdates = alphaWUpdates.map(_._3)
+        val w = wUpdates.reduce(_.add(_))
+        val alphas = alphaWUpdates.map{
+          x => (x._1, x._2)
+        }.withConstantSet("0")
 
-        w.union(weightedDeltaWs).reduce{
-          _.add(_)
-        }
+        localDualMethod(w, alphas, blockedInput)
     }
+
+    val wUpdates = finalAlphaWUpdates.map(_._3)
+    wUpdates.reduce(_.add(_))
   }
 
 
-  def localDualMethod(w: DataSet[Array[Element]], blockedInput: DataSet[Datapoints]):
-  DataSet[Array[Element]] = {
-    val localSDCA = new RichMapFunction[Datapoints, Array[Element]] {
-      var originalW: Array[Element] = _
-      val alphasArray = ArrayBuffer[Array[Element]]()
-      val idMapping = scala.collection.mutable.HashMap[Int, Int]()
-      var counter = 0
+  def localDualMethod(w: DataSet[Array[Element]], alphas: DataSet[(Int, Array[Element])],
+                      blockedInput: DataSet[Datapoints]):
+  DataSet[(Int, Array[Element], Array[Element])] = {
+    val localSDCA = new RichJoinFunction[(Int, Array[Element]), Datapoints, (Int, Array[Element], Array[Element])] {
 
+      var originalW: Array[Element] = _
       var r: Random = _
 
       override def open(parameters: Configuration): Unit = {
@@ -95,49 +110,38 @@ class CoCoA(n: Int, numBlocks: Int, outerIterations: Int, innerIterations: Int,
         }
       }
 
-      override def map(in: Datapoints): Array[Element] = {
-        val localIndex = idMapping.get(in.index) match {
-          case Some(idx) => idx
-          case None =>
-            idMapping += (in.index -> counter)
-            counter += 1
+      override def join(idxAlphas: (Int, Array[Element]), datapoints: Datapoints):
+      (Int, Array[Element], Array[Element]) = {
+        val (blockIdx, alphas) = idxAlphas
 
-            alphasArray += Array.fill(in.labels.length)(0.0)
-
-            counter - 1
-        }
-
-        val alphas = alphasArray(localIndex).clone()
         val numLocalDatapoints = alphas.length
-        val deltaAlphas = Array.fill(numLocalDatapoints)(0.0)
+        val newAlphas = alphas.clone()
         val w = originalW.clone()
-        val deltaW = Array.fill(originalW.length)(0.0)
+        val newW = originalW.mul(1.0/numBlocks)
 
         for(i <- 1 to innerIterations) {
           val idx = r.nextInt(numLocalDatapoints)
 
-          val datapoint = in.data(idx)
-          val label = in.labels(idx)
+          val datapoint = datapoints.data(idx)
+          val label = datapoints.labels(idx)
           val alpha = alphas(idx)
 
           val (deltaAlpha, deltaWUpdate) = maximize(datapoint, label, lambda, alpha, w)
 
           alphas(idx) += deltaAlpha
 
-          deltaAlphas(idx) += deltaAlpha
+          newAlphas(idx) += deltaAlpha*scaling
 
           w.addi(deltaWUpdate)
-          deltaW.addi(deltaWUpdate)
+          newW.addi(deltaWUpdate.mul(scaling))
         }
 
-        // update local alpha values
-        alphasArray(localIndex) = (alphasArray(localIndex)).add(deltaAlphas.mul(scaling))
-
-        deltaW
+        (blockIdx, newAlphas, newW)
       }
     }
 
-    blockedInput.map(localSDCA).withBroadcastSet(w, WEIGHT_VECTOR)
+    alphas.join(blockedInput).where(0).equalTo(0).apply(localSDCA).
+      withBroadcastSet(w, WEIGHT_VECTOR).withConstantSetFirst("0").withConstantSetSecond("0")
   }
 
   def maximize(x: Array[Element], y: Element, lambda: Double, alpha: Double,
@@ -179,7 +183,7 @@ class CoCoA(n: Int, numBlocks: Int, outerIterations: Int, innerIterations: Int,
 }
 
 
-object CoCoA{
+object CoCoAStateless{
   val WEIGHT_VECTOR ="weightVector"
   type Element = Double
 
@@ -210,7 +214,7 @@ object CoCoA{
     val toyDataDS = env.fromCollection(toyData)
     val initialWDS = env.fromElements(initialW)
 
-    val cocoa = new CoCoA(numberDatapoints, numBlocks, 10, 10, 1.0, 1.0, seed)
+    val cocoa = new CoCoAStateless(numberDatapoints, numBlocks, 10, 10, 1.0, 1.0, seed)
 
     val finalW = cocoa.calculate(toyDataDS, initialWDS)
 
@@ -219,7 +223,8 @@ object CoCoA{
         "(" + w.mkString(", ") + ")"
     }.print()
 
-    env.execute("CoCoA")
+    env.execute("CoCoAStateless")
+//    println(env.getExecutionPlan())
   }
 
   def getToyData: List[Datapoint] = {
