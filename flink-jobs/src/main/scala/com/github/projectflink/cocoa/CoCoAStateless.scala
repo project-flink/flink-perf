@@ -60,7 +60,7 @@ class CoCoAStateless(n: Int, numBlocks: Int, outerIterations: Int, innerIteratio
         }
 
         Datapoints(blockIndex, data.toArray, labels.toArray)
-    }.withConstantSet("0")
+    }.withForwardedFields("0")
 
     val initialAW = new RichMapFunction[Datapoints, (Int, Array[Element], Array[Element])] {
       var w: Array[Element] = _
@@ -75,7 +75,7 @@ class CoCoAStateless(n: Int, numBlocks: Int, outerIterations: Int, innerIteratio
     }
 
     val initialAlphaWUpdates = blockedInput.map(initialAW).
-      withBroadcastSet(initialW, WEIGHT_VECTOR).withConstantSet("0")
+      withBroadcastSet(initialW, WEIGHT_VECTOR).withForwardedFields("0")
 
     // calculate the weight vector
     val finalAlphaWUpdates = initialAlphaWUpdates.iterate(outerIterations) {
@@ -84,7 +84,7 @@ class CoCoAStateless(n: Int, numBlocks: Int, outerIterations: Int, innerIteratio
         val w = wUpdates.reduce(_.add(_))
         val alphas = alphaWUpdates.map{
           x => (x._1, x._2)
-        }.withConstantSet("0")
+        }.withForwardedFields("0")
 
         localDualMethod(w, alphas, blockedInput)
     }
@@ -141,7 +141,7 @@ class CoCoAStateless(n: Int, numBlocks: Int, outerIterations: Int, innerIteratio
     }
 
     alphas.join(blockedInput).where(0).equalTo(0).apply(localSDCA).
-      withBroadcastSet(w, WEIGHT_VECTOR).withConstantSetFirst("0").withConstantSetSecond("0")
+      withBroadcastSet(w, WEIGHT_VECTOR).withForwardedFieldsFirst("0").withForwardedFieldsSecond("0")
   }
 
   def maximize(x: Array[Element], y: Element, lambda: Double, alpha: Double,

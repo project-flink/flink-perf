@@ -20,7 +20,7 @@ package com.github.projectflink.testPlan;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.java.io.DiscardingOuputFormat;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.operators.MapOperator;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
@@ -81,7 +81,7 @@ public class KryoTest {
 					return new Tuple2<Object, Integer>(valueType.elements.iterator().next(), valueType.elements.size());
 				}
 			});
-			ds1.output(new DiscardingOuputFormat<Tuple2<Object, Integer>>());
+			ds1.output(new DiscardingOutputFormat<Tuple2<Object, Integer>>());
 		} else {
 			DataSet<ValueType> ds = text.map(new MapFunction<String, ValueType>() {
 				@Override
@@ -111,7 +111,7 @@ public class KryoTest {
 					return new Tuple2<Object, Integer>(valueType.elements.iterator().next(), valueType.elements.size());
 				}
 			});
-			ds1.output(new DiscardingOuputFormat<Tuple2<Object, Integer>>());
+			ds1.output(new DiscardingOutputFormat<Tuple2<Object, Integer>>());
 		}
 
 		// execute program

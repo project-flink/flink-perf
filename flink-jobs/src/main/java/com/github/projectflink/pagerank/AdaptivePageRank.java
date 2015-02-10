@@ -33,9 +33,9 @@ import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.functions.FunctionAnnotation.ConstantFields;
-import org.apache.flink.api.java.functions.FunctionAnnotation.ConstantFieldsFirst;
-import org.apache.flink.api.java.functions.FunctionAnnotation.ConstantFieldsSecond;
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsFirst;
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsSecond;
 import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
@@ -211,7 +211,7 @@ public class AdaptivePageRank {
 		}
 	}
 
-	@ConstantFields("0")
+	@ForwardedFields("0")
 	public static final class Agg implements GroupReduceFunction<Tuple2<Long, Double>, Tuple2<Long, Double>> {
 
 		@Override
@@ -228,7 +228,7 @@ public class AdaptivePageRank {
 		}
 	}
 
-	@ConstantFields("0")
+	@ForwardedFields("0")
 	public static final class AggAndFilter extends RichGroupReduceFunction<Tuple2<Long, Double>, Tuple2<Long, Double>> {
 
 		private final double threshold;
@@ -273,8 +273,8 @@ public class AdaptivePageRank {
 		}
 	}
 
-	@ConstantFieldsFirst("0")
-	@ConstantFieldsSecond("0")
+	@ForwardedFieldsFirst("0")
+	@ForwardedFieldsSecond("0")
 	public static final class SolutionJoin implements JoinFunction<Tuple2<Long, Double>, Tuple2<Long, Double>, Tuple2<Long, Double>> {
 
 		@Override

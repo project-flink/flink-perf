@@ -77,7 +77,7 @@ object Pagerank {
               }) :+ Pagerank(node, (1-dampingFactor)/numVertices)
             }
           }
-        }.groupBy("node").reduce(_ + _).withConstantSet("0->0")
+        }.groupBy("node").reduce(_ + _).withForwardedFields("0->0")
     }
 
     solution.writeAsText(outPath+"_flink", WriteMode.OVERWRITE)

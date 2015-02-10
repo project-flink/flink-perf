@@ -98,7 +98,7 @@ ALSFlinkAlgorithm with Serializable {
             randomFactors(factors, random)
         })
       }
-    }.withConstantSet("0")
+    }.withForwardedFields("0")
 
     val items = initialItems.iterate(iterations) {
       items => {
@@ -281,12 +281,12 @@ ALSFlinkAlgorithm with Serializable {
               collector.collect((blockID, array))
             }
           }
-    }.withConstantSetFirst("0").withConstantSetSecond("0")
+    }.withForwardedFieldsFirst("0").withForwardedFieldsSecond("0")
   }
 
   def createUsersPerBlock(ratings: DS[(IDType, RatingType)]):
   DS[(IDType, Array[IDType])] = {
-    //    ratings.map { x => (x._1, x._2.user)}.withConstantSet("0").distinct(0, 1).
+    //    ratings.map { x => (x._1, x._2.user)}.withForwardedFields("0").distinct(0, 1).
     //      groupBy(0).sortGroup(1, Order.ASCENDING).reduceGroup {
     //          new RichGroupReduceFunction[(IDType, IDType), (IDType, Array[IDType])] {
     //            override def reduce(iterable: lang.Iterable[(IDType, IDType)], collector: Collector[
@@ -305,9 +305,9 @@ ALSFlinkAlgorithm with Serializable {
     //              collector.collect((id, userIDs))
     //            }
     //          }
-    //    }.withConstantSet("0")
+    //    }.withForwardedFields("0")
 
-    ratings.map{ x => (x._1, x._2.user)}.withConstantSet("0").
+    ratings.map{ x => (x._1, x._2.user)}.withForwardedFields("0").
       groupBy(0).sortGroup(1, Order.ASCENDING).reduceGroup {
       users => {
         val result = ArrayBuffer[Int]()
@@ -328,7 +328,7 @@ ALSFlinkAlgorithm with Serializable {
         val userIDs = result.toArray
         (id, userIDs)
       }
-    }.withConstantSet("0")
+    }.withForwardedFields("0")
   }
 
   /**
@@ -373,7 +373,7 @@ ALSFlinkAlgorithm with Serializable {
         }
 
         (blockID, OutBlockInformation(userIDs, new OutLinks(shouldSend)))
-    }.withConstantSetFirst("0").withConstantSetSecond("0")
+    }.withForwardedFieldsFirst("0").withForwardedFieldsSecond("0")
   }
 
   /**
@@ -394,7 +394,7 @@ ALSFlinkAlgorithm with Serializable {
     Array[IDType])], partitioner: Partitioner): DS[(IDType, InBlockInformation)] = {
     // Group for every user block the users which have rated the same item and collect their ratings
     val partialInInfos = ratings.map { x => (x._1, x._2.item, x._2.user, x._2.rating)}
-      .withConstantSet("0").groupBy(0, 1).reduceGroup {
+      .withForwardedFields("0").groupBy(0, 1).reduceGroup {
       x =>
         var userBlockID = -1
         var itemID = -1
@@ -410,7 +410,7 @@ ALSFlinkAlgorithm with Serializable {
         }
 
         (userBlockID, partitioner(itemID), itemID, (userIDs.toArray, ratings.toArray))
-    }.withConstantSet("0")
+    }.withForwardedFields("0")
 
     // Aggregate all ratings for items belonging to the same item block. Sort ascending with
     // respect to the itemID, because later the item vectors of the update message are sorted
@@ -458,7 +458,7 @@ ALSFlinkAlgorithm with Serializable {
           collector.collect((blockID, itemBlockID, array))
         }
       }
-    }.withConstantSet("0", "1")
+    }.withForwardedFields("0", "1")
 
     // Aggregate all item block ratings with respect to their user block ID. Sort the blocks with
     // respect to their itemBlockID, because the block update messages are sorted the same way
@@ -519,7 +519,7 @@ ALSFlinkAlgorithm with Serializable {
           collector.collect((id, InBlockInformation(userIDs, array)))
         }
       }
-    }.withConstantSetFirst("0").withConstantSetSecond("0")
+    }.withForwardedFieldsFirst("0").withForwardedFieldsSecond("0")
   }
 
   def createBlockInformation(userBlocks: Int, itemBlocks: Int, ratings: DS[(IDType,

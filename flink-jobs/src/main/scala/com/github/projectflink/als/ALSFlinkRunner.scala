@@ -13,7 +13,7 @@ trait ALSFlinkRunner extends ALSFlink with ALSRunner {
     env.readCsvFile[(IDType, IDType, ElementType)](
       input,
       "\n",
-      ','
+      ","
     ).map{ x => Rating[IDType, ElementType](x._1, x._2, x._3) }
   }
 

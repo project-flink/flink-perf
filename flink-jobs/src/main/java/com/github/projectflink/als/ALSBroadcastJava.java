@@ -143,22 +143,19 @@ public class ALSBroadcastJava {
 			env.execute("Preprocessing");
 
 			TypeSerializerInputFormat<Factors> iiMatrixIF = new
-					TypeSerializerInputFormat<Factors>(initialItemMatrix.getType()
-					.createSerializer());
+					TypeSerializerInputFormat<Factors>(initialItemMatrix.getType());
 			iiMatrixIF.setFilePath(itemMatrixPath);
 
 			initialItemMatrix = env.createInput(iiMatrixIF, initialItemMatrix.getType());
 
 			TypeSerializerInputFormat<Tuple2<Integer, Pair[]>> userRatingsIF = new
-					TypeSerializerInputFormat<Tuple2<Integer, Pair[]>>(ratingsPerUser.getType()
-					.createSerializer());
+					TypeSerializerInputFormat<Tuple2<Integer, Pair[]>>(ratingsPerUser.getType());
 			userRatingsIF.setFilePath(ratingsPerUserPath);
 
 			ratingsPerUser = env.createInput(userRatingsIF, ratingsPerUser.getType());
 
 			TypeSerializerInputFormat<Tuple2<Integer, Pair[]>> itemRatingsIF = new
-					TypeSerializerInputFormat<Tuple2<Integer, Pair[]>>(ratingsPerItem.getType()
-					.createSerializer());
+					TypeSerializerInputFormat<Tuple2<Integer, Pair[]>>(ratingsPerItem.getType());
 			itemRatingsIF.setFilePath(ratingsPerItemPath);
 
 			ratingsPerItem = env.createInput(itemRatingsIF, ratingsPerItem.getType());
@@ -189,8 +186,7 @@ public class ALSBroadcastJava {
 
 			env.execute("Post iteration");
 
-			TypeSerializerInputFormat iIF = new TypeSerializerInputFormat(itemsResult.getType()
-					.createSerializer());
+			TypeSerializerInputFormat iIF = new TypeSerializerInputFormat(itemsResult.getType());
 			iIF.setFilePath(itemsResultPath);
 
 			itemsResult = env.createInput(iIF, itemsResult.getType());

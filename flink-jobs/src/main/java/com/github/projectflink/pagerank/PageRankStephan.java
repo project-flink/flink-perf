@@ -25,7 +25,7 @@ import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.functions.FunctionAnnotation.ConstantFields;
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
 import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
@@ -147,7 +147,7 @@ public class PageRankStephan {
 		}
 	}
 
-	@ConstantFields("0")
+	@ForwardedFields("0")
 	public static final class Adder extends RichGroupReduceFunction<Tuple2<Long, Double>, Tuple2<Long, Double>> {
 
 		@Override

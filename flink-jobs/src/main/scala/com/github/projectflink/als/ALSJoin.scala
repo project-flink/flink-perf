@@ -98,7 +98,7 @@ Option[String]) extends ALSFlinkAlgorithm with Serializable {
 
         col.collect(new Factors(uID, Solve.solvePositive(fullMatrix, vector).data))
       }
-    }.withConstantSet("0")
+    }.withForwardedFields("0")
   }
 }
 

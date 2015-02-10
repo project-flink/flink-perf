@@ -23,7 +23,7 @@ object FlinkTools {
     env.execute("FlinkTools persist")
 //    println(env.getExecutionPlan())
 
-    val inputFormat = new TypeSerializerInputFormat[T](dataset.getType.createSerializer())
+    val inputFormat = new TypeSerializerInputFormat[T](dataset.getType)
     inputFormat.setFilePath(filePath)
 
     env.createInput(inputFormat)
@@ -52,10 +52,10 @@ object FlinkTools {
     env.execute("FlinkTools persist")
 //    println(env.getExecutionPlan());
 
-    val if1 = new TypeSerializerInputFormat[A](ds1.getType.createSerializer())
+    val if1 = new TypeSerializerInputFormat[A](ds1.getType)
     if1.setFilePath(f1)
 
-    val if2 = new TypeSerializerInputFormat[B](ds2.getType.createSerializer())
+    val if2 = new TypeSerializerInputFormat[B](ds2.getType)
     if2.setFilePath(f2)
 
     (env.createInput(if1), env.createInput(if2))
@@ -92,13 +92,13 @@ object FlinkTools {
 
     env.execute("FlinkTools persist")
 
-    val if1 = new TypeSerializerInputFormat[A](ds1.getType.createSerializer())
+    val if1 = new TypeSerializerInputFormat[A](ds1.getType)
     if1.setFilePath(f1)
 
-    val if2 = new TypeSerializerInputFormat[B](ds2.getType.createSerializer())
+    val if2 = new TypeSerializerInputFormat[B](ds2.getType)
     if2.setFilePath(f2)
 
-    val if3 = new TypeSerializerInputFormat[C](ds3.getType.createSerializer())
+    val if3 = new TypeSerializerInputFormat[C](ds3.getType)
     if3.setFilePath(f3)
 
     (env.createInput(if1), env.createInput(if2), env.createInput(if3))
@@ -146,16 +146,16 @@ object FlinkTools {
 
     env.execute("FlinkTools persist")
 
-    val if1 = new TypeSerializerInputFormat[A](ds1.getType.createSerializer())
+    val if1 = new TypeSerializerInputFormat[A](ds1.getType)
     if1.setFilePath(f1)
 
-    val if2 = new TypeSerializerInputFormat[B](ds2.getType.createSerializer())
+    val if2 = new TypeSerializerInputFormat[B](ds2.getType)
     if2.setFilePath(f2)
 
-    val if3 = new TypeSerializerInputFormat[C](ds3.getType.createSerializer())
+    val if3 = new TypeSerializerInputFormat[C](ds3.getType)
     if3.setFilePath(f3)
 
-    val if4 = new TypeSerializerInputFormat[D](ds4.getType.createSerializer())
+    val if4 = new TypeSerializerInputFormat[D](ds4.getType)
     if4.setFilePath(f4)
 
     (env.createInput(if1), env.createInput(if2), env.createInput(if3), env.createInput(if4))
@@ -211,19 +211,19 @@ object FlinkTools {
 
     env.execute("FlinkTools persist")
 
-    val if1 = new TypeSerializerInputFormat[A](ds1.getType.createSerializer())
+    val if1 = new TypeSerializerInputFormat[A](ds1.getType)
     if1.setFilePath(f1)
 
-    val if2 = new TypeSerializerInputFormat[B](ds2.getType.createSerializer())
+    val if2 = new TypeSerializerInputFormat[B](ds2.getType)
     if2.setFilePath(f2)
 
-    val if3 = new TypeSerializerInputFormat[C](ds3.getType.createSerializer())
+    val if3 = new TypeSerializerInputFormat[C](ds3.getType)
     if3.setFilePath(f3)
 
-    val if4 = new TypeSerializerInputFormat[D](ds4.getType.createSerializer())
+    val if4 = new TypeSerializerInputFormat[D](ds4.getType)
     if4.setFilePath(f4)
 
-    val if5 = new TypeSerializerInputFormat[E](ds5.getType.createSerializer())
+    val if5 = new TypeSerializerInputFormat[E](ds5.getType)
     if5.setFilePath(f5)
 
     (env.createInput(if1), env.createInput(if2), env.createInput(if3), env.createInput(if4), env
