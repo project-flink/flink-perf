@@ -1,0 +1,22 @@
+{"namespace": "com.github.projectflink.avro.generated",
+ "type": "record",
+ "name": "AvroLineitem",
+ "fields": [
+    {"name": "orderKey",  "type": "long"},
+    {"name": "partKey", "type": "long"},
+    {"name": "supplierKey", "type": "long"},
+    {"name": "lineNumber",  "type": "long"},
+    {"name": "quantity", "type": "long"},
+    {"name": "extendedPrice",  "type": "double"},
+    {"name": "discount", "type": "double"},
+    {"name": "tax",  "type": "double"},
+    {"name": "returnFlag", "type": "string"},
+    {"name": "status",  "type": "string"},
+    {"name": "shipDate",  "type": "int"},
+    {"name": "commitDate",  "type": "int"},
+    {"name": "receiptDate",  "type": "int"},
+    {"name": "shipInstructions",  "type": "string"},
+    {"name": "shipMode",  "type": "string"},
+    {"name": "comment",  "type": "string"}
+ ]
+}

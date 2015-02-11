@@ -116,6 +116,18 @@
 			<version>3.3</version>
 		</dependency>
 
+        <dependency>
+            <groupId>io.airlift.tpch</groupId>
+            <artifactId>tpch</artifactId>
+            <version>0.4</version>
+        </dependency>
+
+        <dependency>
+            <groupId>net.sourceforge.argparse4j</groupId>
+            <artifactId>argparse4j</artifactId>
+            <version>0.4.4</version>
+        </dependency>
+
 		<dependency>
 			<groupId>com.github.project-flink</groupId>
 			<artifactId>perf-common</artifactId>
@@ -126,6 +138,24 @@
 
 	<build>
 		<plugins>
+            <!-- Generate Test class from avro schema -->
+            <plugin>
+                <groupId>org.apache.avro</groupId>
+                <artifactId>avro-maven-plugin</artifactId>
+                <version>1.7.7</version>
+                <executions>
+                    <execution>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>schema</goal>
+                        </goals>
+                        <configuration>
+                            <testSourceDirectory>${project.basedir}/src/main/resources</testSourceDirectory>
+                            <testOutputDirectory>${project.basedir}/src/main/java/</testOutputDirectory>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
