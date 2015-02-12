@@ -4,6 +4,7 @@ import com.github.projectflink.avro.generated.AvroLineitem;
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.io.AvroInputFormat;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.Collector;
@@ -26,7 +27,7 @@ public class CompareJob {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		DataSet<AvroLineitem> lineItemFromAvro = env.createInput(
-				new NewAvroInputFormat<AvroLineitem>(new Path(args[0]), AvroLineitem.class));
+				new AvroInputFormat<AvroLineitem>(new Path(args[0]), AvroLineitem.class));
 		DataSet<AvroLineitem> lineItemFromCsv = env.readTextFile(args[1]).map(new Prepare.AvroLineItemMapper());
 		DataSet<String> empty = lineItemFromAvro
 			.coGroup(lineItemFromCsv).where("orderKey", "partKey", "supplierKey", "lineNumber").equalTo("orderKey", "partKey", "supplierKey", "lineNumber").with(new CoGroupFunction<AvroLineitem, AvroLineitem, String>() {
