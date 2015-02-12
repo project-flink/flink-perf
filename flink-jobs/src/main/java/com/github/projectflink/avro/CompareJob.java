@@ -13,9 +13,9 @@ import java.util.Iterator;
 /**
  *
  * Required steps:
- * - Run Generate Lineitems
- * - Run Prepare
- * - Run Compare.
+ * - Run Generate Lineitems: ./flink run -v -p 152 -c com.github.projectflink.avro.GenerateLineitems ../../testjob/flink-jobs/target/flink-jobs-0.1-SNAPSHOT.jar -p 152 -o hdfs:///user/robert/datasets/tpch1/
+ * - Run Prepare ./flink run -v -p 152 -c com.github.projectflink.avro.Prepare ../../testjob/flink-jobs/target/flink-jobs-0.1-SNAPSHOT.jar hdfs:///user/robert/datasets/tpch1/lineitems.csv hdfs:///user/robert/datasets/tpch1-avro/
+ * - Run Compare. ./flink run -v -p 152 -c com.github.projectflink.avro.CompareJob  ../../testjob/flink-jobs/target/flink-jobs-0.1-SNAPSHOT.jar hdfs:///user/robert/datasets/tpch1-avro/ hdfs:///user/robert/datasets/tpch1/lineitems.csv
  *
  *
  * This job reads the Lineitem file from text and avro and compares if they match.

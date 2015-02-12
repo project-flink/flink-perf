@@ -2,15 +2,14 @@ package com.github.projectflink.avro;
 
 import com.github.projectflink.avro.generated.AvroLineitem;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.AvroOutputFormat;
+import org.apache.flink.configuration.Configuration;
 
 import java.text.DateFormat;
-import java.text.FieldPosition;
-import java.text.ParsePosition;
 import java.text.SimpleDateFormat;
-import java.util.Date;
 
 
 /**
@@ -29,11 +28,19 @@ public class Prepare {
 		env.execute("Lineitem Text 2 Avro converter");
 	}
 
-	public static class AvroLineItemMapper implements MapFunction<String, AvroLineitem> {
+	public static class AvroLineItemMapper extends RichMapFunction<String, AvroLineitem> {
 		DateFormat fs = new SimpleDateFormat("yyyy-MM-dd");
 
 		@Override
+		public void open(Configuration parameters) throws Exception {
+			super.open(parameters);
+
+		}
+
+		@Override
 		public AvroLineitem map(String s) throws Exception {
+			getRuntimeContext().getLongCounter("elements").add(1L);
+
 			String[] parts = s.split("\\|");
 
 			return new AvroLineitem(Long.parseLong(parts[0]), // order key
