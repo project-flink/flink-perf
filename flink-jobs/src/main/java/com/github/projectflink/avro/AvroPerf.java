@@ -16,7 +16,7 @@ import java.util.Iterator;
 /**
  * Performance tests with avro
  */
-public class AvroPerf {
+/*public class AvroPerf {
 	public static void main(final String[] args) throws Exception {
 		// set up the execution environment
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -77,6 +77,6 @@ public class AvroPerf {
 			}
 		});
 		empty.output(new DiscardingOutputFormat<String>());
-		env.execute("Compare Job");
+		env.execute("Avro perf in mode "+mode);
 	}
-}
+} */
