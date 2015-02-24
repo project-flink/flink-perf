@@ -30,7 +30,7 @@
 	</repositories>
 
 	<properties>
-		<flink.version>0.8-incubating-SNAPSHOT</flink.version>
+		<flink.version>0.8.0</flink.version>
 	</properties>
 
 	<dependencies>
