@@ -34,21 +34,23 @@ public class Throughput {
 
 		private final int delay;
 		private final boolean withFt;
+		private final int latFreq;
 		private SpoutOutputCollector spoutOutputCollector;
 		private int tid;
 		private long id = 0;
 		private byte[] payload;
-		private ParameterTool pt;
+		private long time = 0;
+
 		public Generator(ParameterTool pt) {
-			this.pt = pt;
 			this.payload = new byte[pt.getInt("payload")];
 			this.delay = pt.getInt("delay");
 			this.withFt = pt.has("ft");
+			this.latFreq = pt.getInt("latencyFreq");
 		}
 
 		@Override
 		public void declareOutputFields(OutputFieldsDeclarer outputFieldsDeclarer) {
-			outputFieldsDeclarer.declare(new Fields("id", "taskId", "payload"));
+			outputFieldsDeclarer.declare(new Fields("id", "taskId", "time", "payload"));
 		}
 
 		@Override
@@ -67,12 +69,15 @@ public class Throughput {
 					e.printStackTrace();
 				}
 			}
-			if(withFt) {
-				spoutOutputCollector.emit(new Values(this.id, this.tid, this.payload), this.id);
-			} else {
-				spoutOutputCollector.emit(new Values(this.id, this.tid, this.payload));
+			if(id % latFreq == 0) {
+				time = System.currentTimeMillis();
 			}
-
+			if(withFt) {
+				spoutOutputCollector.emit(new Values(this.id, this.tid, this.time, this.payload), this.id);
+			} else {
+				spoutOutputCollector.emit(new Values(this.id, this.tid, this.time, this.payload));
+			}
+			time = 0;
 			this.id++;
 		}
 
@@ -123,6 +128,10 @@ public class Throughput {
 						sinceSec,
 						received/sinceSec ,
 						(received * (8 + 4 + pt.getInt("payload")))/1024/1024/1024 );
+			}
+			if(input.getLong(2) != 0) {
+				long lat = System.currentTimeMillis() - input.getLong(2);
+				LOG.info("Latency {} ms", lat);
 			}
 			if(withFT) {
 				collector.ack(input);

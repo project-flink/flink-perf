@@ -39,16 +39,18 @@ public class TridentThroughput {
 		private final int delay;
 		private final boolean withFt;
 		private final int batchSize;
+		private final int latFreq;
 		private SpoutOutputCollector spoutOutputCollector;
 		private int tid;
 		private byte[] payload;
-		private ParameterTool pt;
+		private long time = 0;
+
 		public Generator(ParameterTool pt) {
-			this.pt = pt;
 			this.payload = new byte[pt.getInt("payload")];
 			this.delay = pt.getInt("delay");
 			this.withFt = pt.has("ft");
 			this.batchSize = pt.getInt("batchSize");
+			this.latFreq = pt.getInt("latencyFreq");
 		}
 
 		@Override
@@ -66,7 +68,11 @@ public class TridentThroughput {
 		public void emitBatch(long batchId, TridentCollector collector) {
 			long id = (batchId-1) * this.batchSize;
 			for(int i = 0; i < this.batchSize; i++) {
-				collector.emit(new Values(id, this.tid, this.payload));
+				if(id % latFreq == 0) {
+					time = System.currentTimeMillis();
+				}
+				collector.emit(new Values(id, this.tid, this.time, this.payload));
+				time = 0;
 				id++;
 			}
 		}
@@ -87,7 +93,7 @@ public class TridentThroughput {
 
 		@Override
 		public Fields getOutputFields() {
-			return new Fields("id", "taskId", "payload");
+			return new Fields("id", "taskId", "time", "payload");
 		}
 	}
 
@@ -130,6 +136,11 @@ public class TridentThroughput {
 						received / sinceSec,
 						(received * (8 + 4 + pt.getInt("payload"))) / 1024 / 1024 / 1024);
 			}
+
+			if(tuple.getLong(2) != 0) {
+				long lat = System.currentTimeMillis() - tuple.getLong(2);
+				LOG.info("Latency {} ms", lat);
+			}
 		}
 	}
 
@@ -144,7 +155,7 @@ public class TridentThroughput {
 		TridentTopology topology = new TridentTopology();
 		Stream sourceStream = topology.newStream("source", new Generator(pt)).parallelismHint(pt.getInt("sourceParallelism"));
 
-		sourceStream.partitionBy(new Fields("id")).each(new Fields("id", "taskId", "payload"), new Sink(pt), new Fields("dontcare")).parallelismHint(pt.getInt("sinkParallelism"));
+		sourceStream.partitionBy(new Fields("id")).each(new Fields("id", "taskId", "time", "payload"), new Sink(pt), new Fields("dontcare")).parallelismHint(pt.getInt("sinkParallelism"));
 
 		Config conf = new Config();
 		conf.setDebug(false);

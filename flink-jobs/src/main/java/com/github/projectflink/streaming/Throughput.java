@@ -2,6 +2,7 @@ package com.github.projectflink.streaming;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -15,12 +16,13 @@ public class Throughput {
 
 	private static final Logger LOG = LoggerFactory.getLogger(Throughput.class);
 
-	public static class Source extends RichParallelSourceFunction<Tuple3<Long, Integer, byte[]>> implements Checkpointed<Long> {
+	public static class Source extends RichParallelSourceFunction<Tuple4<Long, Integer, Long, byte[]>> implements Checkpointed<Long> {
 
 		final ParameterTool pt;
 		byte[] payload;
 		long id = 0;
 		boolean running = true;
+		long time = 0;
 
 		public Source(ParameterTool pt) {
 			this.pt = pt;
@@ -28,8 +30,10 @@ public class Throughput {
 		}
 
 		@Override
-		public void run(SourceContext<Tuple3<Long, Integer, byte[]>> sourceContext) throws Exception {
+		public void run(SourceContext<Tuple4<Long, Integer, Long, byte[]>> sourceContext) throws Exception {
 			int delay = pt.getInt("delay");
+			int latFreq = pt.getInt("latencyFreq");
+
 			while(running) {
 				if (delay > 0) {
 					try {
@@ -38,7 +42,11 @@ public class Throughput {
 						e.printStackTrace();
 					}
 				}
-				sourceContext.collect(new Tuple3<Long, Integer, byte[]>(id++, getRuntimeContext().getIndexOfThisSubtask(), payload));
+				if(id % latFreq == 0) {
+					time = System.currentTimeMillis();
+				}
+				sourceContext.collect(new Tuple4<Long, Integer, Long, byte[]>(id++, getRuntimeContext().getIndexOfThisSubtask(), time, payload));
+				time = 0;
 			}
 		}
 
@@ -67,14 +75,14 @@ public class Throughput {
 			see.enableCheckpointing(pt.getLong("ft"));
 		}
 
-		DataStream<Tuple3<Long, Integer, byte[]>> source = see.addSource(new Source(pt) );
+		DataStream<Tuple4<Long, Integer, Long, byte[]>> source = see.addSource(new Source(pt) );
 
-		source.partitionByHash(0).flatMap(new FlatMapFunction<Tuple3<Long,Integer,byte[]>, Integer>() {
+		source.partitionByHash(0).flatMap(new FlatMapFunction<Tuple4<Long,Integer, Long, byte[]>, Integer>() {
 			long received = 0;
 			long start = 0;
 			long logfreq = pt.getInt("logfreq");
 			@Override
-			public void flatMap(Tuple3<Long, Integer, byte[]> element, Collector<Integer> collector) throws Exception {
+			public void flatMap(Tuple4<Long, Integer, Long, byte[]> element, Collector<Integer> collector) throws Exception {
 				if(start == 0) {
 					start = System.currentTimeMillis();
 				}
@@ -87,6 +95,10 @@ public class Throughput {
 							sinceSec,
 							received/sinceSec ,
 							(received * (8 + 4 + pt.getInt("payload")))/1024/1024/1024 );
+				}
+				if(element.f2 != 0) {
+					long lat = System.currentTimeMillis() - element.f2;
+					LOG.info("Latency {} ms", lat);
 				}
 			}
 		});
