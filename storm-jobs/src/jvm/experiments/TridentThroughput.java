@@ -142,9 +142,9 @@ public class TridentThroughput {
 
 
 		TridentTopology topology = new TridentTopology();
-		Stream sourceStream = topology.newStream("source", new Generator(pt));
+		Stream sourceStream = topology.newStream("source", new Generator(pt)).parallelismHint(pt.getInt("sourceParallelism"));
 
-		sourceStream.partitionBy(new Fields("id")).each(new Fields("id", "taskId", "payload"), new Sink(pt), new Fields("dontcare"));
+		sourceStream.partitionBy(new Fields("id")).each(new Fields("id", "taskId", "payload"), new Sink(pt), new Fields("dontcare")).parallelismHint(pt.getInt("sinkParallelism"));
 
 		Config conf = new Config();
 		conf.setDebug(false);
