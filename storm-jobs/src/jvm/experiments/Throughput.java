@@ -19,6 +19,7 @@ import org.apache.flink.api.java.utils.ParameterTool;
 import org.omg.Dynamic.Parameter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import storm.trident.TridentTopology;
 
 import java.util.Map;
 
