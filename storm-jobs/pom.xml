@@ -42,7 +42,6 @@
       <groupId>org.apache.storm</groupId>
       <artifactId>storm-core</artifactId>
       <version>${storm.version}</version>
-      <!-- keep storm out of the jar-with-dependencies -->
     </dependency>
 
     <dependency>
@@ -62,6 +61,23 @@
       </dependency>
   </dependencies>
 
+    <profiles>
+        <profile>
+            <id>build-jar</id>
+            <dependencies>
+
+                <dependency>
+                    <groupId>org.apache.storm</groupId>
+                    <artifactId>storm-core</artifactId>
+                    <version>${storm.version}</version>
+                    <!-- keep storm out of the jar-with-dependencies -->
+                    <scope>provided</scope>
+                </dependency>
+
+            </dependencies>
+        </profile>
+    </profiles>
+
   <build>
     <sourceDirectory>src/jvm</sourceDirectory>
     <resources>
@@ -77,6 +93,16 @@
             <version>1.4</version>
             <configuration>
                 <createDependencyReducedPom>true</createDependencyReducedPom>
+                <filters>
+                    <!-- Globally exclude log4j.properties from our JAR files. -->
+                    <filter>
+                        <artifact>*</artifact>
+                        <excludes>
+                            <exclude>defaults.yaml</exclude>
+                            <exclude>log4j.properties</exclude>
+                        </excludes>
+                    </filter>
+                </filters>
             </configuration>
             <executions>
                 <execution>
