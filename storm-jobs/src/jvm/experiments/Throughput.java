@@ -4,8 +4,10 @@ import backtype.storm.Config;
 import backtype.storm.LocalCluster;
 import backtype.storm.StormSubmitter;
 import backtype.storm.spout.SpoutOutputCollector;
+import backtype.storm.task.OutputCollector;
 import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.BasicOutputCollector;
+import backtype.storm.topology.IRichBolt;
 import backtype.storm.topology.OutputFieldsDeclarer;
 import backtype.storm.topology.TopologyBuilder;
 import backtype.storm.topology.base.BaseBasicBolt;
@@ -29,6 +31,8 @@ public class Throughput {
 
 	public static class Generator extends BaseRichSpout {
 
+		private final int delay;
+		private final boolean withFt;
 		private SpoutOutputCollector spoutOutputCollector;
 		private int tid;
 		private long id = 0;
@@ -37,6 +41,8 @@ public class Throughput {
 		public Generator(ParameterTool pt) {
 			this.pt = pt;
 			this.payload = new byte[pt.getInt("payload")];
+			this.delay = pt.getInt("delay");
+			this.withFt = pt.has("ft");
 		}
 
 		@Override
@@ -53,7 +59,6 @@ public class Throughput {
 
 		@Override
 		public void nextTuple() {
-			int delay = pt.getInt("delay");
 			if(delay > 0) {
 				try {
 					Thread.sleep(delay);
@@ -61,27 +66,55 @@ public class Throughput {
 					e.printStackTrace();
 				}
 			}
-			spoutOutputCollector.emit(new Values(this.id++, this.tid, this.payload));
-		}
-	}
+			if(withFt) {
+				spoutOutputCollector.emit(new Values(this.id, this.tid, this.payload), this.id);
+			} else {
+				spoutOutputCollector.emit(new Values(this.id, this.tid, this.payload));
+			}
 
-	public static class Sink extends BaseBasicBolt {
-
-		long received = 0;
-		long start = 0;
-		ParameterTool pt;
-
-		public Sink(ParameterTool pt) {
-			this.pt = pt;
+			this.id++;
 		}
 
 		@Override
-		public void execute(Tuple input, BasicOutputCollector collector) {
+		public void ack(Object msgId) {
+		// 	LOG.info("Acked msg "+msgId);
+		}
+
+		/**
+		 * Resend failed tuple
+		 *
+		 * @param msgId
+		 */
+		@Override
+		public void fail(Object msgId) {
+			long id = (Long)msgId;
+			LOG.info("Failed message "+msgId);
+			spoutOutputCollector.emit(new Values(id, this.tid, this.payload), id);
+		}
+	}
+
+	public static class Sink implements IRichBolt {
+
+		private final boolean withFT;
+		long received = 0;
+		long start = 0;
+		ParameterTool pt;
+		private OutputCollector collector;
+		private long logfreq;
+
+		public Sink(ParameterTool pt) {
+			this.pt = pt;
+			this.withFT = pt.has("ft");
+			this.logfreq = pt.getInt("logfreq");
+		}
+
+		@Override
+		public void execute(Tuple input) {
 			if(start == 0) {
 				start = System.currentTimeMillis();
 			}
 			received++;
-			if(received % pt.getInt("logfreq") == 0) {
+			if(received % logfreq == 0) {
 				long sinceSec = ((System.currentTimeMillis() - start)/1000);
 				if(sinceSec == 0) return;
 				LOG.info("Received {} elements since {}. Elements per second {}, GB received {}",
@@ -90,12 +123,32 @@ public class Throughput {
 						received/sinceSec ,
 						(received * (8 + 4 + pt.getInt("payload")))/1024/1024/1024 );
 			}
+			if(withFT) {
+				collector.ack(input);
+			}
 		}
 
 		@Override
 		public void declareOutputFields(OutputFieldsDeclarer declarer) {
 		}
+
+		@Override
+		public Map<String, Object> getComponentConfiguration() {
+			return null;
+		}
+
+		@Override
+		public void prepare(Map stormConf, TopologyContext context, OutputCollector collector) {
+			this.collector = collector;
+		}
+
+		@Override
+		public void cleanup() {
+
+		}
 	}
+
+
 
 	public static void main(String[] args) throws Exception {
 		ParameterTool pt = ParameterTool.fromArgs(args);
@@ -122,7 +175,7 @@ public class Throughput {
 			LocalCluster cluster = new LocalCluster();
 			cluster.submitTopology("throughput", conf, builder.createTopology());
 
-			Thread.sleep(10000);
+			Thread.sleep(30000);
 
 			cluster.shutdown();
 		}
