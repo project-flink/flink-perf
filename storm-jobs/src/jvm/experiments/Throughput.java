@@ -109,7 +109,7 @@ public class Throughput {
 
 
 		Config conf = new Config();
-		conf.setDebug(true);
+		conf.setDebug(false);
 
 		if (!pt.has("local")) {
 			conf.setNumWorkers(par);
