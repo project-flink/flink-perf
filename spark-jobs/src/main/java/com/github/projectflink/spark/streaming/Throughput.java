@@ -50,7 +50,16 @@ public class Throughput {
 				public void run() {
 					long id = 0;
 					while(running) {
+					/*	try {
+							Thread.sleep(100);
+						} catch (InterruptedException e) {
+							e.printStackTrace();
+						} */
+						System.out.println("emitting "+id+" started "+isStarted()+" stopped "+isStopped());
 						store(new Tuple4<>(id++,streamId(), 0L, payload));
+						if(id == 10000) {
+							return;
+						}
 					}
 				}
 			});
@@ -59,15 +68,20 @@ public class Throughput {
 		}
 
 		@Override
-		public void onStop() {
+		public void onStop(){
+			System.out.println("++++ STOPPING RECEIVER ++++");
 			running = false;
-			runner.yield();
+			try {
+				runner.join();
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
 		}
 	}
 
 	public static void main(String[] args) {
-		SparkConf conf = new SparkConf().setAppName("throughput").setMaster("local[3]");
-		JavaStreamingContext ssc = new JavaStreamingContext(conf, new Duration(10000));
+		SparkConf conf = new SparkConf().setAppName("throughput").setMaster("local[16]");
+		JavaStreamingContext ssc = new JavaStreamingContext(conf, new Duration(1000));
 
 		JavaReceiverInputDStream<Tuple4<Long, Integer, Long, byte[]>> source = ssc.receiverStream(new Source(StorageLevel.MEMORY_AND_DISK_2()));
 		JavaPairDStream<Long, Tuple3<Integer, Long, byte[]>> kvsource = source.mapToPair(new PairFunction<Tuple4<Long, Integer, Long, byte[]>, Long, Tuple3<Integer, Long, byte[]>>() {
@@ -77,14 +91,14 @@ public class Throughput {
 						new Tuple3<Integer, Long, byte[]>(longIntegerLongTuple4._2(), longIntegerLongTuple4._3(), longIntegerLongTuple4._4()));
 			}
 		});
-		JavaDStream<Integer> res = kvsource.repartition(3).map(new Function<Tuple2<Long, Tuple3<Integer, Long, byte[]>>, Integer>() {
+		JavaDStream<Integer> res = kvsource. /*repartition(3).*/map(new Function<Tuple2<Long, Tuple3<Integer, Long, byte[]>>, Integer>() {
 			long received = 0;
 			long start = 0;
-			long logfreq = 100000;
+			long logfreq = 1000;
 
 			@Override
 			public Integer call(Tuple2<Long, Tuple3<Integer, Long, byte[]>> v1) throws Exception {
-
+				System.out.println("Recevied " + v1);
 				if (start == 0) {
 					start = System.currentTimeMillis();
 				}
@@ -92,15 +106,12 @@ public class Throughput {
 				if (received % logfreq == 0) {
 					long sinceSec = ((System.currentTimeMillis() - start) / 1000);
 					if (sinceSec == 0) return 0;
-					LOG.info("Received {} elements since {}. Elements per second {}, GB received {}",
-							received,
-							sinceSec,
-							received / sinceSec,
-							(received * (8 + 4 + 12)) / 1024 / 1024 / 1024);
+					System.out.println("Received " + received + " elements since " + sinceSec + ". " +
+							"Elements per second " + received / sinceSec + ", GB received " + ((received * (8 + 4 + 12)) / 1024 / 1024 / 1024));
 				}
 				if (v1._2()._2() != 0) {
 					long lat = System.currentTimeMillis() - v1._2()._2();
-					LOG.info("Latency {} ms", lat);
+					System.out.println("Latency " + lat + " ms");
 				}
 
 				return null;

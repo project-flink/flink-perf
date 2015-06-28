@@ -6,6 +6,7 @@ import backtype.storm.StormSubmitter;
 import backtype.storm.spout.SpoutOutputCollector;
 import backtype.storm.task.OutputCollector;
 import backtype.storm.task.TopologyContext;
+import backtype.storm.testing.IdentityBolt;
 import backtype.storm.topology.BasicOutputCollector;
 import backtype.storm.topology.IRichBolt;
 import backtype.storm.topology.OutputFieldsDeclarer;
@@ -167,12 +168,20 @@ public class Throughput {
 
 		TopologyBuilder builder = new TopologyBuilder();
 
-		builder.setSpout("source", new Generator(pt), pt.getInt("sourceParallelism"));
-		builder.setBolt("sink", new Sink(pt), pt.getInt("sinkParallelism")).fieldsGrouping("source", new Fields("id"));
+		builder.setSpout("source0", new Generator(pt), pt.getInt("sourceParallelism"));
+		int i = 0;
+		for(; i < pt.getInt("repartitions", 1) - 1;i++) {
+			System.out.println("adding source"+i+" --> source"+(i+1));
+			builder.setBolt("source"+(i+1), new IdentityBolt(new Fields("id", "taskId", "time", "payload")), pt.getInt("sinkParallelism")).fieldsGrouping("source" + i, new Fields("id"));
+		}
+		System.out.println("adding final source"+i+" --> sink");
+
+		builder.setBolt("sink", new Sink(pt), pt.getInt("sinkParallelism")).fieldsGrouping("source"+i, new Fields("id"));
 
 
 		Config conf = new Config();
 		conf.setDebug(false);
+		//System.exit(1);
 
 		if (!pt.has("local")) {
 			conf.setNumWorkers(par);

@@ -1,11 +1,13 @@
 package com.github.projectflink.streaming;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.util.Collector;
@@ -77,32 +79,42 @@ public class Throughput {
 
 		DataStream<Tuple4<Long, Integer, Long, byte[]>> source = see.addSource(new Source(pt) );
 
-		source.partitionByHash(0).flatMap(new FlatMapFunction<Tuple4<Long,Integer, Long, byte[]>, Integer>() {
+		DataStream<Tuple4<Long, Integer, Long, byte[]>> repartitioned = source.partitionByHash(0);
+		for(int i = 0; i < pt.getInt("repartitions", 1) - 1;i++) {
+			repartitioned = repartitioned.map(new MapFunction<Tuple4<Long, Integer, Long, byte[]>, Tuple4<Long, Integer, Long, byte[]>>() {
+				@Override
+				public Tuple4<Long, Integer, Long, byte[]> map(Tuple4<Long, Integer, Long, byte[]> in) throws Exception {
+					return in;
+				}
+			}).partitionByHash(0);
+		}
+		repartitioned.flatMap(new FlatMapFunction<Tuple4<Long, Integer, Long, byte[]>, Integer>() {
 			long received = 0;
 			long start = 0;
 			long logfreq = pt.getInt("logfreq");
+
 			@Override
 			public void flatMap(Tuple4<Long, Integer, Long, byte[]> element, Collector<Integer> collector) throws Exception {
-				if(start == 0) {
+				if (start == 0) {
 					start = System.currentTimeMillis();
 				}
 				received++;
-				if(received % logfreq == 0) {
-					long sinceSec = ((System.currentTimeMillis() - start)/1000);
-					if(sinceSec == 0) return;
+				if (received % logfreq == 0) {
+					long sinceSec = ((System.currentTimeMillis() - start) / 1000);
+					if (sinceSec == 0) return;
 					LOG.info("Received {} elements since {}. Elements per second {}, GB received {}",
 							received,
 							sinceSec,
-							received/sinceSec ,
-							(received * (8 + 4 + pt.getInt("payload")))/1024/1024/1024 );
+							received / sinceSec,
+							(received * (8 + 4 + pt.getInt("payload"))) / 1024 / 1024 / 1024);
 				}
-				if(element.f2 != 0) {
+				if (element.f2 != 0) {
 					long lat = System.currentTimeMillis() - element.f2;
 					LOG.info("Latency {} ms", lat);
 				}
 			}
 		});
-
+		//System.out.println("plan = "+see.getExecutionPlan());;
 		see.execute();
 	}
 }

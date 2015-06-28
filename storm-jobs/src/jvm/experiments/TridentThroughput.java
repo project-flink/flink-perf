@@ -97,6 +97,18 @@ public class TridentThroughput {
 		}
 	}
 
+	public static class IdentityEach implements Function {
+
+		@Override
+		public void execute(TridentTuple tridentTuple, TridentCollector tridentCollector) {
+			tridentCollector.emit(tridentTuple);
+		}
+		@Override
+		public void prepare(Map map, TridentOperationContext tridentOperationContext) {}
+		@Override
+		public void cleanup() {}
+	}
+
 	public static class Sink implements Function {
 		long received = 0;
 		long start = 0;
@@ -155,7 +167,11 @@ public class TridentThroughput {
 		TridentTopology topology = new TridentTopology();
 		Stream sourceStream = topology.newStream("source", new Generator(pt)).parallelismHint(pt.getInt("sourceParallelism"));
 
-		sourceStream.partitionBy(new Fields("id")).each(new Fields("id", "taskId", "time", "payload"), new Sink(pt), new Fields("dontcare")).parallelismHint(pt.getInt("sinkParallelism"));
+		Stream repart = sourceStream.partitionBy(new Fields("id"));
+		for(int i = 0; i < pt.getInt("repartitions", 1) - 1; i++) {
+			repart = repart.each(new IdentityEach(), new Fields("id", "taskId", "time", "payload")).partitionBy(new Fields("id"));
+		}
+		repart.each(new Fields("id", "taskId", "time", "payload"), new Sink(pt), new Fields("dontcare")).parallelismHint(pt.getInt("sinkParallelism"));
 
 		Config conf = new Config();
 		conf.setDebug(false);
