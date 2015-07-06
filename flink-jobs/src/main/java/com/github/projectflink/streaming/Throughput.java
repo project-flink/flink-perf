@@ -35,7 +35,7 @@ public class Throughput {
 		public void run(SourceContext<Tuple4<Long, Integer, Long, byte[]>> sourceContext) throws Exception {
 			int delay = pt.getInt("delay");
 			int latFreq = pt.getInt("latencyFreq");
-			int nextlat = 0;
+			int nextlat = 100000;
 
 			while(running) {
 				if (delay > 0) {
@@ -46,9 +46,13 @@ public class Throughput {
 					}
 				}
 				// move the ID for the latency so that we distribute it among the machines.
-				if(id % latFreq == nextlat++) {
+				if(id % latFreq == nextlat--) {
 					time = System.currentTimeMillis();
+					if(nextlat <= 0) {
+						nextlat = 100000;
+					}
 				}
+
 				sourceContext.collect(new Tuple4<Long, Integer, Long, byte[]>(id++, getRuntimeContext().getIndexOfThisSubtask(), time, payload));
 				time = 0;
 			}
@@ -71,6 +75,7 @@ public class Throughput {
 	}
 
 	public static void main(String[] args) throws Exception {
+
 		final ParameterTool pt = ParameterTool.fromArgs(args);
 
 		StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
