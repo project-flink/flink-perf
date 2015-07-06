@@ -35,7 +35,7 @@ public class AnalyzeTool {
 				throughputs.addValue(eps);
 			}
 		}
-		System.out.println("lat-mean;lat-median;lat-90percentile;throughput-mean;throughput-max;latencies;throughputs;");
+		// System.out.println("lat-mean;lat-median;lat-90percentile;throughput-mean;throughput-max;latencies;throughputs;");
 		System.out.println(latencies.getMean()+";"+latencies.getPercentile(50)+";"+latencies.getPercentile(90)+";"+throughputs.getMean()+";"+throughputs.getMax()+";"+latencies.getN()+";"+throughputs.getN());
 
 	}
