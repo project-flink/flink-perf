@@ -1,11 +1,15 @@
 package com.github.projectflink.spark.streaming;
 
 import org.apache.spark.SparkConf;
+import org.apache.spark.api.java.JavaRDD;
+import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.Function;
+import org.apache.spark.api.java.function.Function2;
 import org.apache.spark.api.java.function.PairFunction;
 import org.apache.spark.storage.StorageLevel;
 import org.apache.spark.streaming.Duration;
 import org.apache.spark.streaming.Seconds;
+import org.apache.spark.streaming.Time;
 import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaPairDStream;
 import org.apache.spark.streaming.api.java.JavaReceiverInputDStream;
@@ -17,9 +21,8 @@ import scala.Tuple2;
 import scala.Tuple3;
 import scala.Tuple4;
 
-/**
- * Created by robert on 6/26/15.
- */
+import java.util.Iterator;
+
 public class Throughput {
 
 	private static final Logger LOG = LoggerFactory.getLogger(Throughput.class);
@@ -32,8 +35,6 @@ public class Throughput {
 		public Source(StorageLevel storageLevel) {
 			super(storageLevel);
 			payload = new byte[12];
-
-
 		}
 
 		@Override
@@ -50,17 +51,9 @@ public class Throughput {
 				public void run() {
 					long id = 0;
 					while(running) {
-					/*	try {
-							Thread.sleep(100);
-						} catch (InterruptedException e) {
-							e.printStackTrace();
-						} */
-						System.out.println("emitting "+id+" started "+isStarted()+" stopped "+isStopped());
-						store(new Tuple4<>(id++,streamId(), 0L, payload));
-						if(id == 10000) {
-							return;
-						}
+						store(new Tuple4<>(id++, streamId(), 0L, payload));
 					}
+					System.out.println("Generated "+id+" records");
 				}
 			});
 
@@ -91,21 +84,61 @@ public class Throughput {
 						new Tuple3<Integer, Long, byte[]>(longIntegerLongTuple4._2(), longIntegerLongTuple4._3(), longIntegerLongTuple4._4()));
 			}
 		});
-		JavaDStream<Integer> res = kvsource. /*repartition(3).*/map(new Function<Tuple2<Long, Tuple3<Integer, Long, byte[]>>, Integer>() {
-			long received = 0;
-			long start = 0;
-			long logfreq = 1000;
-
+		JavaDStream<Long> res = kvsource.repartition(3).mapPartitions(new FlatMapFunction<Iterator<Tuple2<Long,Tuple3<Integer,Long,byte[]>>>, Long>() {
 			@Override
-			public Integer call(Tuple2<Long, Tuple3<Integer, Long, byte[]>> v1) throws Exception {
-				System.out.println("Recevied " + v1);
+			public Iterable<Long> call(Iterator<Tuple2<Long, Tuple3<Integer, Long, byte[]>>> tuple2Iterator) throws Exception {
+				long start = System.currentTimeMillis();
+				long received = 0;
+				while(tuple2Iterator.hasNext()) {
+					received++;
+					Tuple2<Long, Tuple3<Integer, Long, byte[]>> el = tuple2Iterator.next();
+
+					if (el._2()._2() != 0) {
+						long lat = System.currentTimeMillis() - el._2()._2();
+						System.out.println("Latency " + lat + " ms");
+					}
+				}
+				long sinceMs = (System.currentTimeMillis() - start);
+
+				System.out.println("Finished Batch. Processed "+received+" elements in "+sinceMs+" ms.");
+
+				return new Iterable<Long>() {
+					@Override
+					public Iterator<Long> iterator() {
+						return new Iterator<Long>() {
+							@Override
+							public boolean hasNext() {
+								return false;
+							}
+
+							@Override
+							public Long next() {
+								return 1L;
+							}
+
+							@Override
+							public void remove() {
+
+							}
+						};
+					}
+				};
+			}
+
+
+		/*	@Override
+			public Long call(Tuple2<Long, Tuple3<Integer, Long, byte[]>> v1) throws Exception {
+				//	System.out.println("Recevied " + v1);
 				if (start == 0) {
-					start = System.currentTimeMillis();
+
 				}
 				received++;
 				if (received % logfreq == 0) {
-					long sinceSec = ((System.currentTimeMillis() - start) / 1000);
-					if (sinceSec == 0) return 0;
+
+					if (sinceSec == 0) {
+						System.out.println("received " + received + " elements since 0");
+						return 0L;
+					}
 					System.out.println("Received " + received + " elements since " + sinceSec + ". " +
 							"Elements per second " + received / sinceSec + ", GB received " + ((received * (8 + 4 + 12)) / 1024 / 1024 / 1024));
 				}
@@ -114,11 +147,21 @@ public class Throughput {
 					System.out.println("Latency " + lat + " ms");
 				}
 
-				return null;
-			}
+				return received;
+			} */
 		});
 
+
+		//res.print();
+		/*res.foreachRDD(new Function2<JavaRDD<Long>, Time, Void>() {
+			@Override
+			public Void call(JavaRDD<Long> integerJavaRDD, Time t) throws Exception {
+				integerJavaRDD.saveAsTextFile("/home/robert/flink-workdir/flink-perf/out/"+t.toString());
+				return null;
+			}
+		}); */
 		res.print();
+	//	res.print();
 
 		ssc.start();
 	}
