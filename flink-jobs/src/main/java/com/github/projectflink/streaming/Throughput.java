@@ -35,7 +35,7 @@ public class Throughput {
 		public void run(SourceContext<Tuple4<Long, Integer, Long, byte[]>> sourceContext) throws Exception {
 			int delay = pt.getInt("delay");
 			int latFreq = pt.getInt("latencyFreq");
-			int nextlat = 100000;
+			int nextlat = 10000;
 
 			while(running) {
 				if (delay > 0) {
@@ -46,10 +46,10 @@ public class Throughput {
 					}
 				}
 				// move the ID for the latency so that we distribute it among the machines.
-				if(id % latFreq == nextlat--) {
+				if(id % latFreq == nextlat) {
 					time = System.currentTimeMillis();
-					if(nextlat <= 0) {
-						nextlat = 100000;
+					if(--nextlat <= 0) {
+						nextlat = 10000;
 					}
 				}
 
@@ -75,6 +75,19 @@ public class Throughput {
 	}
 
 	public static void main(String[] args) throws Exception {
+		/*long o = 0;
+		int freq = 100000000;
+		int next = 10000;
+		while(freq != -1) {
+			if(o % freq == next) {
+				System.out.println("o = "+o+" next = "+next);
+				if(--next < 0) {
+					next = 10000;
+				}
+			}
+			o++;
+		}
+		System.exit(1); */
 
 		final ParameterTool pt = ParameterTool.fromArgs(args);
 
@@ -118,7 +131,7 @@ public class Throughput {
 				}
 				if (element.f2 != 0) {
 					long lat = System.currentTimeMillis() - element.f2;
-					LOG.info("Latency {} ms", lat);
+					LOG.info("Latency {} ms from machine "+element.f1, lat);
 				}
 			}
 		});
