@@ -66,13 +66,13 @@ public class AnalyzeTool {
 		System.out.println(latencies.getMean() + ";" + latencies.getPercentile(50) + ";" + latencies.getPercentile(90) + ";" + latencies.getPercentile(95) + ";" + latencies.getPercentile(99)+ ";" + throughputs.getMean() + ";" + throughputs.getMax() + ";" + latencies.getN() + ";" + throughputs.getN());
 
 		for(Map.Entry<String, DescriptiveStatistics> entry : perHostLat.entrySet()) {
-			System.err.println("====== "+entry.getKey()+" =======");
+			System.err.println("====== "+entry.getKey()+" (entries: "+entry.getValue().getN()+") =======");
 			System.err.println("Mean latency " + entry.getValue().getMean());
 			System.err.println("Median latency " + entry.getValue().getPercentile(50));
 		}
 		System.err.println("================= Throughput =====================");
 		for(Map.Entry<String, SummaryStatistics> entry : perHostThr.entrySet()) {
-			System.err.println("====== "+entry.getKey()+" =======");
+			System.err.println("====== "+entry.getKey()+" (entries: "+entry.getValue().getN()+")=======");
 			System.err.println("Mean latency " + entry.getValue().getMean());
 		}
 	}
