@@ -81,6 +81,9 @@ public class Throughput {
 
 		StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
 		see.getConfig().setGlobalJobParameters(pt);
+		if(pt.has("timeout")) {
+			see.setBufferTimeout(pt.getLong("timeout"));
+		}
 
 		if(pt.has("ft")) {
 			see.enableCheckpointing(pt.getLong("ft"));
