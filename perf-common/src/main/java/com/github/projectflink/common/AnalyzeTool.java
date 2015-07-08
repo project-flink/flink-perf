@@ -19,6 +19,8 @@ public class AnalyzeTool {
 		Pattern latencyPattern = Pattern.compile(".*Latency ([0-9]+) ms.*");
 		Pattern throughputPattern = Pattern.compile(".*Received ([0-9]+) elements since [0-9]*. Elements per second ([0-9]+), GB received.*");
 		Pattern hostPattern = Pattern.compile("Container: .* on (.+).c.astral-sorter-757..*");
+		Pattern stormHostPattern = Pattern.compile(".*Client environment:host.name=(.+).c.astral-sorter-757..*");
+
 		DescriptiveStatistics latencies = new DescriptiveStatistics();
 		SummaryStatistics throughputs = new SummaryStatistics();
 		String currentHost = null;
@@ -32,6 +34,11 @@ public class AnalyzeTool {
 			if(hostMatcher.matches()) {
 				currentHost = hostMatcher.group(1);
 				System.err.println("Setting host to "+currentHost);
+			}
+			Matcher stormHostMatcher = stormHostPattern.matcher(l);
+			if(stormHostMatcher.matches()) {
+				currentHost = stormHostMatcher.group(1);
+				System.err.println("Setting host to "+currentHost+ " (storm)");
 			}
 			// ---------- latency ---------------
 			Matcher latencyMatcher = latencyPattern.matcher(l);
@@ -65,15 +72,17 @@ public class AnalyzeTool {
 		// System.out.println("lat-mean;lat-median;lat-90percentile;lat-95percentile;lat-99percentile;throughput-mean;throughput-max;latencies;throughputs;");
 		System.out.println(latencies.getMean() + ";" + latencies.getPercentile(50) + ";" + latencies.getPercentile(90) + ";" + latencies.getPercentile(95) + ";" + latencies.getPercentile(99)+ ";" + throughputs.getMean() + ";" + throughputs.getMax() + ";" + latencies.getN() + ";" + throughputs.getN());
 
+		System.err.println("================= Latency ("+perHostLat.size()+" reports ) =====================");
 		for(Map.Entry<String, DescriptiveStatistics> entry : perHostLat.entrySet()) {
 			System.err.println("====== "+entry.getKey()+" (entries: "+entry.getValue().getN()+") =======");
 			System.err.println("Mean latency " + entry.getValue().getMean());
 			System.err.println("Median latency " + entry.getValue().getPercentile(50));
 		}
-		System.err.println("================= Throughput =====================");
+
+		System.err.println("================= Throughput ("+perHostThr.size()+" reports ) =====================");
 		for(Map.Entry<String, SummaryStatistics> entry : perHostThr.entrySet()) {
 			System.err.println("====== "+entry.getKey()+" (entries: "+entry.getValue().getN()+")=======");
-			System.err.println("Mean latency " + entry.getValue().getMean());
+			System.err.println("Mean throughput " + entry.getValue().getMean());
 		}
 	}
 }

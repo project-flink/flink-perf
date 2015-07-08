@@ -60,8 +60,6 @@ public class Throughput {
 		public void open(Map map, TopologyContext topologyContext, SpoutOutputCollector spoutOutputCollector) {
 			this.spoutOutputCollector = spoutOutputCollector;
 			this.tid = topologyContext.getThisTaskId();
-			LOG.info("Starting source "+tid);
-
 		}
 
 		@Override
@@ -79,7 +77,7 @@ public class Throughput {
 				if(--nextlat <= 0) {
 					nextlat = 10000;
 				}
-				LOG.info("emitting latency from "+this.tid);
+				//LOG.info("emitting latency from "+this.tid);
 			}
 
 			if(withFt) {
@@ -87,6 +85,7 @@ public class Throughput {
 			} else {
 				spoutOutputCollector.emit(new Values(this.id, this.tid, this.time, this.payload));
 			}
+
 			time = 0;
 			this.id++;
 		}
@@ -104,7 +103,7 @@ public class Throughput {
 		@Override
 		public void fail(Object msgId) {
 			long id = (Long)msgId;
-			LOG.info("Failed message "+msgId);
+			LOG.info("Failed message " + msgId);
 			spoutOutputCollector.emit(new Values(id, this.tid, this.payload), id);
 		}
 	}
@@ -117,6 +116,7 @@ public class Throughput {
 		ParameterTool pt;
 		private OutputCollector collector;
 		private long logfreq;
+		private int sinkId;
 
 		public Sink(ParameterTool pt) {
 			this.pt = pt;
@@ -160,6 +160,7 @@ public class Throughput {
 		@Override
 		public void prepare(Map stormConf, TopologyContext context, OutputCollector collector) {
 			this.collector = collector;
+			this.sinkId = context.getThisTaskId();
 		}
 
 		@Override
@@ -195,7 +196,7 @@ public class Throughput {
 		if (!pt.has("local")) {
 			conf.setNumWorkers(par);
 
-			StormSubmitter.submitTopologyWithProgressBar("throughput", conf, builder.createTopology());
+			StormSubmitter.submitTopologyWithProgressBar("throughput-"+pt.get("name", "no_name"), conf, builder.createTopology());
 		}
 		else {
 			conf.setMaxTaskParallelism(par);
