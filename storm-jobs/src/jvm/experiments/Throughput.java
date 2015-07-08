@@ -41,12 +41,14 @@ public class Throughput {
 		private long id = 0;
 		private byte[] payload;
 		private long time = 0;
+		private int nextlat = 10000;
 
 		public Generator(ParameterTool pt) {
 			this.payload = new byte[pt.getInt("payload")];
 			this.delay = pt.getInt("delay");
 			this.withFt = pt.has("ft");
 			this.latFreq = pt.getInt("latencyFreq");
+
 		}
 
 		@Override
@@ -58,6 +60,7 @@ public class Throughput {
 		public void open(Map map, TopologyContext topologyContext, SpoutOutputCollector spoutOutputCollector) {
 			this.spoutOutputCollector = spoutOutputCollector;
 			this.tid = topologyContext.getThisTaskId();
+			LOG.info("Starting source "+tid);
 
 		}
 
@@ -70,9 +73,15 @@ public class Throughput {
 					e.printStackTrace();
 				}
 			}
-			if(id % latFreq == 0) {
+			// LOG.info("mod = "+ (id % latFreq));
+			if(id % latFreq == nextlat) {
 				time = System.currentTimeMillis();
+				if(--nextlat <= 0) {
+					nextlat = 10000;
+				}
+				LOG.info("emitting latency from "+this.tid);
 			}
+
 			if(withFt) {
 				spoutOutputCollector.emit(new Values(this.id, this.tid, this.time, this.payload), this.id);
 			} else {
@@ -128,11 +137,11 @@ public class Throughput {
 						received,
 						sinceSec,
 						received/sinceSec ,
-						(received * (8 + 4 + pt.getInt("payload")))/1024/1024/1024 );
+						(received * (8 + 8 + 4 + pt.getInt("payload")))/1024/1024/1024 );
 			}
 			if(input.getLong(2) != 0) {
 				long lat = System.currentTimeMillis() - input.getLong(2);
-				LOG.info("Latency {} ms", lat);
+				LOG.info("Latency {} ms from machine "+input.getInteger(1), lat);
 			}
 			if(withFT) {
 				collector.ack(input);

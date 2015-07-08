@@ -75,19 +75,7 @@ public class Throughput {
 	}
 
 	public static void main(String[] args) throws Exception {
-		/*long o = 0;
-		int freq = 100000000;
-		int next = 10000;
-		while(freq != -1) {
-			if(o % freq == next) {
-				System.out.println("o = "+o+" next = "+next);
-				if(--next < 0) {
-					next = 10000;
-				}
-			}
-			o++;
-		}
-		System.exit(1); */
+
 
 		final ParameterTool pt = ParameterTool.fromArgs(args);
 
