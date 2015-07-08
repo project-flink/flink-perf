@@ -10,7 +10,7 @@ start_job() {
 	echo -n "$1;" >> $LOG
 	echo "Starting job on YARN with $1 workers"
 	PARA=`echo $1*4 | bc`
-	$FLINK_DIR/bin/flink run -m yarn-cluster -yn $1 -yst -yjm 768 -ytm 3072 -ys 4 -yd -p $PARA -c com.github.projectflink.streaming.Throughput /home/robert/flink-perf/flink-jobs/target/flink-jobs-0.1-SNAPSHOT.jar --para 160 --payload 12 --delay 0 --logfreq 1000000 --sourceParallelism 160 --sinkParallelism 160 --latencyFreq 1000000 | tee lastJobOutput
+	$FLINK_DIR/bin/flink run -m yarn-cluster -yn $1 -yst -yjm 768 -yD taskmanager.network.numberOfBuffers=8192 -ytm 3072 -ys 4 -yd -p $PARA -c com.github.projectflink.streaming.Throughput /home/robert/flink-perf/flink-jobs/target/flink-jobs-0.1-SNAPSHOT.jar --para 160 --payload 12 --delay 0 --logfreq 1000000 --sourceParallelism 160 --sinkParallelism 160 --latencyFreq 1000000 | tee lastJobOutput
 }
 
 append() {
@@ -55,21 +55,21 @@ echo "machines;duration-sec;yarnAppId;lat-mean;lat-median;lat-90percentile;throu
 
 DURATION=1800
 
-experiment 10 $DURATION
-experiment 10 $DURATION
-experiment 10 $DURATION
+#experiment 10 $DURATION
+#experiment 10 $DURATION
+#experiment 10 $DURATION
 
-experiment 20 $DURATION
-experiment 20 $DURATION
-experiment 20 $DURATION
+#experiment 20 $DURATION
+#experiment 20 $DURATION
+#experiment 20 $DURATION
 
-experiment 30 $DURATION
-experiment 30 $DURATION
-experiment 30 $DURATION
+#experiment 30 $DURATION
+#experiment 30 $DURATION
+#experiment 30 $DURATION
 
 experiment 40 $DURATION
-experiment 40 $DURATION
-experiment 40 $DURATION
+#experiment 40 $DURATION
+#experiment 40 $DURATION
 
 
 
