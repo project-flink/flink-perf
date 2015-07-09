@@ -22,11 +22,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import storm.trident.TridentTopology;
 
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Map;
 
-/**
- * Created by robert on 6/25/15.
- */
+
 public class Throughput {
 
 	public static Logger LOG = LoggerFactory.getLogger(Throughput.class);
@@ -42,12 +42,14 @@ public class Throughput {
 		private byte[] payload;
 		private long time = 0;
 		private int nextlat = 10000;
+		private int sleepFreq;
 
 		public Generator(ParameterTool pt) {
 			this.payload = new byte[pt.getInt("payload")];
 			this.delay = pt.getInt("delay");
 			this.withFt = pt.has("ft");
 			this.latFreq = pt.getInt("latencyFreq");
+			this.sleepFreq = pt.getInt("sleepFreq");
 
 		}
 
@@ -65,19 +67,15 @@ public class Throughput {
 		@Override
 		public void nextTuple() {
 			if(delay > 0) {
-				try {
-					Thread.sleep(delay);
-				} catch (InterruptedException e) {
-					e.printStackTrace();
+				if(id % sleepFreq == 0) {
+					try { Thread.sleep(delay); } catch (InterruptedException e) { e.printStackTrace();}
 				}
 			}
-			// LOG.info("mod = "+ (id % latFreq));
 			if(id % latFreq == nextlat) {
 				time = System.currentTimeMillis();
 				if(--nextlat <= 0) {
 					nextlat = 10000;
 				}
-				//LOG.info("emitting latency from "+this.tid);
 			}
 
 			if(withFt) {
@@ -98,7 +96,6 @@ public class Throughput {
 		/**
 		 * Resend failed tuple
 		 *
-		 * @param msgId
 		 */
 		@Override
 		public void fail(Object msgId) {
@@ -108,6 +105,47 @@ public class Throughput {
 		}
 	}
 
+	public static class PassThroughBolt implements IRichBolt {
+
+		private final boolean withFt;
+		private OutputCollector collector;
+
+		public PassThroughBolt(ParameterTool pt) {
+			this.withFt = pt.has("ft");
+		}
+		@Override
+		public void prepare(Map stormConf, TopologyContext context, OutputCollector collector) {
+			this.collector = collector;
+		}
+
+		@Override
+		public void execute(Tuple input) {
+			if(withFt) {
+				// anchor the output on the only input element (we pass through)
+				collector.emit(Collections.singleton(input), input.getValues());
+				// acknowledge the element upstream.
+				collector.ack(input);
+			} else {
+				// unanchored pass forward
+				collector.emit(input.getValues());
+			}
+		}
+
+		@Override
+		public void cleanup() {
+
+		}
+
+		@Override
+		public void declareOutputFields(OutputFieldsDeclarer declarer) {
+			declarer.declare(new Fields("id", "taskId", "time", "payload"));
+		}
+
+		@Override
+		public Map<String, Object> getComponentConfiguration() {
+			return null;
+		}
+	}
 	public static class Sink implements IRichBolt {
 
 		private final boolean withFT;
@@ -200,7 +238,7 @@ public class Throughput {
 		int i = 0;
 		for(; i < pt.getInt("repartitions", 1) - 1;i++) {
 			System.out.println("adding source"+i+" --> source"+(i+1));
-			builder.setBolt("source"+(i+1), new IdentityBolt(new Fields("id", "taskId", "time", "payload")), pt.getInt("sinkParallelism")).fieldsGrouping("source" + i, new Fields("id"));
+			builder.setBolt("source"+(i+1), new PassThroughBolt(pt), pt.getInt("sinkParallelism")).fieldsGrouping("source" + i, new Fields("id"));
 		}
 		System.out.println("adding final source"+i+" --> sink");
 
