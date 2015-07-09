@@ -35,21 +35,20 @@ public class Throughput {
 		public void run(SourceContext<Tuple4<Long, Integer, Long, byte[]>> sourceContext) throws Exception {
 			int delay = pt.getInt("delay");
 			int latFreq = pt.getInt("latencyFreq");
-			int nextlat = 10000;
+			int nextlat = 1000;
+			int sleepFreq = pt.getInt("sleepFreq");
 
 			while(running) {
-				if (delay > 0) {
-					try {
-						Thread.sleep(delay);
-					} catch (InterruptedException e) {
-						e.printStackTrace();
+				if(delay > 0) {
+					if(id % sleepFreq == 0) {
+						try { Thread.sleep(delay); } catch (InterruptedException e) { e.printStackTrace();}
 					}
 				}
 				// move the ID for the latency so that we distribute it among the machines.
 				if(id % latFreq == nextlat) {
 					time = System.currentTimeMillis();
 					if(--nextlat <= 0) {
-						nextlat = 10000;
+						nextlat = 1000;
 					}
 				}
 
