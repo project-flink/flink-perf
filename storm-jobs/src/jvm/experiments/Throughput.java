@@ -122,7 +122,7 @@ public class Throughput {
 		public void execute(Tuple input) {
 			if(withFt) {
 				// anchor the output on the only input element (we pass through)
-				collector.emit(Collections.singleton(input), input.getValues());
+				collector.emit(input, input.getValues());
 				// acknowledge the element upstream.
 				collector.ack(input);
 			} else {
@@ -260,7 +260,7 @@ public class Throughput {
 			LocalCluster cluster = new LocalCluster();
 			cluster.submitTopology("throughput", conf, builder.createTopology());
 
-			Thread.sleep(30000);
+			Thread.sleep(300000);
 
 			cluster.shutdown();
 		}
