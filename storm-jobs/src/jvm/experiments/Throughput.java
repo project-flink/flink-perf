@@ -116,7 +116,8 @@ public class Throughput {
 		ParameterTool pt;
 		private OutputCollector collector;
 		private long logfreq;
-		private int sinkId;
+		private long lastLog = -1;
+		private long lastElements;
 
 		public Sink(ParameterTool pt) {
 			this.pt = pt;
@@ -131,14 +132,32 @@ public class Throughput {
 			}
 			received++;
 			if(received % logfreq == 0) {
-				long sinceSec = ((System.currentTimeMillis() - start)/1000);
+				long now = System.currentTimeMillis();
+
+				long sinceSec = ((now - start)/1000);
 				if(sinceSec == 0) return;
 				LOG.info("Received {} elements since {}. Elements per second {}, GB received {}",
 						received,
 						sinceSec,
 						received/sinceSec ,
 						(received * (8 + 8 + 4 + pt.getInt("payload")))/1024/1024/1024 );
+
+				// throughput for the last "logfreq" elements
+				if(lastLog == -1) {
+					// init (the first)
+					lastLog = now;
+					lastElements = received;
+				} else {
+					long timeDiff = now - lastLog;
+					long elementDiff = received - lastElements;
+					double ex = (1000/(double)timeDiff);
+					LOG.info("During the last {} ms, we received {} elements. That's {} elements/second/core", timeDiff, elementDiff, elementDiff*ex);
+					// reinit
+					lastLog = now;
+					lastElements = received;
+				}
 			}
+
 			if(input.getLong(2) != 0) {
 				long lat = System.currentTimeMillis() - input.getLong(2);
 				LOG.info("Latency {} ms from machine "+input.getInteger(1), lat);
@@ -160,7 +179,6 @@ public class Throughput {
 		@Override
 		public void prepare(Map stormConf, TopologyContext context, OutputCollector collector) {
 			this.collector = collector;
-			this.sinkId = context.getThisTaskId();
 		}
 
 		@Override

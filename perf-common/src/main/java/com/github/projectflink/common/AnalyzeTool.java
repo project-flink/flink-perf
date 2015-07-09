@@ -5,7 +5,11 @@ import org.apache.commons.math3.stat.descriptive.SummaryStatistics;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
 import java.util.regex.Matcher;
@@ -13,8 +17,24 @@ import java.util.regex.Pattern;
 
 public class AnalyzeTool {
 
-	public static void main(String[] args) throws FileNotFoundException {
-		Scanner sc = new Scanner(new File(args[0]));
+	public static class Result {
+
+		DescriptiveStatistics latencies;
+		SummaryStatistics throughputs;
+		Map<String, DescriptiveStatistics> perHostLat;
+		Map<String, SummaryStatistics> perHostThr;
+
+		public Result(DescriptiveStatistics latencies, SummaryStatistics throughputs, Map<String, DescriptiveStatistics> perHostLat, Map<String, SummaryStatistics> perHostThr) {
+			this.latencies = latencies;
+			this.throughputs = throughputs;
+			this.perHostLat = perHostLat;
+			this.perHostThr = perHostThr;
+		}
+	}
+
+	public static Result analyze(String file, List<String> toIgnore) throws FileNotFoundException {
+		Scanner sc = new Scanner(new File(file));
+
 		String l;
 		Pattern latencyPattern = Pattern.compile(".*Latency ([0-9]+) ms.*");
 		Pattern throughputPattern = Pattern.compile(".*Received ([0-9]+) elements since [0-9]*. Elements per second ([0-9]+), GB received.*");
@@ -40,6 +60,9 @@ public class AnalyzeTool {
 				currentHost = stormHostMatcher.group(1);
 				System.err.println("Setting host to "+currentHost+ " (storm)");
 			}
+
+			if(toIgnore != null && toIgnore.contains(currentHost)) continue;
+
 			// ---------- latency ---------------
 			Matcher latencyMatcher = latencyPattern.matcher(l);
 			if(latencyMatcher.matches()) {
@@ -69,20 +92,62 @@ public class AnalyzeTool {
 				perHost.addValue(eps);
 			}
 		}
+
+		return new Result(latencies, throughputs, perHostLat, perHostThr);
+	}
+
+	public static void main(String[] args) throws FileNotFoundException {
+
+		Result r1 = analyze(args[0], null);
+		DescriptiveStatistics latencies = r1.latencies;
+		SummaryStatistics throughputs = r1.throughputs;
 		// System.out.println("lat-mean;lat-median;lat-90percentile;lat-95percentile;lat-99percentile;throughput-mean;throughput-max;latencies;throughputs;");
 		System.out.println(latencies.getMean() + ";" + latencies.getPercentile(50) + ";" + latencies.getPercentile(90) + ";" + latencies.getPercentile(95) + ";" + latencies.getPercentile(99)+ ";" + throughputs.getMean() + ";" + throughputs.getMax() + ";" + latencies.getN() + ";" + throughputs.getN());
 
-		System.err.println("================= Latency ("+perHostLat.size()+" reports ) =====================");
-		for(Map.Entry<String, DescriptiveStatistics> entry : perHostLat.entrySet()) {
+		System.err.println("================= Latency (" + r1.perHostLat.size() + " reports ) =====================");
+		List<Map.Entry<String, DescriptiveStatistics>> orderedPerHostLatency = new ArrayList<Map.Entry<String, DescriptiveStatistics>>();
+
+		for(Map.Entry<String, DescriptiveStatistics> entry : r1.perHostLat.entrySet()) {
 			System.err.println("====== "+entry.getKey()+" (entries: "+entry.getValue().getN()+") =======");
 			System.err.println("Mean latency " + entry.getValue().getMean());
 			System.err.println("Median latency " + entry.getValue().getPercentile(50));
+			orderedPerHostLatency.add(entry);
 		}
 
-		System.err.println("================= Throughput ("+perHostThr.size()+" reports ) =====================");
-		for(Map.Entry<String, SummaryStatistics> entry : perHostThr.entrySet()) {
+		System.err.println("================= Throughput ("+r1.perHostThr.size()+" reports ) =====================");
+		for(Map.Entry<String, SummaryStatistics> entry : r1.perHostThr.entrySet()) {
 			System.err.println("====== "+entry.getKey()+" (entries: "+entry.getValue().getN()+")=======");
 			System.err.println("Mean throughput " + entry.getValue().getMean());
 		}
+
+		Collections.sort(orderedPerHostLatency, new Comparator<Map.Entry<String, DescriptiveStatistics>>() {
+			@Override
+			public int compare(Map.Entry<String, DescriptiveStatistics> o1, Map.Entry<String, DescriptiveStatistics> o2) {
+				if (o1.getValue().getMean() < o2.getValue().getMean()) {
+					return 1;
+				} else {
+					return -1;
+				}
+			}
+		});
+
+		List<Map.Entry<String, DescriptiveStatistics>> statsToIgnore = orderedPerHostLatency.subList(0, 2);
+		List<String> toIgnore = new ArrayList<String>();
+		System.err.println("============= HOSTS TO IGNORE (num: "+statsToIgnore.size()+") ============== ");
+		for(Map.Entry<String, DescriptiveStatistics> entry : statsToIgnore) {
+			System.err.println("====== "+entry.getKey()+" (entries: "+entry.getValue().getN()+") =======");
+			System.err.println("Mean latency " + entry.getValue().getMean());
+			System.err.println("Median latency " + entry.getValue().getPercentile(50));
+			toIgnore.add(entry.getKey());
+		}
+
+		Result finalResult = analyze(args[0], toIgnore);
+		latencies = finalResult.latencies;
+		throughputs = finalResult.throughputs;
+
+		System.out.println(latencies.getMean() + ";" + latencies.getPercentile(50) + ";" + latencies.getPercentile(90) + ";" + latencies.getPercentile(95) + ";" + latencies.getPercentile(99)+ ";" + throughputs.getMean() + ";" + throughputs.getMax() + ";" + latencies.getN() + ";" + throughputs.getN());
+
+
+
 	}
 }

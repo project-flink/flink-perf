@@ -104,6 +104,8 @@ public class Throughput {
 			long received = 0;
 			long start = 0;
 			long logfreq = pt.getInt("logfreq");
+			long lastLog = -1;
+			long lastElements = 0;
 
 			@Override
 			public void flatMap(Tuple4<Long, Integer, Long, byte[]> element, Collector<Integer> collector) throws Exception {
@@ -112,17 +114,34 @@ public class Throughput {
 				}
 				received++;
 				if (received % logfreq == 0) {
-					long sinceSec = ((System.currentTimeMillis() - start) / 1000);
+					// throughput over entire time
+					long now = System.currentTimeMillis();
+					long sinceSec = ((now - start) / 1000);
 					if (sinceSec == 0) return;
 					LOG.info("Received {} elements since {}. Elements per second {}, GB received {}",
 							received,
 							sinceSec,
 							received / sinceSec,
 							(received * (8 + 8 + 4 + pt.getInt("payload"))) / 1024 / 1024 / 1024);
+
+					// throughput for the last "logfreq" elements
+					if(lastLog == -1) {
+						// init (the first)
+						lastLog = now;
+						lastElements = received;
+					} else {
+						long timeDiff = now - lastLog;
+						long elementDiff = received - lastElements;
+						double ex = (1000/(double)timeDiff);
+						LOG.info("During the last {} ms, we received {} elements. That's {} elements/second/core", timeDiff, elementDiff, elementDiff*ex);
+						// reinit
+						lastLog = now;
+						lastElements = received;
+					}
 				}
 				if (element.f2 != 0) {
 					long lat = System.currentTimeMillis() - element.f2;
-					LOG.info("Latency {} ms from machine "+element.f1, lat);
+					LOG.info("Latency {} ms from machine " + element.f1, lat);
 				}
 			}
 		});
