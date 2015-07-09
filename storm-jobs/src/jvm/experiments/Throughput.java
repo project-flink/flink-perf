@@ -101,7 +101,7 @@ public class Throughput {
 		public void fail(Object msgId) {
 			long id = (Long)msgId;
 			LOG.info("Failed message " + msgId);
-			spoutOutputCollector.emit(new Values(id, this.tid, this.payload), id);
+			spoutOutputCollector.emit(new Values(id, this.tid, 0L, this.payload), id);
 		}
 	}
 
