@@ -41,7 +41,7 @@ public class Throughput {
 		private long id = 0;
 		private byte[] payload;
 		private long time = 0;
-		private int nextlat = 10000;
+		private int nextlat = 1000;
 		private int sleepFreq;
 
 		public Generator(ParameterTool pt) {
@@ -74,7 +74,7 @@ public class Throughput {
 			if(id % latFreq == nextlat) {
 				time = System.currentTimeMillis();
 				if(--nextlat <= 0) {
-					nextlat = 10000;
+					nextlat = 1000;
 				}
 			}
 

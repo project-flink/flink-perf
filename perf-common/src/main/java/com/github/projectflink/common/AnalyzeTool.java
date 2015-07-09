@@ -37,7 +37,7 @@ public class AnalyzeTool {
 
 		String l;
 		Pattern latencyPattern = Pattern.compile(".*Latency ([0-9]+) ms.*");
-		Pattern throughputPattern = Pattern.compile(".*Received ([0-9]+) elements since [0-9]*. Elements per second ([0-9]+), GB received.*");
+		Pattern throughputPattern = Pattern.compile(".*That's ([0-9.]+) elements\\/second\\/core.*");
 		Pattern hostPattern = Pattern.compile("Container: .* on (.+).c.astral-sorter-757..*");
 		Pattern stormHostPattern = Pattern.compile(".*Client environment:host.name=(.+).c.astral-sorter-757..*");
 
@@ -81,8 +81,9 @@ public class AnalyzeTool {
 			// ---------- throughput ---------------
 			Matcher tpMatcher = throughputPattern.matcher(l);
 			if(tpMatcher.matches()) {
-				double eps = Double.valueOf(tpMatcher.group(2));
+				double eps = Double.valueOf(tpMatcher.group(1));
 				throughputs.addValue(eps);
+			//	System.out.println("epts = "+eps);
 
 				SummaryStatistics perHost = perHostThr.get(currentHost);
 				if(perHost == null) {
@@ -102,7 +103,7 @@ public class AnalyzeTool {
 		DescriptiveStatistics latencies = r1.latencies;
 		SummaryStatistics throughputs = r1.throughputs;
 		// System.out.println("lat-mean;lat-median;lat-90percentile;lat-95percentile;lat-99percentile;throughput-mean;throughput-max;latencies;throughputs;");
-		System.out.println(latencies.getMean() + ";" + latencies.getPercentile(50) + ";" + latencies.getPercentile(90) + ";" + latencies.getPercentile(95) + ";" + latencies.getPercentile(99)+ ";" + throughputs.getMean() + ";" + throughputs.getMax() + ";" + latencies.getN() + ";" + throughputs.getN());
+		System.out.println("all-machines;" + latencies.getMean() + ";" + latencies.getPercentile(50) + ";" + latencies.getPercentile(90) + ";" + latencies.getPercentile(95) + ";" + latencies.getPercentile(99)+ ";" + throughputs.getMean() + ";" + throughputs.getMax() + ";" + latencies.getN() + ";" + throughputs.getN());
 
 		System.err.println("================= Latency (" + r1.perHostLat.size() + " reports ) =====================");
 		List<Map.Entry<String, DescriptiveStatistics>> orderedPerHostLatency = new ArrayList<Map.Entry<String, DescriptiveStatistics>>();
@@ -145,7 +146,7 @@ public class AnalyzeTool {
 		latencies = finalResult.latencies;
 		throughputs = finalResult.throughputs;
 
-		System.out.println(latencies.getMean() + ";" + latencies.getPercentile(50) + ";" + latencies.getPercentile(90) + ";" + latencies.getPercentile(95) + ";" + latencies.getPercentile(99)+ ";" + throughputs.getMean() + ";" + throughputs.getMax() + ";" + latencies.getN() + ";" + throughputs.getN());
+		System.out.println("-2-machines;" + latencies.getMean() + ";" + latencies.getPercentile(50) + ";" + latencies.getPercentile(90) + ";" + latencies.getPercentile(95) + ";" + latencies.getPercentile(99)+ ";" + throughputs.getMean() + ";" + throughputs.getMax() + ";" + latencies.getN() + ";" + throughputs.getN());
 
 
 
