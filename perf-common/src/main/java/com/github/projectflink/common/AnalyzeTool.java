@@ -71,7 +71,6 @@ public class AnalyzeTool {
 
 				DescriptiveStatistics perHost = perHostLat.get(currentHost);
 				if(perHost == null) {
-					System.err.println("New descriptive statistics "+currentHost);
 					perHost = new DescriptiveStatistics();
 					perHostLat.put(currentHost, perHost);
 				}
@@ -98,7 +97,7 @@ public class AnalyzeTool {
 	}
 
 	public static void main(String[] args) throws FileNotFoundException {
-
+		System.out.println("Starting ... ");
 		Result r1 = analyze(args[0], null);
 		DescriptiveStatistics latencies = r1.latencies;
 		SummaryStatistics throughputs = r1.throughputs;
