@@ -4,13 +4,21 @@ RUNNAME=$1
 STORM_JOB_TARGET=/home/robert/flink-perf/storm-jobs/target
 LOG="run-log-storm-$1"
 
-export HADOOP_CONF_DIR=/etc/hadoop/conf
 
+REPART=1
+DELAY=1
+#sleep for 1 ms every second record
+SLEEP_FREQ=2
+FT=""
+
+export HADOOP_CONF_DIR=/etc/hadoop/conf
+JOB_ID=""
 start_job() {
-	echo -n "$1;" >> $LOG
-	echo "Starting job on Storm with $1 workers"
+	JOB_ID=`cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1`
+	echo -n "$1;$JOB_ID;$REPART;$FT;" >> $LOG
+	echo "Starting job on Storm with $1 workers, repart $REPART"
 	PARA=`echo $1*4 | bc`
-	storm jar $STORM_JOB_TARGET/storm-jobs-0.1-SNAPSHOT.jar experiments.Throughput --para $1 --payload 12 --delay 0 --logfreq 1000000 --sourceParallelism $PARA --sinkParallelism $PARA --latencyFreq 1000000 | tee lastJobOutput
+	storm jar $STORM_JOB_TARGET/storm-jobs-0.1-SNAPSHOT.jar experiments.Throughput --delay $DELAY $FT --sleepFreq $SLEEP_FREQ --repartitions $REPART --para $1 --name $JOB_ID --payload 12 --logfreq 100000 --sourceParallelism $PARA --sinkParallelism $PARA --latencyFreq 10000 | tee lastJobOutput
 }
 
 append() {
@@ -23,40 +31,48 @@ duration() {
 }
 
 kill_on_storm() {
-	storm kill throughput
+	storm kill throughput-$JOB_ID
 	sleep 30
 }
 FILENAME=""
 getLogsFor() {
-	cd /var/log/storm
-	FILENAME=`ls -l -t throughput-* | head -n1 | rev |  cut -d" " -f1 | rev`
-	cd -
+	#cd /var/log/storm
+	#FILENAME=`ls -l | grep $JOB_ID | head -n1 | rev |  cut -d" " -f1 | rev`
+	#cd -
 	for i in $(seq 0 39);
 	do
 		echo "Getting log file from machine $i"
-		scp "robert-streaming-w-$i":/var/log/storm/$FILENAME logs/robert-streaming-w-$i-$FILENAME
+		scp "robert-streaming-w-$i":/var/log/storm/*$JOB_ID* logs/robert-streaming-w-$i-$JOB_ID
 	done
-	cat logs/robert-streaming-w-*-$FILENAME > logs/aggregated-$FILENAME
+	cat logs/robert-streaming-w-*-$JOB_ID > logs/aggregated-$JOB_ID
 	#echo $FILENAME
 }
 
 analyzeLogs() {
-	java -cp /home/robert/flink-perf/perf-common/target/perf-common-0.1-SNAPSHOT-jar-with-dependencies.jar com.github.projectflink.common.AnalyzeTool logs/aggregated-$1 >> $LOG
+	java -cp /home/robert/flink-perf/perf-common/target/perf-common-0.1-SNAPSHOT-jar-with-dependencies.jar com.github.projectflink.common.AnalyzeTool logs/aggregated-$JOB_ID >> $LOG
 }
 
 function experiment() {
-#	start_job $1
-#	duration $2
-#	kill_on_storm
+	start_job $1
+	duration $2
+	kill_on_storm
 
 	getLogsFor
-	echo "FileName=$FILENAME"
-	analyzeLogs $FILENAME
+	analyzeLogs
 }
 
-echo "machines;duration-sec;yarnAppId;lat-mean;lat-median;lat-90percentile;lat-95percentile;lat-99percentile;throughput-mean;throughput-max;latencies;throughputs" >> $LOG
+echo "machines;job-id;duration-sec;lat-mean;lat-median;lat-90percentile;lat-95percentile;lat-99percentile;throughput-mean;throughput-max;latencies;throughputs" >> $LOG
 
-DURATION=60
+REPART=2
+DURATION=100
+experiment 30 $DURATION
+
+FT=" --ft "
+experiment 30 $DURATION
+
+exit
+
+DURATION=900
 
 #experiment 10 $DURATION
 #experiment 10 $DURATION
@@ -70,10 +86,37 @@ DURATION=60
 #experiment 30 $DURATION
 #experiment 30 $DURATION
 
-experiment 40 $DURATION
-#experiment 40 $DURATION
-#experiment 40 $DURATION
+REPART=1
+experiment 30 $DURATION
+experiment 30 $DURATION
+experiment 30 $DURATION
 
+REPART=2
+experiment 30 $DURATION
+experiment 30 $DURATION
+experiment 30 $DURATION
+
+REPART=4
+experiment 30 $DURATION
+experiment 30 $DURATION
+experiment 30 $DURATION
+
+FT=" --ft "
+
+REPART=1
+experiment 30 $DURATION
+experiment 30 $DURATION
+experiment 30 $DURATION
+
+REPART=2
+experiment 30 $DURATION
+experiment 30 $DURATION
+experiment 30 $DURATION
+
+REPART=4
+experiment 30 $DURATION
+experiment 30 $DURATION
+experiment 30 $DURATION
 
 
 

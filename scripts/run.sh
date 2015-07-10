@@ -5,12 +5,18 @@ FLINK_DIR=/home/robert/flink/build-target
 LOG="run-log-$1"
 
 export HADOOP_CONF_DIR=/etc/hadoop/conf
-
+TIMEOUT=100
+REPART=1
+BUFFERS=2048
+SLEEP_FREQ=2
+DELAY=1
+FT=""
 start_job() {
-	echo -n "$1;" >> $LOG
-	echo "Starting job on YARN with $1 workers"
+	echo -n "$1;$REPART;$FT;$BUFFERS;$TIMEOUT;" >> $LOG
+	echo "Starting job on YARN with $1 workers and a timeout of $TIMEOUT ms"
 	PARA=`echo $1*4 | bc`
-	$FLINK_DIR/bin/flink run -m yarn-cluster -yn $1 -yst -yjm 768 -yD taskmanager.network.numberOfBuffers=8192 -ytm 3072 -ys 4 -yd -p $PARA -c com.github.projectflink.streaming.Throughput /home/robert/flink-perf/flink-jobs/target/flink-jobs-0.1-SNAPSHOT.jar --para 160 --payload 12 --delay 0 --logfreq 1000000 --sourceParallelism 160 --sinkParallelism 160 --latencyFreq 1000000 | tee lastJobOutput
+	CLASS="com.github.projectflink.streaming.Throughput"
+	$FLINK_DIR/bin/flink run -m yarn-cluster -yn $1 -yst -yD taskmanager.network.numberOfBuffers=$BUFFERS -yjm 768 -ytm 3072 -ys 4 -yd -p $PARA -c $CLASS /home/robert/flink-perf/flink-jobs/target/flink-jobs-0.1-SNAPSHOT.jar $FT --sleepFreq $SLEEP_FREQ --repartitions $REPART --timeout $TIMEOUT --para 160 --payload 12 --delay $DELAY --logfreq 100000 --sourceParallelism 160 --sinkParallelism 160 --latencyFreq 1500 | tee lastJobOutput
 }
 
 append() {
@@ -53,23 +59,72 @@ function experiment() {
 
 echo "machines;duration-sec;yarnAppId;lat-mean;lat-median;lat-90percentile;throughput-mean;throughput-max;latencies;throughputs" >> $LOG
 
-DURATION=1800
+DURATION=900
+REPART=2
 
-#experiment 10 $DURATION
-#experiment 10 $DURATION
-#experiment 10 $DURATION
+TIMEOUT=5
 
-#experiment 20 $DURATION
-#experiment 20 $DURATION
-#experiment 20 $DURATION
+BUFFERS=4096
+experiment 30 $DURATION
+experiment 30 $DURATION
+experiment 30 $DURATION
 
-#experiment 30 $DURATION
-#experiment 30 $DURATION
-#experiment 30 $DURATION
 
-experiment 40 $DURATION
-#experiment 40 $DURATION
-#experiment 40 $DURATION
+REPART=4
+BUFFERS=6144
+experiment 30 $DURATION
+experiment 30 $DURATION
+experiment 30 $DURATION
+
+FT=" --ft 1000 "
+
+
+REPART=2
+BUFFERS=4096
+experiment 30 $DURATION
+experiment 30 $DURATION
+experiment 30 $DURATION
+
+REPART=4
+BUFFERS=6144
+experiment 30 $DURATION
+experiment 30 $DURATION
+experiment 30 $DURATION
+
+
+######## all experiments with timeout 0
+TIMEOUT=0
+
+# no ft
+FT=""
+
+
+REPART=2
+BUFFERS=4096
+experiment 30 $DURATION
+experiment 30 $DURATION
+experiment 30 $DURATION
+
+REPART=4
+BUFFERS=6144
+experiment 30 $DURATION
+experiment 30 $DURATION
+experiment 30 $DURATION
+
+FT=" --ft 1000 "
+
+REPART=2
+BUFFERS=4096
+experiment 30 $DURATION
+experiment 30 $DURATION
+experiment 30 $DURATION
+
+REPART=4
+BUFFERS=6144
+experiment 30 $DURATION
+experiment 30 $DURATION
+experiment 30 $DURATION
+
 
 
 
