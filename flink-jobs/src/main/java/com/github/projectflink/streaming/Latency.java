@@ -98,7 +98,7 @@ public class Latency {
 		if(pt.has("ft")) {
 			see.enableCheckpointing(pt.getLong("ft"));
 		}
-		
+
 		DataStreamSource<T> in = see.addSource(new Source(pt));
 		in.partitionByHash(0).map(new MapFunction<T, T>() {
 			@Override
