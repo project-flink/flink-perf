@@ -22,6 +22,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import storm.trident.TridentTopology;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
@@ -37,12 +39,12 @@ public class Throughput {
 		private final boolean withFt;
 		private final int latFreq;
 		private SpoutOutputCollector spoutOutputCollector;
-		private int tid;
 		private long id = 0;
 		private byte[] payload;
 		private long time = 0;
 		private int nextlat = 1000;
 		private int sleepFreq;
+		private String host;
 
 		public Generator(ParameterTool pt) {
 			this.payload = new byte[pt.getInt("payload")];
@@ -55,13 +57,17 @@ public class Throughput {
 
 		@Override
 		public void declareOutputFields(OutputFieldsDeclarer outputFieldsDeclarer) {
-			outputFieldsDeclarer.declare(new Fields("id", "taskId", "time", "payload"));
+			outputFieldsDeclarer.declare(new Fields("id", "host", "time", "payload"));
 		}
 
 		@Override
 		public void open(Map map, TopologyContext topologyContext, SpoutOutputCollector spoutOutputCollector) {
 			this.spoutOutputCollector = spoutOutputCollector;
-			this.tid = topologyContext.getThisTaskId();
+			try {
+				this.host = InetAddress.getLocalHost().getHostName();
+			} catch (UnknownHostException e) {
+				e.printStackTrace();
+			}
 		}
 
 		@Override
@@ -79,9 +85,9 @@ public class Throughput {
 			}
 
 			if(withFt) {
-				spoutOutputCollector.emit(new Values(this.id, this.tid, this.time, this.payload), this.id);
+				spoutOutputCollector.emit(new Values(this.id, this.host, this.time, this.payload), this.id);
 			} else {
-				spoutOutputCollector.emit(new Values(this.id, this.tid, this.time, this.payload));
+				spoutOutputCollector.emit(new Values(this.id, this.host, this.time, this.payload));
 			}
 
 			time = 0;
@@ -101,7 +107,7 @@ public class Throughput {
 		public void fail(Object msgId) {
 			long id = (Long)msgId;
 			LOG.info("Failed message " + msgId);
-			spoutOutputCollector.emit(new Values(id, this.tid, 0L, this.payload), id);
+			spoutOutputCollector.emit(new Values(id, this.host, 0L, this.payload), id);
 		}
 	}
 
@@ -138,7 +144,7 @@ public class Throughput {
 
 		@Override
 		public void declareOutputFields(OutputFieldsDeclarer declarer) {
-			declarer.declare(new Fields("id", "taskId", "time", "payload"));
+			declarer.declare(new Fields("id", "host", "time", "payload"));
 		}
 
 		@Override
@@ -149,6 +155,7 @@ public class Throughput {
 	public static class Sink implements IRichBolt {
 
 		private final boolean withFT;
+		private final String host;
 		long received = 0;
 		long start = 0;
 		ParameterTool pt;
@@ -157,10 +164,11 @@ public class Throughput {
 		private long lastLog = -1;
 		private long lastElements;
 
-		public Sink(ParameterTool pt) {
+		public Sink(ParameterTool pt) throws UnknownHostException {
 			this.pt = pt;
 			this.withFT = pt.has("ft");
 			this.logfreq = pt.getInt("logfreq");
+			this.host = InetAddress.getLocalHost().getHostName();
 		}
 
 		@Override
@@ -172,13 +180,13 @@ public class Throughput {
 			if(received % logfreq == 0) {
 				long now = System.currentTimeMillis();
 
-				long sinceSec = ((now - start)/1000);
+				/*long sinceSec = ((now - start)/1000);
 				if(sinceSec == 0) return;
 				LOG.info("Received {} elements since {}. Elements per second {}, GB received {}",
 						received,
 						sinceSec,
 						received/sinceSec ,
-						(received * (8 + 8 + 4 + pt.getInt("payload")))/1024/1024/1024 );
+						(received * (8 + 8 + 4 + pt.getInt("payload")))/1024/1024/1024 ); */
 
 				// throughput for the last "logfreq" elements
 				if(lastLog == -1) {
@@ -196,10 +204,11 @@ public class Throughput {
 				}
 			}
 
-			if(input.getLong(2) != 0) {
+			if(input.getLong(2) != 0 && input.getString(1).equals(host)) {
 				long lat = System.currentTimeMillis() - input.getLong(2);
-				LOG.info("Latency {} ms from machine "+input.getInteger(1), lat);
+				LOG.info("Latency {} ms from machine "+host, lat);
 			}
+
 			if(withFT) {
 				collector.ack(input);
 			}
