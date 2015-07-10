@@ -91,6 +91,14 @@ public class Latency {
 		StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
 		see.getConfig().setGlobalJobParameters(pt);
 
+		if(pt.has("timeout")) {
+			see.setBufferTimeout(pt.getLong("timeout"));
+		}
+
+		if(pt.has("ft")) {
+			see.enableCheckpointing(pt.getLong("ft"));
+		}
+		
 		DataStreamSource<T> in = see.addSource(new Source(pt));
 		in.partitionByHash(0).map(new MapFunction<T, T>() {
 			@Override
