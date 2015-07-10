@@ -57,7 +57,7 @@ public class Latency {
 				// move the ID for the latency so that we distribute it among the machines.
 				if(id % latFreq == nextlat) {
 					time = System.currentTimeMillis();
-					LOG.info("Sending latency "+time+" from host "+host+" with id "+id);
+				//	LOG.info("Sending latency "+time+" from host "+host+" with id "+id);
 					if(--nextlat <= 0) {
 						nextlat = 1000;
 					}
