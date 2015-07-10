@@ -97,7 +97,6 @@ public class AnalyzeTool {
 	}
 
 	public static void main(String[] args) throws FileNotFoundException {
-		System.out.println("Starting ... ");
 		Result r1 = analyze(args[0], null);
 		DescriptiveStatistics latencies = r1.latencies;
 		SummaryStatistics throughputs = r1.throughputs;
