@@ -52,7 +52,6 @@ public class Throughput {
 			this.withFt = pt.has("ft");
 			this.latFreq = pt.getInt("latencyFreq");
 			this.sleepFreq = pt.getInt("sleepFreq");
-
 		}
 
 		@Override

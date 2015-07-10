@@ -14,11 +14,13 @@ import org.apache.flink.util.Collector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.InetAddress;
+
 public class Throughput {
 
 	private static final Logger LOG = LoggerFactory.getLogger(Throughput.class);
 
-	public static class Source extends RichParallelSourceFunction<Tuple4<Long, Integer, Long, byte[]>> implements Checkpointed<Long> {
+	public static class Source extends RichParallelSourceFunction<Tuple4<Long, String, Long, byte[]>> implements Checkpointed<Long> {
 
 		final ParameterTool pt;
 		byte[] payload;
@@ -32,11 +34,12 @@ public class Throughput {
 		}
 
 		@Override
-		public void run(SourceContext<Tuple4<Long, Integer, Long, byte[]>> sourceContext) throws Exception {
+		public void run(SourceContext<Tuple4<Long, String, Long, byte[]>> sourceContext) throws Exception {
 			int delay = pt.getInt("delay");
 			int latFreq = pt.getInt("latencyFreq");
 			int nextlat = 1000;
 			int sleepFreq = pt.getInt("sleepFreq");
+			String host = InetAddress.getLocalHost().getHostName();;
 
 			while(running) {
 				if(delay > 0) {
@@ -52,7 +55,7 @@ public class Throughput {
 					}
 				}
 
-				sourceContext.collect(new Tuple4<Long, Integer, Long, byte[]>(id++, getRuntimeContext().getIndexOfThisSubtask(), time, payload));
+				sourceContext.collect(new Tuple4<Long, String, Long, byte[]>(id++, host, time, payload));
 				time = 0;
 			}
 		}
@@ -80,6 +83,8 @@ public class Throughput {
 
 		StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
 		see.getConfig().setGlobalJobParameters(pt);
+		see.setNumberOfExecutionRetries(0);
+
 		if(pt.has("timeout")) {
 			see.setBufferTimeout(pt.getLong("timeout"));
 		}
@@ -88,18 +93,21 @@ public class Throughput {
 			see.enableCheckpointing(pt.getLong("ft"));
 		}
 
-		DataStream<Tuple4<Long, Integer, Long, byte[]>> source = see.addSource(new Source(pt) );
+		DataStream<Tuple4<Long, String, Long, byte[]>> source = see.addSource(new Source(pt) );
 
-		DataStream<Tuple4<Long, Integer, Long, byte[]>> repartitioned = source.partitionByHash(0);
+		DataStream<Tuple4<Long, String, Long, byte[]>> repartitioned = source.partitionByHash(0);
 		for(int i = 0; i < pt.getInt("repartitions", 1) - 1;i++) {
-			repartitioned = repartitioned.map(new MapFunction<Tuple4<Long, Integer, Long, byte[]>, Tuple4<Long, Integer, Long, byte[]>>() {
+			repartitioned = repartitioned.map(new MapFunction<Tuple4<Long, String, Long, byte[]>, Tuple4<Long, String, Long, byte[]>>() {
 				@Override
-				public Tuple4<Long, Integer, Long, byte[]> map(Tuple4<Long, Integer, Long, byte[]> in) throws Exception {
-					return in;
+				public Tuple4<Long, String, Long, byte[]> map(Tuple4<Long, String, Long, byte[]> in) throws Exception {
+					Tuple4<Long, String, Long, byte[]> out = in.copy();
+					out.f0++;
+					return out;
 				}
 			}).partitionByHash(0);
 		}
-		repartitioned.flatMap(new FlatMapFunction<Tuple4<Long, Integer, Long, byte[]>, Integer>() {
+		repartitioned.flatMap(new FlatMapFunction<Tuple4<Long, String, Long, byte[]>, Integer>() {
+			public String host;
 			long received = 0;
 			long start = 0;
 			long logfreq = pt.getInt("logfreq");
@@ -107,7 +115,10 @@ public class Throughput {
 			long lastElements = 0;
 
 			@Override
-			public void flatMap(Tuple4<Long, Integer, Long, byte[]> element, Collector<Integer> collector) throws Exception {
+			public void flatMap(Tuple4<Long, String, Long, byte[]> element, Collector<Integer> collector) throws Exception {
+				if(host == null) {
+					host = InetAddress.getLocalHost().getHostName();
+				}
 				if (start == 0) {
 					start = System.currentTimeMillis();
 				}
@@ -115,13 +126,13 @@ public class Throughput {
 				if (received % logfreq == 0) {
 					// throughput over entire time
 					long now = System.currentTimeMillis();
-					long sinceSec = ((now - start) / 1000);
+				/*	long sinceSec = ((now - start) / 1000);
 					if (sinceSec == 0) return;
 					LOG.info("Received {} elements since {}. Elements per second {}, GB received {}",
 							received,
 							sinceSec,
 							received / sinceSec,
-							(received * (8 + 8 + 4 + pt.getInt("payload"))) / 1024 / 1024 / 1024);
+							(received * (8 + 8 + 4 + pt.getInt("payload"))) / 1024 / 1024 / 1024); */
 
 					// throughput for the last "logfreq" elements
 					if(lastLog == -1) {
@@ -138,7 +149,7 @@ public class Throughput {
 						lastElements = received;
 					}
 				}
-				if (element.f2 != 0) {
+				if (element.f2 != 0 && element.f1.equals(host)) {
 					long lat = System.currentTimeMillis() - element.f2;
 					LOG.info("Latency {} ms from machine " + element.f1, lat);
 				}
