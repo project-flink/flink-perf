@@ -98,7 +98,7 @@ public class Latency {
 				return longIntegerLongTuple4;
 			}
 		}).partitionByHash(0).flatMap(new FlatMapFunction<T, Integer>() {
-			public String host = InetAddress.getLocalHost().getHostName();
+			public String host = null;
 			long received = 0;
 			long start = 0;
 			long logfreq = pt.getInt("logfreq");
@@ -107,6 +107,9 @@ public class Latency {
 
 			@Override
 			public void flatMap(T element, Collector<Integer> collector) throws Exception {
+				if(host == null) {
+					host = InetAddress.getLocalHost().getHostName();
+				}
 				if (start == 0) {
 					start = System.currentTimeMillis();
 				}
