@@ -6,26 +6,21 @@ import backtype.storm.StormSubmitter;
 import backtype.storm.spout.SpoutOutputCollector;
 import backtype.storm.task.OutputCollector;
 import backtype.storm.task.TopologyContext;
-import backtype.storm.testing.IdentityBolt;
-import backtype.storm.topology.BasicOutputCollector;
 import backtype.storm.topology.IRichBolt;
 import backtype.storm.topology.OutputFieldsDeclarer;
 import backtype.storm.topology.TopologyBuilder;
-import backtype.storm.topology.base.BaseBasicBolt;
 import backtype.storm.topology.base.BaseRichSpout;
 import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.Tuple;
 import backtype.storm.tuple.Values;
 import org.apache.flink.api.java.utils.ParameterTool;
-import org.omg.Dynamic.Parameter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import storm.trident.TridentTopology;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.util.Collection;
-import java.util.Collections;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 
@@ -110,12 +105,12 @@ public class Throughput {
 		}
 	}
 
-	public static class PassThroughBolt implements IRichBolt {
+	public static class RepartPassThroughBolt implements IRichBolt {
 
 		private final boolean withFt;
 		private OutputCollector collector;
 
-		public PassThroughBolt(ParameterTool pt) {
+		public RepartPassThroughBolt(ParameterTool pt) {
 			this.withFt = pt.has("ft");
 		}
 		@Override
@@ -127,7 +122,11 @@ public class Throughput {
 		public void execute(Tuple input) {
 			if(withFt) {
 				// anchor the output on the only input element (we pass through)
-				collector.emit(input, input.getValues());
+				List<Object> vals = input.getValues();
+				Long v = (Long) vals.get(0);
+				v++;
+				vals.set(0, v);
+				collector.emit(input, vals);
 				// acknowledge the element upstream.
 				collector.ack(input);
 			} else {
@@ -246,7 +245,7 @@ public class Throughput {
 		int i = 0;
 		for(; i < pt.getInt("repartitions", 1) - 1;i++) {
 			System.out.println("adding source"+i+" --> source"+(i+1));
-			builder.setBolt("source"+(i+1), new PassThroughBolt(pt), pt.getInt("sinkParallelism")).fieldsGrouping("source" + i, new Fields("id"));
+			builder.setBolt("source"+(i+1), new RepartPassThroughBolt(pt), pt.getInt("sinkParallelism")).fieldsGrouping("source" + i, new Fields("id"));
 		}
 		System.out.println("adding final source"+i+" --> sink");
 
