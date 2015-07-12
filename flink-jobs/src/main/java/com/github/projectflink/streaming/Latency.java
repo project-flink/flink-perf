@@ -115,7 +115,7 @@ public class Latency {
 					host = InetAddress.getLocalHost().getHostName();
 				}
 				longIntegerLongTuple4.f4.add(host);
-				longIntegerLongTuple4.f0++;
+				//longIntegerLongTuple4.f0++;
 				return longIntegerLongTuple4;
 			}
 		}).rebalance().map(new MapFunction<T, T>() {
@@ -127,7 +127,7 @@ public class Latency {
 					host = InetAddress.getLocalHost().getHostName();
 				}
 				longIntegerLongTuple4.f4.add(host);
-				longIntegerLongTuple4.f0++;
+			//	longIntegerLongTuple4.f0++;
 				return longIntegerLongTuple4;
 			}
 		}).rebalance().flatMap(new FlatMapFunction<T, Integer>() {
