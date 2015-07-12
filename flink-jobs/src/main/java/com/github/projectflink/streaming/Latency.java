@@ -3,8 +3,10 @@ package com.github.projectflink.streaming;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple4;
+import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
+import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
@@ -13,16 +15,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.InetAddress;
+import java.util.ArrayList;
 
 public class Latency {
 	private static final Logger LOG = LoggerFactory.getLogger(Latency.class);
 
-	public static class T extends Tuple4<Long, String, Long, byte[]>{
+	public static class T extends Tuple5<Long, String, Long, byte[], ArrayList<String>> {
 		public T() {
 
 		}
-		public T(Long value0, String value1, Long value2, byte[] value3) {
-			super(value0, value1, value2, value3);
+		public T(Long value0, String value1, Long value2, byte[] value3, ArrayList<String> v4) {
+			super(value0, value1, value2, value3, v4);
 		}
 	}
 
@@ -62,8 +65,9 @@ public class Latency {
 						nextlat = 1000;
 					}
 				}
-
-				sourceContext.collect(new T(id++, host, time, payload));
+				ArrayList<String> hosts = new ArrayList<String>(3);
+				hosts.add(host);
+				sourceContext.collect(new T(id++, host, time, payload, hosts));
 				time = 0;
 			}
 		}
@@ -100,9 +104,29 @@ public class Latency {
 		}
 
 		DataStreamSource<T> in = see.addSource(new Source(pt));
-		in.partitionByHash(0).map(new MapFunction<T, T>() {
+		DataStream<T> part = in.partitionByHash(0);
+		part.map(new MapFunction<T, T>() {
+			public String host = null;
+
 			@Override
 			public T map(T longIntegerLongTuple4) throws Exception {
+				if (host == null) {
+					host = InetAddress.getLocalHost().getHostName();
+				}
+				longIntegerLongTuple4.f4.add(host);
+				longIntegerLongTuple4.f0++;
+				return longIntegerLongTuple4;
+			}
+		}).partitionByHash(0).map(new MapFunction<T, T>() {
+			public String host = null;
+
+			@Override
+			public T map(T longIntegerLongTuple4) throws Exception {
+				if (host == null) {
+					host = InetAddress.getLocalHost().getHostName();
+				}
+				longIntegerLongTuple4.f4.add(host);
+				longIntegerLongTuple4.f0++;
 				return longIntegerLongTuple4;
 			}
 		}).partitionByHash(0).flatMap(new FlatMapFunction<T, Integer>() {
@@ -115,7 +139,7 @@ public class Latency {
 
 			@Override
 			public void flatMap(T element, Collector<Integer> collector) throws Exception {
-				if(host == null) {
+				if (host == null) {
 					host = InetAddress.getLocalHost().getHostName();
 				}
 				if (start == 0) {
@@ -127,15 +151,15 @@ public class Latency {
 					long now = System.currentTimeMillis();
 
 					// throughput for the last "logfreq" elements
-					if(lastLog == -1) {
+					if (lastLog == -1) {
 						// init (the first)
 						lastLog = now;
 						lastElements = received;
 					} else {
 						long timeDiff = now - lastLog;
 						long elementDiff = received - lastElements;
-						double ex = (1000/(double)timeDiff);
-						LOG.info("During the last {} ms, we received {} elements. That's {} elements/second/core", timeDiff, elementDiff, elementDiff*ex);
+						double ex = (1000 / (double) timeDiff);
+						LOG.info("During the last {} ms, we received {} elements. That's {} elements/second/core", timeDiff, elementDiff, elementDiff * ex);
 						// reinit
 						lastLog = now;
 						lastElements = received;
@@ -143,7 +167,8 @@ public class Latency {
 				}
 				if (element.f2 != 0 && element.f1.equals(host)) {
 					long lat = System.currentTimeMillis() - element.f2;
-					LOG.info("Latency "+lat+" ms from machine " + element.f1+" on host "+host+" with element "+element.f0);
+					element.f4.add(host);
+					LOG.info("Latency " + lat + " ms from machine " + element.f1 + " on host " + host + " with element " + element.f0 + " hosts: " + element.f4);
 				}
 			}
 		});
