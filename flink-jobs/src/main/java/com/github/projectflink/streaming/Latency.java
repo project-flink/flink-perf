@@ -104,7 +104,8 @@ public class Latency {
 		}
 
 		DataStreamSource<T> in = see.addSource(new Source(pt));
-		DataStream<T> part = in.partitionByHash(0);
+		DataStream<T> part = in//.partitionByHash(0);
+		.rebalance();
 		part.map(new MapFunction<T, T>() {
 			public String host = null;
 
@@ -117,7 +118,7 @@ public class Latency {
 				longIntegerLongTuple4.f0++;
 				return longIntegerLongTuple4;
 			}
-		}).partitionByHash(0).map(new MapFunction<T, T>() {
+		}).rebalance().map(new MapFunction<T, T>() {
 			public String host = null;
 
 			@Override
@@ -129,7 +130,7 @@ public class Latency {
 				longIntegerLongTuple4.f0++;
 				return longIntegerLongTuple4;
 			}
-		}).partitionByHash(0).flatMap(new FlatMapFunction<T, Integer>() {
+		}).rebalance().flatMap(new FlatMapFunction<T, Integer>() {
 			public String host = null;
 			long received = 0;
 			long start = 0;
