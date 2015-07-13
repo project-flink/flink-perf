@@ -20,6 +20,7 @@
     <module>spark-jobs</module>
     <module>hadoop-jobs</module>
     <module>perf-common</module>
+    <module>streaming-state-machine</module>
   </modules>
 
   <build>
