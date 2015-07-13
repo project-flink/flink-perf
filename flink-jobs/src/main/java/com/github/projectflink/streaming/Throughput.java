@@ -48,12 +48,12 @@ public class Throughput {
 					}
 				}
 				// move the ID for the latency so that we distribute it among the machines.
-				if(id % latFreq == nextlat) {
+			/*	if(id % latFreq == nextlat) {
 					time = System.currentTimeMillis();
 					if(--nextlat <= 0) {
 						nextlat = 1000;
 					}
-				}
+				} */
 
 				sourceContext.collect(new Tuple4<Long, String, Long, byte[]>(id++, host, time, payload));
 				time = 0;
@@ -84,6 +84,7 @@ public class Throughput {
 		StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
 		see.getConfig().setGlobalJobParameters(pt);
 		see.setNumberOfExecutionRetries(0);
+		see.setParallelism(4);
 
 		if(pt.has("timeout")) {
 			see.setBufferTimeout(pt.getLong("timeout"));
@@ -126,13 +127,13 @@ public class Throughput {
 				if (received % logfreq == 0) {
 					// throughput over entire time
 					long now = System.currentTimeMillis();
-				/*	long sinceSec = ((now - start) / 1000);
+					long sinceSec = ((now - start) / 1000);
 					if (sinceSec == 0) return;
 					LOG.info("Received {} elements since {}. Elements per second {}, GB received {}",
 							received,
 							sinceSec,
 							received / sinceSec,
-							(received * (8 + 8 + 4 + pt.getInt("payload"))) / 1024 / 1024 / 1024); */
+							(received * (8 + 8 + 4 + pt.getInt("payload"))) / 1024 / 1024 / 1024);
 
 					// throughput for the last "logfreq" elements
 					if(lastLog == -1) {
@@ -149,10 +150,10 @@ public class Throughput {
 						lastElements = received;
 					}
 				}
-				if (element.f2 != 0 && element.f1.equals(host)) {
+				/*if (element.f2 != 0 && element.f1.equals(host)) {
 					long lat = System.currentTimeMillis() - element.f2;
 					LOG.info("Latency {} ms from machine " + element.f1, lat);
-				}
+				} */
 			}
 		});
 		//System.out.println("plan = "+see.getExecutionPlan());;

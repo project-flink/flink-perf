@@ -57,4 +57,4 @@ Kafka Topic Utils: /usr/hdp/current/kafka-broker/bin/kafka-topics.sh
 
 /usr/hdp/current/kafka-broker/bin/kafka-topics.sh  --create --topic events-v1 -partitions 120 --replication-factor 1 --zookeeper robert-streaming-m.c.astral-sorter-757.internal:2181,robert-streaming-w-0.c.astral-sorter-757.internal:2181,robert-streaming-w-1.c.astral-sorter-757.internal:2181
 
-/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh  --zookeeper robert-streaming-m.c.astral-sorter-757.internal:2181,robert-streaming-w-0.c.astral-sorter-757.internal:2181,robert-streaming-w-1.c.astral-sorter-757.internal:2181 --topic events-v1
+/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh  --zookeeper robert-streaming-m.c.astral-sorter-757.internal:2181,robert-streaming-w-0.c.astral-sorter-757.internal:2181,robert-streaming-w-1.c.astral-sorter-757.internal:2181 --topic events-v1 --from-beginning
