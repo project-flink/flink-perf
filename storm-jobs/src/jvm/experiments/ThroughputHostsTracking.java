@@ -104,8 +104,10 @@ public class ThroughputHostsTracking {
 		@Override
 		public void fail(Object msgId) {
 			long id = (Long)msgId;
+			ArrayList<String> hosts = new ArrayList<String>();
+			hosts.add(host+"-after-failure");
 			LOG.info("Failed message " + msgId);
-			spoutOutputCollector.emit(new Values(id, this.host, 0L, this.payload), id);
+			spoutOutputCollector.emit(new Values(id, this.host, 0L, this.payload, hosts), id);
 		}
 	}
 
