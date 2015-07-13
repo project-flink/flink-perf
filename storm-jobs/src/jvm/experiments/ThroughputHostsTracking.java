@@ -24,11 +24,11 @@ import java.util.List;
 import java.util.Map;
 
 
-public class Throughput {
+public class ThroughputHostsTracking {
 
-	public static Logger LOG = LoggerFactory.getLogger(Throughput.class);
+	public static Logger LOG = LoggerFactory.getLogger(ThroughputHostsTracking.class);
 
-	public static Fields FIELDS = new Fields("id", "host", "time", "payload");
+	public static Fields FIELDS = new Fields("id", "host", "time", "payload", "hosts");
 
 	public static class Generator extends BaseRichSpout {
 
@@ -79,11 +79,13 @@ public class Throughput {
 					nextlat = 1000;
 				}
 			}
+			ArrayList<String> hosts = new ArrayList<String>();
+			hosts.add(host);
 
 			if(withFt) {
-				spoutOutputCollector.emit(new Values(this.id, this.host, this.time, this.payload), this.id);
+				spoutOutputCollector.emit(new Values(this.id, this.host, this.time, this.payload, hosts), this.id);
 			} else {
-				spoutOutputCollector.emit(new Values(this.id, this.host, this.time, this.payload));
+				spoutOutputCollector.emit(new Values(this.id, this.host, this.time, this.payload, hosts));
 			}
 
 			time = 0;
@@ -112,12 +114,19 @@ public class Throughput {
 		private final boolean withFt;
 		private OutputCollector collector;
 
+		private String host;
+
 		public RepartPassThroughBolt(ParameterTool pt) {
 			this.withFt = pt.has("ft");
 		}
 		@Override
 		public void prepare(Map stormConf, TopologyContext context, OutputCollector collector) {
 			this.collector = collector;
+			try {
+				this.host = InetAddress.getLocalHost().getHostName();
+			} catch (UnknownHostException e) {
+				e.printStackTrace();
+			}
 		}
 
 		@Override
@@ -128,6 +137,9 @@ public class Throughput {
 				Long v = (Long) vals.get(0);
 				v++;
 				vals.set(0, v);
+
+				((List<String>)vals.get(4)).add(host);
+
 				collector.emit(input, vals);
 				// acknowledge the element upstream.
 				collector.ack(input);
@@ -206,7 +218,8 @@ public class Throughput {
 
 			if(input.getLong(2) != 0 && input.getString(1).equals(host)) {
 				long lat = System.currentTimeMillis() - input.getLong(2);
-				LOG.info("Latency {} ms from machine "+host, lat);
+				((List<String>)input.getValues().get(4)).add(host);
+				LOG.info("Latency {} ms from machine "+host+" after hosts "+input.getValues().get(4), lat);
 			}
 
 			if(withFT) {
