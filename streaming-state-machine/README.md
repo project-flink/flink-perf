@@ -48,3 +48,13 @@ Feedback for this example can be sent to mailto:sewen@apache.org
 Docs on Apache Flink can be found at http://flink.apache.org
 
 Check Apache Flink's mailing lists for help on Flink: mailto:user@flink.apache.org
+
+
+# Cluster testing
+
+
+Kafka Topic Utils: /usr/hdp/current/kafka-broker/bin/kafka-topics.sh 
+
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh  --create --topic events-v1 -partitions 120 --replication-factor 1 --zookeeper robert-streaming-m.c.astral-sorter-757.internal:2181,robert-streaming-w-0.c.astral-sorter-757.internal:2181,robert-streaming-w-1.c.astral-sorter-757.internal:2181
+
+/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh  --zookeeper robert-streaming-m.c.astral-sorter-757.internal:2181,robert-streaming-w-0.c.astral-sorter-757.internal:2181,robert-streaming-w-1.c.astral-sorter-757.internal:2181 --topic events-v1
