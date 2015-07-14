@@ -95,10 +95,12 @@ public class PimpedKafkaSink<IN> /*extends RichSinkFunction<IN> */ {
 				}
 				for(Map.Entry<String, Integer> entry : mapping.entries()) {
 					if(entry.getKey().contains(host) || host.contains(entry.getKey())) {
-						if(partitions != null) {
-							throw new RuntimeException("There was already a match for host "+host+" in "+mapping);
-						}
+				//		if(partitions != null) {
+				//			throw new RuntimeException("There was already a match for host "+host+" in "+mapping);
+				//		}
+
 						partitions = new ArrayList<Integer>(mapping.get(entry.getKey()));
+						LOG.info("partitions = {}", partitions);
 					}
 				}
 				//partitions = new ArrayList<Integer>(mapping.get(host));
