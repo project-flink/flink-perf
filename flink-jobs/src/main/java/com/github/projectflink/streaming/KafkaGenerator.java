@@ -28,8 +28,6 @@ public class KafkaGenerator {
 		final ParameterTool pt = ParameterTool.fromArgs(args);
 		see.getConfig().setGlobalJobParameters(pt);
 
-		see.setParallelism(8);
-
 		DataStreamSource<Event> src = see.addSource(new RichParallelSourceFunction<Event>() {
 
 			int min;
