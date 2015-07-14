@@ -3,6 +3,7 @@ package com.github.projectflink.streaming;
 import com.dataartisans.flink.example.eventpattern.Event;
 import com.dataartisans.flink.example.eventpattern.EventsGenerator;
 import com.dataartisans.flink.example.eventpattern.kafka.EventDeSerializer;
+import com.github.projectflink.streaming.utils.PimpedKafkaSink;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.Configuration;
@@ -84,7 +85,8 @@ public class KafkaGenerator {
 			}
 		});
 
-		src.addSink(new KafkaSink<Event>(pt.getRequired("brokerList"), pt.getRequired("topic"), new EventDeSerializer()));
+		String zkServer = pt.get("zookeeper");
+		src.addSink(new KafkaSink<Event>(pt.getRequired("brokerList"), pt.getRequired("topic"), new EventDeSerializer(), new PimpedKafkaSink.LocalKafkaPartitioner(zkServer, pt.getRequired("topic"))));
 
 		see.execute();
 	}
