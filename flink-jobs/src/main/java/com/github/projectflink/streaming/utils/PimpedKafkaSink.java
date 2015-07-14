@@ -87,9 +87,18 @@ public class PimpedKafkaSink<IN> /*extends RichSinkFunction<IN> */ {
 				} catch (UnknownHostException e) {
 					throw new RuntimeException("Can not get host. Locality aware partitioning not possible", e);
 				}
-				partitions = new ArrayList<Integer>(mapping.get(host));
+				for(Map.Entry<String, Integer> entry : mapping.entries()) {
+					if(entry.getKey().contains(host) || host.contains(entry.getKey())) {
+						if(partitions != null) {
+							throw new RuntimeException("There was already a match for host "+host+" in "+mapping);
+						}
+						partitions = new ArrayList<Integer>(mapping.get(entry.getKey()));
+					}
+				}
+				//partitions = new ArrayList<Integer>(mapping.get(host));
 				LOG.info("Host {} is going to send data to partitions: {}", host, partitions);
 			}
+
 			int part = partitions.get(index++);
 			if(index == partitions.size()) {
 				index = 0;
