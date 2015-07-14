@@ -11,8 +11,12 @@ import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.connectors.kafka.api.KafkaSink;
+import org.apache.flink.streaming.connectors.kafka.api.config.PartitionerWrapper;
+import org.apache.flink.streaming.connectors.kafka.partitioner.SerializableKafkaPartitioner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Properties;
 
 
 public class KafkaGenerator {
@@ -23,6 +27,8 @@ public class KafkaGenerator {
 		StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
 		final ParameterTool pt = ParameterTool.fromArgs(args);
 		see.getConfig().setGlobalJobParameters(pt);
+
+		see.setParallelism(8);
 
 		DataStreamSource<Event> src = see.addSource(new RichParallelSourceFunction<Event>() {
 
@@ -86,7 +92,14 @@ public class KafkaGenerator {
 		});
 
 		String zkServer = pt.get("zookeeper");
-		src.addSink(new KafkaSink<Event>(pt.getRequired("brokerList"), pt.getRequired("topic"), new EventDeSerializer(), new PimpedKafkaSink.LocalKafkaPartitioner(zkServer, pt.getRequired("topic"))));
+		SerializableKafkaPartitioner part = new PimpedKafkaSink.LocalKafkaPartitioner(zkServer, pt.getRequired("topic"));
+		Properties props = pt.getProperties();
+		props.put("partitioner.class", PartitionerWrapper.class.getCanonicalName());
+		// java serialization will do the rest.
+		props.put(PartitionerWrapper.SERIALIZED_WRAPPER_NAME, part);
+
+		src.addSink(new PimpedKafkaSink<Event>(pt.getRequired("brokerList"), pt.getRequired("topic"), props, new EventDeSerializer()));
+
 
 		see.execute();
 	}

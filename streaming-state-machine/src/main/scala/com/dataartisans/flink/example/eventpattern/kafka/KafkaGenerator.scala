@@ -28,11 +28,11 @@ import org.apache.flink.util.Collector
  */
 object KafkaGenerator extends StandaloneGeneratorBase {
 
-  val TOPIC = "flink-demo-topic"
+  val TOPIC = "test"
 
   def main(args: Array[String]): Unit = {
 
-    val numPartitions = 4 //args(0).toInt
+    val numPartitions = 1 //args(0).toInt
     val collectors = new Array[KafkaCollector](numPartitions)
 
     // create the generator threads
@@ -62,7 +62,7 @@ class KafkaCollector(private[this] val partition: Int) extends Collector[Event] 
     val serialized = serializer.serialize(t)
 
     producer.send(new KeyedMessage[Event, Array[Byte]](
-      KafkaGenerator.TOPIC, null, partition, serialized))
+      KafkaGenerator.TOPIC, null, t, serialized))
   }
 
   override def close(): Unit = {

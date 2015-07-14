@@ -34,7 +34,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
-public class PimpedKafkaSink<IN> /*extends RichSinkFunction<IN> */ {
+public class PimpedKafkaSink<IN> extends RichSinkFunction<IN>  {
 
 	public static class LocalKafkaPartitioner implements SerializableKafkaPartitioner {
 		private static final Logger LOG = LoggerFactory.getLogger(LocalKafkaPartitioner.class);
@@ -87,14 +87,14 @@ public class PimpedKafkaSink<IN> /*extends RichSinkFunction<IN> */ {
  		@Override
 		public int partition(Object key, int numPartitions) {
 			if(host == null) {
-				LOG.info("Calling partition() the first time");
+				LOG.info("Calling partition() the first time with mapping {}", mapping);
 				try {
 					host = InetAddress.getLocalHost().getHostName();
 				} catch (UnknownHostException e) {
 					throw new RuntimeException("Can not get host. Locality aware partitioning not possible", e);
 				}
 				for(Map.Entry<String, Integer> entry : mapping.entries()) {
-					if(entry.getKey().contains(host) || host.contains(entry.getKey())) {
+					if(entry.getKey().startsWith(host+".") || host.contains(entry.getKey())) {
 				//		if(partitions != null) {
 				//			throw new RuntimeException("There was already a match for host "+host+" in "+mapping);
 				//		}
@@ -106,6 +106,14 @@ public class PimpedKafkaSink<IN> /*extends RichSinkFunction<IN> */ {
 				//partitions = new ArrayList<Integer>(mapping.get(host));
 				LOG.info("Host {} is going to send data to partitions: {}", host, partitions);
 			}
+			// default to simple round robin
+			if(partitions == null) {
+				int part = index++;
+				if(index == numPartitions) {
+					index = 0;
+				}
+				return part;
+			}
 
 			int part = partitions.get(index++);
 			if(index == partitions.size()) {
@@ -115,156 +123,156 @@ public class PimpedKafkaSink<IN> /*extends RichSinkFunction<IN> */ {
 		}
 	}
 
-//	private static final long serialVersionUID = 1L;
-//
-//	private static final Logger LOG = LoggerFactory.getLogger(PimpedKafkaSink.class);
-//
-//	private Producer<IN, byte[]> producer;
-//	private Properties userDefinedProperties;
-//	private String topicId;
-//	private String brokerList;
-//	private SerializationSchema<IN, byte[]> schema;
-//	private SerializableKafkaPartitioner partitioner;
-//	private Class<? extends SerializableKafkaPartitioner> partitionerClass = null;
-//
-//	/**
-//	 * Creates a KafkaSink for a given topic. The sink produces its input to
-//	 * the topic.
-//	 *
-//	 * @param brokerList
-//	 *			Addresses of the brokers
-//	 * @param topicId
-//	 * 		ID of the Kafka topic.
-//	 * @param serializationSchema
-//	 * 		User defined serialization schema.
-//	 */
-//	public PimpedKafkaSink(String brokerList, String topicId,
-//					 SerializationSchema<IN, byte[]> serializationSchema) {
-//		this(brokerList, topicId, new Properties(), serializationSchema);
-//	}
-//
-//	/**
-//	 * Creates a KafkaSink for a given topic with custom Producer configuration.
-//	 * If you use this constructor, the broker should be set with the "metadata.broker.list"
-//	 * configuration.
-//	 *
-//	 * @param brokerList
-//	 * 		Addresses of the brokers
-//	 * @param topicId
-//	 * 		ID of the Kafka topic.
-//	 * @param producerConfig
-//	 * 		Configurations of the Kafka producer
-//	 * @param serializationSchema
-//	 * 		User defined serialization schema.
-//	 */
-//	public PimpedKafkaSink(String brokerList, String topicId, Properties producerConfig,
-//					 SerializationSchema<IN, byte[]> serializationSchema) {
-//		String[] elements = brokerList.split(",");
-//		for(String broker: elements) {
-//			NetUtils.ensureCorrectHostnamePort(broker);
-//		}
-//		Preconditions.checkNotNull(topicId, "TopicID not set");
-//
-//		this.brokerList = brokerList;
-//		this.topicId = topicId;
-//		this.schema = serializationSchema;
-//		this.partitionerClass = null;
-//		this.userDefinedProperties = producerConfig;
-//	}
-//
-//	/**
-//	 * Creates a KafkaSink for a given topic. The sink produces its input to
-//	 * the topic.
-//	 *
-//	 * @param brokerList
-//	 * @param topicId
-//	 * 		ID of the Kafka topic.
-//	 * @param serializationSchema
-//	 * 		User defined serialization schema.
-//	 * @param partitioner
-//	 * 		User defined partitioner.
-//	 */
-//	public PimpedKafkaSink(String brokerList, String topicId,
-//					 SerializationSchema<IN, byte[]> serializationSchema, SerializableKafkaPartitioner partitioner) {
-//		this(brokerList, topicId, serializationSchema);
-//		ClosureCleaner.ensureSerializable(partitioner);
-//		this.partitioner = partitioner;
-//	}
-//
-//	public PimpedKafkaSink(String brokerList,
-//					 String topicId,
-//					 SerializationSchema<IN, byte[]> serializationSchema,
-//					 Class<? extends SerializableKafkaPartitioner> partitioner) {
-//		this(brokerList, topicId, serializationSchema);
-//		this.partitionerClass = partitioner;
-//	}
-//
-//	/**
-//	 * Initializes the connection to Kafka.
-//	 */
-//	@Override
-//	public void open(Configuration configuration) throws UnknownHostException {
-//
-//		Properties properties = new Properties();
-//		List<String> brokers = new ArrayList<String>();
-//		String[] elements = brokerList.split(",");
-//		String host = InetAddress.getLocalHost().getHostName();
-//		for(String broker: elements) {
-//			if(broker.contains(host)) {
-//				brokers.add(broker);
-//			}
-//		}
-//
-//		properties.put("metadata.broker.list", StringUtils.join(brokers, ","));
-//
-//		properties.put("request.required.acks", "-1");
-//		properties.put("message.send.max.retries", "10");
-//
-//		properties.put("serializer.class", DefaultEncoder.class.getCanonicalName());
-//
-//		// this will not be used as the key will not be serialized
-//		properties.put("key.serializer.class", DefaultEncoder.class.getCanonicalName());
-//
-//		for (Map.Entry<Object, Object> propertiesEntry : userDefinedProperties.entrySet()) {
-//			properties.put(propertiesEntry.getKey(), propertiesEntry.getValue());
-//		}
-//
-//		if (partitioner != null) {
-//			properties.put("partitioner.class", PartitionerWrapper.class.getCanonicalName());
-//			// java serialization will do the rest.
-//			properties.put(PartitionerWrapper.SERIALIZED_WRAPPER_NAME, partitioner);
-//		}
-//		if (partitionerClass != null) {
-//			properties.put("partitioner.class", partitionerClass);
-//		}
-//
-//		ProducerConfig config = new ProducerConfig(properties);
-//
-//		try {
-//			producer = new Producer<IN, byte[]>(config);
-//		} catch (NullPointerException e) {
-//			throw new RuntimeException("Cannot connect to Kafka broker " + brokerList, e);
-//		}
-//	}
-//
-//	/**
-//	 * Called when new data arrives to the sink, and forwards it to Kafka.
-//	 *
-//	 * @param next
-//	 * 		The incoming data
-//	 */
-//	@Override
-//	public void invoke(IN next) {
-//		byte[] serialized = schema.serialize(next);
-//
-//		// Sending message without serializable key.
-//		producer.send(new KeyedMessage<IN, byte[]>(topicId, null, next, serialized));
-//	}
-//
-//	@Override
-//	public void close() {
-//		if (producer != null) {
-//			producer.close();
-//		}
-//	}
+	private static final long serialVersionUID = 1L;
+
+	private static final Logger LOG = LoggerFactory.getLogger(PimpedKafkaSink.class);
+
+	private Producer<IN, byte[]> producer;
+	private Properties userDefinedProperties;
+	private String topicId;
+	private String brokerList;
+	private SerializationSchema<IN, byte[]> schema;
+	private SerializableKafkaPartitioner partitioner;
+	private Class<? extends SerializableKafkaPartitioner> partitionerClass = null;
+
+	/**
+	 * Creates a KafkaSink for a given topic. The sink produces its input to
+	 * the topic.
+	 *
+	 * @param brokerList
+	 *			Addresses of the brokers
+	 * @param topicId
+	 * 		ID of the Kafka topic.
+	 * @param serializationSchema
+	 * 		User defined serialization schema.
+	 */
+	public PimpedKafkaSink(String brokerList, String topicId,
+					 SerializationSchema<IN, byte[]> serializationSchema) {
+		this(brokerList, topicId, new Properties(), serializationSchema);
+	}
+
+	/**
+	 * Creates a KafkaSink for a given topic with custom Producer configuration.
+	 * If you use this constructor, the broker should be set with the "metadata.broker.list"
+	 * configuration.
+	 *
+	 * @param brokerList
+	 * 		Addresses of the brokers
+	 * @param topicId
+	 * 		ID of the Kafka topic.
+	 * @param producerConfig
+	 * 		Configurations of the Kafka producer
+	 * @param serializationSchema
+	 * 		User defined serialization schema.
+	 */
+	public PimpedKafkaSink(String brokerList, String topicId, Properties producerConfig,
+					 SerializationSchema<IN, byte[]> serializationSchema) {
+		String[] elements = brokerList.split(",");
+		for(String broker: elements) {
+			NetUtils.ensureCorrectHostnamePort(broker);
+		}
+		Preconditions.checkNotNull(topicId, "TopicID not set");
+
+		this.brokerList = brokerList;
+		this.topicId = topicId;
+		this.schema = serializationSchema;
+		this.partitionerClass = null;
+		this.userDefinedProperties = producerConfig;
+	}
+
+	/**
+	 * Creates a KafkaSink for a given topic. The sink produces its input to
+	 * the topic.
+	 *
+	 * @param brokerList
+	 * @param topicId
+	 * 		ID of the Kafka topic.
+	 * @param serializationSchema
+	 * 		User defined serialization schema.
+	 * @param partitioner
+	 * 		User defined partitioner.
+	 */
+	public PimpedKafkaSink(String brokerList, String topicId,
+					 SerializationSchema<IN, byte[]> serializationSchema, SerializableKafkaPartitioner partitioner) {
+		this(brokerList, topicId, serializationSchema);
+		ClosureCleaner.ensureSerializable(partitioner);
+		this.partitioner = partitioner;
+	}
+
+	public PimpedKafkaSink(String brokerList,
+					 String topicId,
+					 SerializationSchema<IN, byte[]> serializationSchema,
+					 Class<? extends SerializableKafkaPartitioner> partitioner) {
+		this(brokerList, topicId, serializationSchema);
+		this.partitionerClass = partitioner;
+	}
+
+	/**
+	 * Initializes the connection to Kafka.
+	 */
+	@Override
+	public void open(Configuration configuration) throws UnknownHostException {
+
+		Properties properties = new Properties();
+		List<String> brokers = new ArrayList<String>();
+		String[] elements = brokerList.split(",");
+		String host = InetAddress.getLocalHost().getHostName();
+		for(String broker: elements) {
+			if(broker.contains(host)) {
+				brokers.add(broker);
+			}
+		}
+
+		properties.put("metadata.broker.list", StringUtils.join(brokers, ","));
+
+	//	properties.put("request.required.acks", "-1");
+		properties.put("message.send.max.retries", "10");
+
+		properties.put("serializer.class", DefaultEncoder.class.getCanonicalName());
+
+		// this will not be used as the key will not be serialized
+		properties.put("key.serializer.class", DefaultEncoder.class.getCanonicalName());
+
+		for (Map.Entry<Object, Object> propertiesEntry : userDefinedProperties.entrySet()) {
+			properties.put(propertiesEntry.getKey(), propertiesEntry.getValue());
+		}
+
+		if (partitioner != null) {
+			properties.put("partitioner.class", PartitionerWrapper.class.getCanonicalName());
+			// java serialization will do the rest.
+			properties.put(PartitionerWrapper.SERIALIZED_WRAPPER_NAME, partitioner);
+		}
+		if (partitionerClass != null) {
+			properties.put("partitioner.class", partitionerClass);
+		}
+
+		ProducerConfig config = new ProducerConfig(properties);
+
+		try {
+			producer = new Producer<IN, byte[]>(config);
+		} catch (NullPointerException e) {
+			throw new RuntimeException("Cannot connect to Kafka broker " + brokerList, e);
+		}
+	}
+
+	/**
+	 * Called when new data arrives to the sink, and forwards it to Kafka.
+	 *
+	 * @param next
+	 * 		The incoming data
+	 */
+	@Override
+	public void invoke(IN next) {
+		byte[] serialized = schema.serialize(next);
+
+		// Sending message without serializable key.
+		producer.send(new KeyedMessage<IN, byte[]>(topicId, null, next, serialized));
+	}
+
+	@Override
+	public void close() {
+		if (producer != null) {
+			producer.close();
+		}
+	}
 }

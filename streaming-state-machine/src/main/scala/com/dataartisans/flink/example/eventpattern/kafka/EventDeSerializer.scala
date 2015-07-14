@@ -36,11 +36,16 @@ class EventDeSerializer extends DeserializationSchema[Event] with SerializationS
     Event(address, eventType)
   }
 
+  @transient var byteBuffer = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN)
   override def serialize(t: Event): Array[Byte] = {
-    val byteBuffer = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN)
+    if(byteBuffer == null) {
+      byteBuffer = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN)
+    }
     byteBuffer.putInt(0, t.sourceAddress)
     byteBuffer.putInt(4, t.event)
-    byteBuffer.array()
+    val ar = byteBuffer.array()
+    byteBuffer.clear()
+    ar
   }
 
   override def isEndOfStream(t: Event): Boolean = false
