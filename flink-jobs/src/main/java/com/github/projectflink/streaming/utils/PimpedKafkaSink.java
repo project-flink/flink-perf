@@ -226,7 +226,7 @@ public class PimpedKafkaSink<IN> extends RichSinkFunction<IN>  {
 		properties.put("metadata.broker.list", StringUtils.join(brokers, ","));
 
 	//	properties.put("request.required.acks", "-1");
-		properties.put("message.send.max.retries", "10");
+	//	properties.put("message.send.max.retries", "10");
 
 		properties.put("serializer.class", DefaultEncoder.class.getCanonicalName());
 

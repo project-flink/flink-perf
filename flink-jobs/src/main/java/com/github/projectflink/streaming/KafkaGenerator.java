@@ -27,6 +27,9 @@ public class KafkaGenerator {
 		StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
 		final ParameterTool pt = ParameterTool.fromArgs(args);
 		see.getConfig().setGlobalJobParameters(pt);
+		if(pt.has("p")) {
+			see.setParallelism(pt.getInt("p"));
+		}
 
 		DataStreamSource<Event> src = see.addSource(new RichParallelSourceFunction<Event>() {
 

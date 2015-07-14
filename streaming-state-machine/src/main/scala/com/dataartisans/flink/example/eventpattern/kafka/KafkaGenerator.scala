@@ -21,6 +21,7 @@ import java.util.Properties
 import com.dataartisans.flink.example.eventpattern.{StandaloneGeneratorBase, Event}
 import kafka.producer.{KeyedMessage, Producer, ProducerConfig}
 import kafka.serializer.DefaultEncoder
+import org.apache.flink.api.java.utils.ParameterTool
 import org.apache.flink.util.Collector
 
 /**
@@ -31,26 +32,29 @@ object KafkaGenerator extends StandaloneGeneratorBase {
   val TOPIC = "test"
 
   def main(args: Array[String]): Unit = {
+    val pt = ParameterTool.fromArgs(args)
 
     val numPartitions = 1 //args(0).toInt
     val collectors = new Array[KafkaCollector](numPartitions)
 
     // create the generator threads
     for (i <- 0 until collectors.length) {
-      collectors(i) = new KafkaCollector(i)
+      collectors(i) = new KafkaCollector(i, pt)
     }
 
     runGenerator(collectors)
   }
 }
 
-class KafkaCollector(private[this] val partition: Int) extends Collector[Event] {
+class KafkaCollector(private[this] val partition: Int, private val pt: ParameterTool) extends Collector[Event] {
 
   // create Kafka producer
   val properties = new Properties()
   properties.put("metadata.broker.list", "localhost:9092")
   properties.put("serializer.class", classOf[DefaultEncoder].getCanonicalName)
   properties.put("key.serializer.class", classOf[DefaultEncoder].getCanonicalName)
+
+  properties.putAll(pt.toMap)
 
   val config: ProducerConfig = new ProducerConfig(properties)
 
