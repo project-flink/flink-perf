@@ -53,7 +53,7 @@ public class KafkaGenerator {
 				while(running) {
 					Event gen = eg.next(min, max);
 					sourceContext.collect(gen);
-					LOG.info("Generated event {}", gen);
+				//	LOG.info("Generated event {}", gen);
 
 					generated++;
 					if (generated % logfreq == 0) {
