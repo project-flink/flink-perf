@@ -39,12 +39,17 @@ public class PimpedKafkaSink<IN> /*extends RichSinkFunction<IN> */ {
 	public static class LocalKafkaPartitioner implements SerializableKafkaPartitioner {
 		private static final Logger LOG = LoggerFactory.getLogger(LocalKafkaPartitioner.class);
 
-		private final HashMultimap<String, Integer> mapping;
+		private HashMultimap<String, Integer> mapping;
 		private String host;
 		private ArrayList<Integer> partitions;
 		private int index = 0;
 
+		public LocalKafkaPartitioner() {
+			LOG.info("Calling empty ctor");
+		}
+
 		public LocalKafkaPartitioner(String zkServer, String topicName) {
+			LOG.info("Calling regular ctor of lkp");
 			// get mapping hostname(string)->partitionId
 			ZkClient zkClient = new ZkClient(zkServer, 1000, 1000, new PersistentKafkaSource.KafkaZKStringSerializer());
 
@@ -82,6 +87,7 @@ public class PimpedKafkaSink<IN> /*extends RichSinkFunction<IN> */ {
  		@Override
 		public int partition(Object key, int numPartitions) {
 			if(host == null) {
+				LOG.info("Calling partition() the first time");
 				try {
 					host = InetAddress.getLocalHost().getHostName();
 				} catch (UnknownHostException e) {
