@@ -14,6 +14,7 @@ import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.connectors.kafka.api.config.PartitionerWrapper;
+import org.apache.flink.streaming.connectors.kafka.api.persistent.PersistentKafkaSource;
 import org.apache.flink.streaming.connectors.kafka.partitioner.SerializableKafkaPartitioner;
 import org.apache.flink.streaming.util.serialization.SerializationSchema;
 import org.apache.flink.util.NetUtils;
@@ -45,7 +46,7 @@ public class PimpedKafkaSink<IN> /*extends RichSinkFunction<IN> */ {
 
 		public LocalKafkaPartitioner(String zkServer, String topicName) {
 			// get mapping hostname(string)->partitionId
-			ZkClient zkClient = new ZkClient(zkServer);
+			ZkClient zkClient = new ZkClient(zkServer, 1000, 1000, new PersistentKafkaSource.KafkaZKStringSerializer());
 
 			scala.collection.Seq<Broker> zkBrokersScala = ZkUtils.getAllBrokersInCluster(zkClient);
 			Collection<Broker> zkBrokersColl = JavaConversions.asJavaCollection(zkBrokersScala);
@@ -59,6 +60,10 @@ public class PimpedKafkaSink<IN> /*extends RichSinkFunction<IN> */ {
 			scala.collection.Seq<Object> topicSeq = topicOpt.get();
 
 			Collection<Object> partitionIds = JavaConversions.asJavaCollection(topicSeq);
+
+			if(partitionIds.size() == 0) {
+				throw new RuntimeException("The topic "+topicName+" does not have any partitions");
+			}
 			// Map<String, Integer> mapping = new HashMap<String, Integer>(partitionIds.size());
 			this.mapping = HashMultimap.create();
 
@@ -71,6 +76,7 @@ public class PimpedKafkaSink<IN> /*extends RichSinkFunction<IN> */ {
 					}
 				}
 			}
+			LOG.info("Created mapping " + mapping);
 		}
 
  		@Override
