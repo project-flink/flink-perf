@@ -21,7 +21,9 @@ import java.util.Properties
 import com.dataartisans.flink.example.eventpattern.{StandaloneGeneratorBase, Event}
 import kafka.producer.{KeyedMessage, Producer, ProducerConfig}
 import kafka.serializer.DefaultEncoder
+import kafka.utils.VerifiableProperties
 import org.apache.flink.api.java.utils.ParameterTool
+import org.apache.flink.streaming.connectors.kafka.api.config.PartitionerWrapper
 import org.apache.flink.util.Collector
 
 /**
@@ -45,6 +47,9 @@ object KafkaGenerator extends StandaloneGeneratorBase {
     runGenerator(collectors)
   }
 }
+class AllToOne(props: VerifiableProperties) extends kafka.producer.Partitioner {
+  override def partition(key: Any, numPartitions: Int): Int = 68
+}
 
 class KafkaCollector(private[this] val partition: Int, private val pt: ParameterTool) extends Collector[Event] {
 
@@ -53,6 +58,7 @@ class KafkaCollector(private[this] val partition: Int, private val pt: Parameter
   properties.put("metadata.broker.list", "localhost:9092")
   properties.put("serializer.class", classOf[DefaultEncoder].getCanonicalName)
   properties.put("key.serializer.class", classOf[DefaultEncoder].getCanonicalName)
+  properties.put("partitioner.class", classOf[AllToOne].getCanonicalName)
 
   properties.putAll(pt.toMap)
 
