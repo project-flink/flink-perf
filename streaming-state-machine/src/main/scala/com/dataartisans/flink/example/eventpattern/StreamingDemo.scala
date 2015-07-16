@@ -101,7 +101,7 @@ class StateMachineMapper(val pt: ParameterTool) extends FlatMapFunction[Event, S
   val logfreq = pt.getInt("logFreq")
   
   override def flatMap(t: Event, out: Collector[String]): Unit = {
-    
+
     // get and remove the current state
     val state = states.remove(t.sourceAddress).getOrElse(InitialState)
     

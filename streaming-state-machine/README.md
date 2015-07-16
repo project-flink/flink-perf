@@ -63,7 +63,7 @@ Kafka Topic Utils: /usr/hdp/current/kafka-broker/bin/kafka-topics.sh
 
 Get consumer offsets
 
-/usr/hdp/current/kafka-broker/bin/kafka-run-class.sh kafka.tools.ConsumerOffsetChecker --zkconnect robert-streaming-m.c.astral-sorter-757.internal:2181,robert-streaming-w-0.c.astral-sorter-757.internal:2181,robert-streaming-w-1.c.astral-sorter-757.internal:2181 --topic events-v1 --group flink-streaming-demo
+/usr/hdp/current/kafka-broker/bin/kafka-run-class.sh kafka.tools.ConsumerOffsetChecker --zkconnect robert-streaming-m.c.astral-sorter-757.internal:2181,robert-streaming-w-0.c.astral-sorter-757.internal:2181,robert-streaming-w-1.c.astral-sorter-757.internal:2181 --topic events-v1 --group standalone-reader
 
 
 get partition offsets
@@ -73,4 +73,11 @@ get partition offsets
 
 standalone reader
 
-java -cp target/flink-jobs-0.1-SNAPSHOT.jar com.github.projectflink.streaming.StandaloneKafkaReader --zookeeper.connect obert-streaming-m.c.astral-sorter-757.internal:2181,robert-streaming-w-0.c.astral-sorter-757.internal:2181,robert-streaming-w-1.c.astral-sorter-757.internal:2181 --topic events-v1 --group standalone-reader --logfreq 100000 --auto.offset.reset smallest
+java -cp target/flink-jobs-0.1-SNAPSHOT.jar com.github.projectflink.streaming.StandaloneKafkaReader --zookeeper.connect robert-streaming-m.c.astral-sorter-757.internal:2181,robert-streaming-w-0.c.astral-sorter-757.internal:2181,robert-streaming-w-1.c.astral-sorter-757.internal:2181 --topic events-v1 --group.id standalone-reader --logfreq 100000 --auto.offset.reset smallest
+
+
+flink simple reader (equal to standalone reader)
+
+./bin/flink run -c com.github.projectflink.streaming.FlinkKafkaReader -p 1 /home/robert/flink-perf/flink-jobs/target/flink-jobs-0.1-SNAPSHOT.jar --zookeeper.connect robert-streaming-m.c.astral-sorter-757.internal:2181,robert-streaming-w-0.c.astral-sorter-757.internal:2181,robert-streaming-w-1.c.astral-sorter-757.internal:2181 --topic events-v1 --group.id flink-reader --logfreq 1000000 --auto.offset.reset smallest --auto.commit.enable false
+
+

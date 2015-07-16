@@ -31,12 +31,11 @@ import org.apache.flink.util.Collector
  */
 object KafkaGenerator extends StandaloneGeneratorBase {
 
-  val TOPIC = "test"
 
   def main(args: Array[String]): Unit = {
     val pt = ParameterTool.fromArgs(args)
 
-    val numPartitions = 1 //args(0).toInt
+    val numPartitions = pt.getInt("threads")
     val collectors = new Array[KafkaCollector](numPartitions)
 
     // create the generator threads
@@ -58,7 +57,7 @@ class KafkaCollector(private[this] val partition: Int, private val pt: Parameter
   properties.put("metadata.broker.list", "localhost:9092")
   properties.put("serializer.class", classOf[DefaultEncoder].getCanonicalName)
   properties.put("key.serializer.class", classOf[DefaultEncoder].getCanonicalName)
-  properties.put("partitioner.class", classOf[AllToOne].getCanonicalName)
+ // properties.put("partitioner.class", classOf[AllToOne].getCanonicalName)
 
   properties.putAll(pt.toMap)
 
@@ -67,12 +66,12 @@ class KafkaCollector(private[this] val partition: Int, private val pt: Parameter
   val producer = new Producer[Event, Array[Byte]](config)
 
   val serializer = new EventDeSerializer()
+  val topic = pt.getRequired("topic")
 
   override def collect(t: Event): Unit = {
     val serialized = serializer.serialize(t)
 
-    producer.send(new KeyedMessage[Event, Array[Byte]](
-      KafkaGenerator.TOPIC, null, t, serialized))
+    producer.send(new KeyedMessage[Event, Array[Byte]](topic, null, t, serialized))
   }
 
   override def close(): Unit = {
