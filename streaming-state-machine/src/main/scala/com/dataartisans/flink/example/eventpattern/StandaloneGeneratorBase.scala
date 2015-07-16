@@ -40,7 +40,7 @@ abstract class StandaloneGeneratorBase {
       thread.setName("Generator " + i)
     }
     
-    var delay: Long = 2L
+    var delay: Long = 0L
     var nextErroneous: Int = 0
     var running: Boolean = true
     

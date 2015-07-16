@@ -18,6 +18,9 @@ import org.apache.flink.streaming.connectors.kafka.api.persistent.PersistentKafk
 import org.apache.flink.streaming.connectors.kafka.partitioner.SerializableKafkaPartitioner;
 import org.apache.flink.streaming.util.serialization.SerializationSchema;
 import org.apache.flink.util.NetUtils;
+import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Option;
@@ -127,7 +130,8 @@ public class PimpedKafkaSink<IN> extends RichSinkFunction<IN>  {
 
 	private static final Logger LOG = LoggerFactory.getLogger(PimpedKafkaSink.class);
 
-	private Producer<IN, byte[]> producer;
+	private KafkaProducer<IN, byte[]> producer;
+
 	private Properties userDefinedProperties;
 	private String topicId;
 	private String brokerList;
@@ -223,15 +227,15 @@ public class PimpedKafkaSink<IN> extends RichSinkFunction<IN>  {
 			}
 		}
 
-		properties.put("metadata.broker.list", StringUtils.join(brokers, ","));
+		properties.put("bootstrap.servers", StringUtils.join(brokers, ","));
 
 	//	properties.put("request.required.acks", "-1");
 	//	properties.put("message.send.max.retries", "10");
 
-		properties.put("serializer.class", DefaultEncoder.class.getCanonicalName());
+		properties.put("value.serializer", ByteArraySerializer.class.getCanonicalName());
 
 		// this will not be used as the key will not be serialized
-		properties.put("key.serializer.class", DefaultEncoder.class.getCanonicalName());
+		properties.put("key.serializer", ByteArraySerializer.class.getCanonicalName());
 
 		for (Map.Entry<Object, Object> propertiesEntry : userDefinedProperties.entrySet()) {
 			properties.put(propertiesEntry.getKey(), propertiesEntry.getValue());
@@ -246,10 +250,8 @@ public class PimpedKafkaSink<IN> extends RichSinkFunction<IN>  {
 			properties.put("partitioner.class", partitionerClass);
 		}
 
-		ProducerConfig config = new ProducerConfig(properties);
-
 		try {
-			producer = new Producer<IN, byte[]>(config);
+			producer = new KafkaProducer<IN, byte[]>(properties);
 		} catch (NullPointerException e) {
 			throw new RuntimeException("Cannot connect to Kafka broker " + brokerList, e);
 		}
@@ -266,7 +268,7 @@ public class PimpedKafkaSink<IN> extends RichSinkFunction<IN>  {
 		byte[] serialized = schema.serialize(next);
 
 		// Sending message without serializable key.
-		producer.send(new KeyedMessage<IN, byte[]>(topicId, null, next, serialized));
+		producer.send(new ProducerRecord<IN, byte[]>(topicId, null, next, serialized));
 	}
 
 	@Override

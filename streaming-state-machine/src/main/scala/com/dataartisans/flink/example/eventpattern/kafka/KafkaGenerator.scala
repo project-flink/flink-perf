@@ -25,6 +25,8 @@ import kafka.utils.VerifiableProperties
 import org.apache.flink.api.java.utils.ParameterTool
 import org.apache.flink.streaming.connectors.kafka.api.config.PartitionerWrapper
 import org.apache.flink.util.Collector
+import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord}
+import org.apache.kafka.common.serialization.ByteArraySerializer
 
 /**
  * A generator that pushes the data into Kafka.
@@ -54,24 +56,27 @@ class KafkaCollector(private[this] val partition: Int, private val pt: Parameter
 
   // create Kafka producer
   val properties = new Properties()
-  properties.put("metadata.broker.list", "localhost:9092")
-  properties.put("serializer.class", classOf[DefaultEncoder].getCanonicalName)
-  properties.put("key.serializer.class", classOf[DefaultEncoder].getCanonicalName)
+  properties.put("bootstrap.servers", "localhost:9092")
+  properties.put("value.serializer", classOf[ByteArraySerializer].getCanonicalName)
+  properties.put("key.serializer", classOf[ByteArraySerializer].getCanonicalName)
  // properties.put("partitioner.class", classOf[AllToOne].getCanonicalName)
 
   properties.putAll(pt.toMap)
 
-  val config: ProducerConfig = new ProducerConfig(properties)
+ // val config: ProducerConfig = new ProducerConfig()
 
-  val producer = new Producer[Event, Array[Byte]](config)
+  val producer = new KafkaProducer[Event, Array[Byte]](properties)
 
   val serializer = new EventDeSerializer()
   val topic = pt.getRequired("topic")
 
+  var serLen = 0L
   override def collect(t: Event): Unit = {
     val serialized = serializer.serialize(t)
+    serLen = serLen + serialized.length
 
-    producer.send(new KeyedMessage[Event, Array[Byte]](topic, null, t, serialized))
+   // producer.send(new KeyedMessage[Event, Array[Byte]](topic, null, t, serialized))
+    producer.send(new ProducerRecord[Event, Array[Byte]](topic, null, serialized))
   }
 
   override def close(): Unit = {
