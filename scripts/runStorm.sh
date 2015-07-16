@@ -18,7 +18,8 @@ start_job() {
 	echo -n "$1;$JOB_ID;$REPART;$FT;" >> $LOG
 	echo "Starting job on Storm with $1 workers, repart $REPART"
 	PARA=`echo $1*4 | bc`
-	storm jar $STORM_JOB_TARGET/storm-jobs-0.1-SNAPSHOT.jar experiments.Throughput --delay $DELAY $FT --sleepFreq $SLEEP_FREQ --repartitions $REPART --para $1 --name $JOB_ID --payload 12 --logfreq 100000 --sourceParallelism $PARA --sinkParallelism $PARA --latencyFreq 10000 | tee lastJobOutput
+	# experiments.Throughput
+	storm jar $STORM_JOB_TARGET/storm-jobs-0.1-SNAPSHOT.jar experiments.ThroughputHostsTracking --delay $DELAY $FT --sleepFreq $SLEEP_FREQ --repartitions $REPART --para $1 --name $JOB_ID --payload 12 --logfreq 10000 --sourceParallelism $PARA --sinkParallelism $PARA --latencyFreq 2000 | tee lastJobOutput
 }
 
 append() {
@@ -63,9 +64,11 @@ function experiment() {
 
 echo "machines;job-id;duration-sec;lat-mean;lat-median;lat-90percentile;lat-95percentile;lat-99percentile;throughput-mean;throughput-max;latencies;throughputs" >> $LOG
 
-REPART=2
-DURATION=100
-experiment 30 $DURATION
+REPART=4
+DURATION=180
+#experiment 30 $DURATION
+
+SLEEP_FREQ=1
 
 FT=" --ft "
 experiment 30 $DURATION
@@ -86,10 +89,6 @@ DURATION=900
 #experiment 30 $DURATION
 #experiment 30 $DURATION
 
-REPART=1
-experiment 30 $DURATION
-experiment 30 $DURATION
-experiment 30 $DURATION
 
 REPART=2
 experiment 30 $DURATION
@@ -103,10 +102,6 @@ experiment 30 $DURATION
 
 FT=" --ft "
 
-REPART=1
-experiment 30 $DURATION
-experiment 30 $DURATION
-experiment 30 $DURATION
 
 REPART=2
 experiment 30 $DURATION
