@@ -91,11 +91,12 @@ public class KafkaGenerator {
 		});
 
 		String zkServer = pt.get("zookeeper");
-		SerializableKafkaPartitioner part = new PimpedKafkaSink.LocalKafkaPartitioner(zkServer, pt.getRequired("topic"));
 		Properties props = pt.getProperties();
+
+	/*	SerializableKafkaPartitioner part = new PimpedKafkaSink.LocalKafkaPartitioner(zkServer, pt.getRequired("topic"));
 		props.put("partitioner.class", PartitionerWrapper.class.getCanonicalName());
 		// java serialization will do the rest.
-		props.put(PartitionerWrapper.SERIALIZED_WRAPPER_NAME, part);
+		props.put(PartitionerWrapper.SERIALIZED_WRAPPER_NAME, part); */
 
 		src.addSink(new PimpedKafkaSink<Event>(pt.getRequired("brokerList"), pt.getRequired("topic"), props, new EventDeSerializer()));
 
