@@ -204,10 +204,10 @@ public class Throughput {
 				}
 			}
 
-			if(input.getLong(2) != 0 && input.getString(1).equals(host)) {
+		/*	if(input.getLong(2) != 0 && input.getString(1).equals(host)) {
 				long lat = System.currentTimeMillis() - input.getLong(2);
 				LOG.info("Latency {} ms from machine "+host, lat);
-			}
+			} */
 
 			if(withFT) {
 				collector.ack(input);
