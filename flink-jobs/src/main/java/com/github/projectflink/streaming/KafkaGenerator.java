@@ -55,10 +55,10 @@ public class KafkaGenerator {
 				long lastLog = -1;
 				long lastElements = 0;
 
-				while(running) {
+				while (running) {
 					Event gen = eg.next(min, max);
 					sourceContext.collect(gen);
-				//	LOG.info("Generated event {}", gen);
+					//	LOG.info("Generated event {}", gen);
 
 					generated++;
 					if (generated % logfreq == 0) {
@@ -66,15 +66,15 @@ public class KafkaGenerator {
 						long now = System.currentTimeMillis();
 
 						// throughput for the last "logfreq" elements
-						if(lastLog == -1) {
+						if (lastLog == -1) {
 							// init (the first)
 							lastLog = now;
 							lastElements = generated;
 						} else {
 							long timeDiff = now - lastLog;
 							long elementDiff = generated - lastElements;
-							double ex = (1000/(double)timeDiff);
-							LOG.info("During the last {} ms, we generated {} elements. That's {} elements/second/core", timeDiff, elementDiff, elementDiff*ex);
+							double ex = (1000 / (double) timeDiff);
+							LOG.info("During the last {} ms, we generated {} elements. That's {} elements/second/core", timeDiff, elementDiff, elementDiff * ex);
 							// reinit
 							lastLog = now;
 							lastElements = generated;
@@ -93,10 +93,13 @@ public class KafkaGenerator {
 		String zkServer = pt.get("zookeeper");
 		Properties props = pt.getProperties();
 
-	/*	SerializableKafkaPartitioner part = new PimpedKafkaSink.LocalKafkaPartitioner(zkServer, pt.getRequired("topic"));
-		props.put("partitioner.class", PartitionerWrapper.class.getCanonicalName());
-		// java serialization will do the rest.
-		props.put(PartitionerWrapper.SERIALIZED_WRAPPER_NAME, part); */
+
+		if(pt.has("localPartitioner")) {
+			SerializableKafkaPartitioner part = new PimpedKafkaSink.LocalKafkaPartitioner(zkServer, pt.getRequired("topic"));
+			props.put("partitioner.class", PartitionerWrapper.class.getCanonicalName());
+			// java serialization will do the rest.
+			props.put(PartitionerWrapper.SERIALIZED_WRAPPER_NAME, part);
+		}
 
 		src.addSink(new PimpedKafkaSink<Event>(pt.getRequired("brokerList"), pt.getRequired("topic"), props, new EventDeSerializer()));
 
