@@ -70,3 +70,7 @@ get partition offsets
 
 /usr/hdp/current/kafka-broker/bin/kafka-run-class.sh kafka.tools.GetOffsetShell --broker-list robert-streaming-m.c.astral-sorter-757.internal:6667,robert-streaming-w-0.c.astral-sorter-757.internal:6667 --topic events-v1 --time -1
 
+
+standalone reader
+
+java -cp target/flink-jobs-0.1-SNAPSHOT.jar com.github.projectflink.streaming.StandaloneKafkaReader --zookeeper.connect obert-streaming-m.c.astral-sorter-757.internal:2181,robert-streaming-w-0.c.astral-sorter-757.internal:2181,robert-streaming-w-1.c.astral-sorter-757.internal:2181 --topic events-v1 --group standalone-reader --logfreq 100000 --auto.offset.reset smallest

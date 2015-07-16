@@ -68,7 +68,7 @@ public class StandaloneKafkaReader {
 					long timeDiff = now - lastLog;
 					long elementDiff = received - lastElements;
 					double ex = (1000/(double)timeDiff);
-					LOG.info("During the last {} ms, we received {} elements. That's {} elements/second/core", timeDiff, elementDiff, elementDiff*ex);
+					LOG.info("During the last {} ms, we received {} elements. That's {} elements/second/core. Total read {}", timeDiff, elementDiff, elementDiff*ex, received);
 					// reinit
 					lastLog = now;
 					lastElements = received;

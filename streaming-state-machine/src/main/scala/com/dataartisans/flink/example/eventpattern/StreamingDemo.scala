@@ -77,7 +77,7 @@ object StreamingDemo {
       .flatMap(new StateMachineMapper(pt))
       
       // output to standard-out
-      .addSink(new KafkaSink(pt.getRequired("brokerList"), pt.getRequired("error-topic"), props, new TypeInformationSerializationSchema[String]("", env.getConfig)))
+    //  .addSink(new KafkaSink(pt.getRequired("brokerList"), pt.getRequired("error-topic"), props, new TypeInformationSerializationSchema[String]("", env.getConfig)))
     
     // trigger program execution
     env.execute()
@@ -108,7 +108,7 @@ class StateMachineMapper(val pt: ParameterTool) extends FlatMapFunction[Event, S
     val nextState = state.transition(t.event)
     if (nextState == InvalidTransition) {
       val al = Alert(t.sourceAddress, state, t.event).toString
-      LOG.info("Detected invalid state transition {}", al)
+      LOG.debug("Detected invalid state transition {}", al)
       out.collect(al)
     } 
     else if (!nextState.terminal) {
