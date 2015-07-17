@@ -113,7 +113,7 @@ public class KafkaGenerator {
 			props.put(PartitionerWrapper.SERIALIZED_WRAPPER_NAME, part);
 		}
 
-//		src.addSink(new PimpedKafkaSink<Event>(pt.getRequired("brokerList"), pt.getRequired("topic"), props, new EventDeSerializer()));
+		src.addSink(new PimpedKafkaSink<Event>(pt.getRequired("brokerList"), pt.getRequired("topic"), props, new EventDeSerializer()));
 
 
 		see.execute();

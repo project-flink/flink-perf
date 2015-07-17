@@ -49,7 +49,7 @@ object StreamingDemo {
     if(pt.has("par")) {
       env.setParallelism(pt.getInt("par"))
     }
-    
+
     if(pt.has("retries")) {
       env.setNumberOfExecutionRetries(pt.getInt("retries"))
     }
