@@ -81,3 +81,10 @@ flink simple reader (equal to standalone reader)
 ./bin/flink run -c com.github.projectflink.streaming.FlinkKafkaReader -p 1 /home/robert/flink-perf/flink-jobs/target/flink-jobs-0.1-SNAPSHOT.jar --zookeeper.connect robert-streaming-m.c.astral-sorter-757.internal:2181,robert-streaming-w-0.c.astral-sorter-757.internal:2181,robert-streaming-w-1.c.astral-sorter-757.internal:2181 --topic events-v1 --group.id flink-reader --logfreq 1000000 --auto.offset.reset smallest --auto.commit.enable false
 
 
+
+
+Create topic locally:
+
+ ./bin/kafka-topics.sh --create --topic test -partitions 1 --replication-factor 1 --zookeeper localhost:2181
+
+ 

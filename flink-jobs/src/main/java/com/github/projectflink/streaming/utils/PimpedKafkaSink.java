@@ -130,7 +130,7 @@ public class PimpedKafkaSink<IN> extends RichSinkFunction<IN>  {
 
 	private static final Logger LOG = LoggerFactory.getLogger(PimpedKafkaSink.class);
 
-	private KafkaProducer<IN, byte[]> producer;
+	private KafkaProducer<byte[], byte[]> producer;
 
 	private Properties userDefinedProperties;
 	private String topicId;
@@ -218,16 +218,8 @@ public class PimpedKafkaSink<IN> extends RichSinkFunction<IN>  {
 	public void open(Configuration configuration) throws UnknownHostException {
 
 		Properties properties = new Properties();
-		List<String> brokers = new ArrayList<String>();
-		String[] elements = brokerList.split(",");
-		String host = InetAddress.getLocalHost().getHostName();
-		for(String broker: elements) {
-			if(broker.contains(host)) {
-				brokers.add(broker);
-			}
-		}
 
-		properties.put("bootstrap.servers", StringUtils.join(brokers, ","));
+		properties.put("bootstrap.servers", brokerList);
 
 	//	properties.put("request.required.acks", "-1");
 	//	properties.put("message.send.max.retries", "10");
@@ -251,7 +243,7 @@ public class PimpedKafkaSink<IN> extends RichSinkFunction<IN>  {
 		}
 
 		try {
-			producer = new KafkaProducer<IN, byte[]>(properties);
+			producer = new KafkaProducer<byte[], byte[]>(properties);
 		} catch (NullPointerException e) {
 			throw new RuntimeException("Cannot connect to Kafka broker " + brokerList, e);
 		}
@@ -268,7 +260,7 @@ public class PimpedKafkaSink<IN> extends RichSinkFunction<IN>  {
 		byte[] serialized = schema.serialize(next);
 
 		// Sending message without serializable key.
-		producer.send(new ProducerRecord<IN, byte[]>(topicId, null, next, serialized));
+		producer.send(new ProducerRecord<byte[], byte[]>(topicId, null, null, serialized));
 	}
 
 	@Override
