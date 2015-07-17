@@ -49,8 +49,7 @@ object StreamingDemo {
     if(pt.has("par")) {
       env.setParallelism(pt.getInt("par"))
     }
-    env.setParallelism(3) // TODO removeme again before commit
-
+    
     if(pt.has("retries")) {
       env.setNumberOfExecutionRetries(pt.getInt("retries"))
     }
