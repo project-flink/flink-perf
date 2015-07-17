@@ -21,6 +21,7 @@ import org.apache.flink.streaming.util.serialization.SerializationSchema;
 import org.apache.flink.util.NetUtils;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.clients.producer.internals.ErrorLoggingCallback;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.slf4j.Logger;
@@ -257,8 +258,9 @@ public class PimpedKafkaSink<IN> extends RichSinkFunction<IN>  {
 		}
 
 		if(userDefinedProperties.containsKey(ENABLE_LOCAL_WRITES_KEY)) {
+			// this mode will lead to unbalanced partitions
 			String thisHost = NetUtils.getHostnameFromFQDN(InetAddress.getLocalHost().getHostName().toLowerCase(Locale.US));
-			// NOTE: the partition leaders can change!
+			// NOTE: the partition leaders can change! The source does not handle this case
 			List<PartitionInfo> partitions = producer.partitionsFor(topicId);
 			List<Integer> localPartitions = new ArrayList<Integer>();
 			List<Integer> allPartitions = new ArrayList<Integer>(partitions.size());
@@ -290,14 +292,15 @@ public class PimpedKafkaSink<IN> extends RichSinkFunction<IN>  {
 		byte[] serialized = schema.serialize(next);
 
 		if(toPartitions == null) {
-			producer.send(new ProducerRecord<byte[], byte[]>(topicId, null, null, serialized));
+			producer.send(new ProducerRecord<byte[], byte[]>(topicId, null, null, serialized), new ErrorLoggingCallback(topicId, null, serialized, false));
 		} else {
-			producer.send(new ProducerRecord<byte[], byte[]>(topicId, toPartitions[partitionIndex++], null, serialized));
+			producer.send(new ProducerRecord<byte[], byte[]>(topicId, toPartitions[partitionIndex++], null, serialized), new ErrorLoggingCallback(topicId, null, serialized, false));
 			if(partitionIndex == toPartitions.length) {
 				partitionIndex = 0;
 			}
 		}
 	}
+
 
 	@Override
 	public void close() {
@@ -305,4 +308,5 @@ public class PimpedKafkaSink<IN> extends RichSinkFunction<IN>  {
 			producer.close();
 		}
 	}
+
 }
