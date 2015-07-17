@@ -2,6 +2,7 @@ package com.github.projectflink.streaming.utils;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.HashMultimap;
+import com.google.common.primitives.Ints;
 import kafka.cluster.Broker;
 import kafka.javaapi.producer.Producer;
 import kafka.producer.KeyedMessage;
@@ -20,6 +21,7 @@ import org.apache.flink.streaming.util.serialization.SerializationSchema;
 import org.apache.flink.util.NetUtils;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,11 +35,17 @@ import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
 public class PimpedKafkaSink<IN> extends RichSinkFunction<IN>  {
+
+	private final static String ENABLE_LOCAL_WRITES_KEY = "flink.kafka.producer.enable-local-writes";
+	// if != null, write only to partitions in this array
+	private Integer[] toPartitions;
+	private int partitionIndex;
 
 	public static class LocalKafkaPartitioner implements SerializableKafkaPartitioner {
 		private static final Logger LOG = LoggerFactory.getLogger(LocalKafkaPartitioner.class);
@@ -247,6 +255,28 @@ public class PimpedKafkaSink<IN> extends RichSinkFunction<IN>  {
 		} catch (NullPointerException e) {
 			throw new RuntimeException("Cannot connect to Kafka broker " + brokerList, e);
 		}
+
+		if(userDefinedProperties.containsKey(ENABLE_LOCAL_WRITES_KEY)) {
+			String thisHost = NetUtils.getHostnameFromFQDN(InetAddress.getLocalHost().getHostName().toLowerCase(Locale.US));
+			// NOTE: the partition leaders can change!
+			List<PartitionInfo> partitions = producer.partitionsFor(topicId);
+			List<Integer> localPartitions = new ArrayList<Integer>();
+			List<Integer> allPartitions = new ArrayList<Integer>(partitions.size());
+			for(PartitionInfo part: partitions) {
+				allPartitions.add(part.partition());
+				if(NetUtils.getHostnameFromFQDN(part.leader().host().toLowerCase(Locale.US)).equals(thisHost)) {
+					localPartitions.add(part.partition());
+				}
+			}
+			if(localPartitions.size() == 0) {
+				LOG.warn("Could not find any local lead broker. This sink is writing to all partitions");
+				localPartitions = allPartitions;
+			}
+			toPartitions = localPartitions.toArray(new Integer[localPartitions.size()]);
+			partitionIndex = 0;
+			LOG.info("Writing to local partitions is enabled. This Sink (host: {}) will write to partitions: {}", thisHost, localPartitions);
+		}
+
 	}
 
 	/**
@@ -259,8 +289,14 @@ public class PimpedKafkaSink<IN> extends RichSinkFunction<IN>  {
 	public void invoke(IN next) {
 		byte[] serialized = schema.serialize(next);
 
-		// Sending message without serializable key.
-		producer.send(new ProducerRecord<byte[], byte[]>(topicId, null, null, serialized));
+		if(toPartitions == null) {
+			producer.send(new ProducerRecord<byte[], byte[]>(topicId, null, null, serialized));
+		} else {
+			producer.send(new ProducerRecord<byte[], byte[]>(topicId, toPartitions[partitionIndex++], null, serialized));
+			if(partitionIndex == toPartitions.length) {
+				partitionIndex = 0;
+			}
+		}
 	}
 
 	@Override
