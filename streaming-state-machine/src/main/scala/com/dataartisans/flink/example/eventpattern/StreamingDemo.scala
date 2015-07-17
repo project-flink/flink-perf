@@ -108,7 +108,7 @@ class StateMachineMapper(val pt: ParameterTool) extends FlatMapFunction[Event, S
     val nextState = state.transition(t.event)
     if (nextState == InvalidTransition) {
       val al = Alert(t.sourceAddress, state, t.event).toString
-      LOG.debug("Detected invalid state transition {}", al)
+      LOG.info("Detected invalid state transition {}", al)
       out.collect(al)
     } 
     else if (!nextState.terminal) {
