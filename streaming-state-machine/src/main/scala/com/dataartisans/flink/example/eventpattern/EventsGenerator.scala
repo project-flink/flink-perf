@@ -18,6 +18,8 @@ package com.dataartisans.flink.example.eventpattern
 
 import java.util.Random
 
+import org.slf4j.{LoggerFactory, Logger}
+
 /**
  * A generator for events. The generator internally maintains a series of state
  * machines (addresses and current associated state) and returns transition events
@@ -30,6 +32,8 @@ import java.util.Random
  * 1000 state machines concurrently.
  */
 class EventsGenerator {
+
+  private val LOG: Logger = LoggerFactory.getLogger(classOf[EventsGenerator])
   
   /** Probability with this generator generates an illegal state transition */
   private[this] val errorProb: Double = 0.0000001
@@ -89,11 +93,11 @@ class EventsGenerator {
       val currentState = entry.getValue
       iter.remove()
       
-      if (p < errorProb) {
+     /* if (p < errorProb) {
         val event = currentState.randomInvalidTransition(rnd)
         Event(address, event)
       }
-      else {
+      else { */
         val (event, newState) = currentState.randomTransition(rnd)
         if (!newState.terminal) {
           // reinsert
@@ -101,7 +105,7 @@ class EventsGenerator {
         }
         
         Event(address, event)
-      }
+     // }
     }
   }
 
@@ -114,6 +118,7 @@ class EventsGenerator {
    * @return An event for a illegal state transition, or [[None]], if not possible.
    */
   def nextInvalid(): Option[Event] = {
+    LOG.info("Injecting invalid state transition")
     val iter = states.entrySet().iterator()
     if (iter.hasNext) {
       val entry = iter.next()

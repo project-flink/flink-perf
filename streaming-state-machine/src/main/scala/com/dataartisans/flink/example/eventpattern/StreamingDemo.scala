@@ -16,7 +16,7 @@
 
 package com.dataartisans.flink.example.eventpattern
 
-import java.util.Properties
+import java.util.{Date, Properties}
 
 import _root_.kafka.consumer.ConsumerConfig
 import com.dataartisans.flink.example.eventpattern.kafka.EventDeSerializer
@@ -49,6 +49,7 @@ object StreamingDemo {
     if(pt.has("par")) {
       env.setParallelism(pt.getInt("par"))
     }
+    env.setParallelism(3) // TODO removeme again before commit
 
     if(pt.has("retries")) {
       env.setNumberOfExecutionRetries(pt.getInt("retries"))
@@ -60,7 +61,9 @@ object StreamingDemo {
     
     // data stream from kafka topic.
     val props = new Properties()
-    props.put("group.id", "flink-streaming-demo")
+    props.put("group.id", "flink-streaming-demo"+new Date().getTime)
+    props.put("auto.offset.reset", "smallest")
+
     props.put("auto.commit.enable", "false")
     props.putAll(pt.toMap)
 
@@ -101,7 +104,7 @@ class StateMachineMapper(val pt: ParameterTool) extends FlatMapFunction[Event, S
   val logfreq = pt.getInt("logFreq")
   
   override def flatMap(t: Event, out: Collector[String]): Unit = {
-
+  //  println("looking at event "+t)
     // get and remove the current state
     val state = states.remove(t.sourceAddress).getOrElse(InitialState)
     

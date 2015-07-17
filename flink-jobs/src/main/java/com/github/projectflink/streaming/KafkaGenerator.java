@@ -2,8 +2,10 @@ package com.github.projectflink.streaming;
 
 import com.dataartisans.flink.example.eventpattern.Event;
 import com.dataartisans.flink.example.eventpattern.EventsGenerator;
+import com.dataartisans.flink.example.eventpattern.StateMachineMapper;
 import com.dataartisans.flink.example.eventpattern.kafka.EventDeSerializer;
 import com.github.projectflink.streaming.utils.PimpedKafkaSink;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
@@ -90,9 +92,19 @@ public class KafkaGenerator {
 			}
 		});
 
+		// run the state machine here as well to see illegal transistions
+		src.partitionByHash(new KeySelector<Event, Integer>() {
+			@Override
+			public Integer getKey(Event event) throws Exception {
+				return event.sourceAddress();
+			}
+		}).flatMap(new StateMachineMapper(pt));
+
+
+		// write stuff into Kafka
+
 		String zkServer = pt.get("zookeeper");
 		Properties props = pt.getProperties();
-
 
 		if(pt.has("localPartitioner")) {
 			SerializableKafkaPartitioner part = new PimpedKafkaSink.LocalKafkaPartitioner(zkServer, pt.getRequired("topic"));
@@ -101,7 +113,7 @@ public class KafkaGenerator {
 			props.put(PartitionerWrapper.SERIALIZED_WRAPPER_NAME, part);
 		}
 
-		src.addSink(new PimpedKafkaSink<Event>(pt.getRequired("brokerList"), pt.getRequired("topic"), props, new EventDeSerializer()));
+//		src.addSink(new PimpedKafkaSink<Event>(pt.getRequired("brokerList"), pt.getRequired("topic"), props, new EventDeSerializer()));
 
 
 		see.execute();

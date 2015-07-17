@@ -87,4 +87,22 @@ Create topic locally:
 
  ./bin/kafka-topics.sh --create --topic test -partitions 1 --replication-factor 1 --zookeeper localhost:2181
 
- 
+
+Experiment 1:
+
+- Create topic: 
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh  --create --topic experiment-1 -partitions 38 --replication-factor 1 --zookeeper robert-streaming-m.c.astral-sorter-757.internal:2181,robert-streaming-w-0.c.astral-sorter-757.internal:2181,robert-streaming-w-1.c.astral-sorter-757.internal:2181
+
+- start consuming topology with 
+$FLINK_DIR/bin/flink run -m yarn-cluster -yn $1 -yst -yD "execution-retries.delay=30 s" -yjm 768 -ytm 3072 -ys 1 -yd -p $PARA -c $CLASS \
+/home/robert/flink-perf/streaming-state-machine/target/streaming-state-demo-1.0-SNAPSHOT.jar --ft 10000 --group.id ex-1-grp \
+ --auto.offset.reset smallest --logFreq 100000 --topic experiment-1 --brokerList $BROKERS --error-topic error-topic  \
+
+
+
+- start producing topology:
+
+./runKafkaGen.sh with:
+--flink.kafka.producer.enable-local-writes soTrue --logfreq 100000
+
+

@@ -75,8 +75,7 @@ class KafkaCollector(private[this] val partition: Int, private val pt: Parameter
     val serialized = serializer.serialize(t)
     serLen = serLen + serialized.length
 
-   // producer.send(new KeyedMessage[Event, Array[Byte]](topic, null, t, serialized))
-    producer.send(new ProducerRecord[Event, Array[Byte]](topic, null, serialized))
+   // producer.send(new ProducerRecord[Event, Array[Byte]](topic, null, serialized))
   }
 
   override def close(): Unit = {
