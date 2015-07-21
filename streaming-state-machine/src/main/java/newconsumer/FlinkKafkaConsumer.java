@@ -1,25 +1,36 @@
 package newconsumer;
 
+import kafka.common.TopicAndPartition;
+import kafka.utils.ZKGroupTopicDirs;
+import kafka.utils.ZkUtils;
+import org.I0Itec.zkclient.ZkClient;
+import org.I0Itec.zkclient.exception.ZkMarshallingError;
+import org.I0Itec.zkclient.serialize.ZkSerializer;
 import org.apache.commons.collections.map.LinkedMap;
-import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.checkpoint.CheckpointNotifier;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedAsynchronously;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
-import org.apache.kafka.clients.consumer.CommitType;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.consumer.ConsumerRecords;
-import org.apache.kafka.clients.consumer.KafkaConsumer;
-import org.apache.kafka.common.PartitionInfo;
-import org.apache.kafka.common.TopicPartition;
-import org.apache.kafka.common.serialization.ByteArrayDeserializer;
-import org.apache.kafka.common.serialization.Deserializer;
+import org.apache.kafka.copied.clients.consumer.CommitType;
+import org.apache.kafka.copied.clients.consumer.Consumer;
+import org.apache.kafka.copied.clients.consumer.ConsumerConfig;
+import org.apache.kafka.copied.clients.consumer.ConsumerRebalanceCallback;
+import org.apache.kafka.copied.clients.consumer.ConsumerRecord;
+import org.apache.kafka.copied.clients.consumer.ConsumerRecords;
+import org.apache.kafka.copied.clients.consumer.KafkaConsumer;
+import org.apache.kafka.copied.common.PartitionInfo;
+import org.apache.kafka.copied.common.TopicPartition;
+import org.apache.kafka.copied.common.serialization.ByteArrayDeserializer;
+import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -39,21 +50,25 @@ public class FlinkKafkaConsumer<T> extends RichParallelSourceFunction<T>
 	private final DeserializationSchema<T> valueDeserializer;
 
 	private transient KafkaConsumer<byte[], byte[]> consumer;
-	private transient boolean running = true;
+	private boolean running = true;
 	private final LinkedMap pendingCheckpoints = new LinkedMap();
 	private long[] lastOffsets;
+	private long[] commitedOffsets;
+	private ZkClient zkClient;
+	private long[] restoreToOffset;
 
 	public FlinkKafkaConsumer(String topic, DeserializationSchema<T> valueDeserializer, Properties props) {
 		this.topic = topic;
-		this.props = props;
+		this.props = props; // TODO check for zookeeper properties
 		this.valueDeserializer = valueDeserializer;
 
 		KafkaConsumer<byte[], byte[]> consumer = new KafkaConsumer<byte[], byte[]>(props, null, new ByteArrayDeserializer(), new ByteArrayDeserializer());
 		List<PartitionInfo> partitionInfos = consumer.partitionsFor(topic);
 		partitions = new ArrayList<TopicPartition>(partitionInfos.size());
-		for(int i = 0; i < partitions.size(); i++) {
+		for(int i = 0; i < partitionInfos.size(); i++) {
 			partitions.add(convert(partitionInfos.get(i)));
 		}
+		LOG.info("Topic {} has {} partitions", topic, partitions.size());
 		consumer.close();
 	}
 
@@ -70,9 +85,40 @@ public class FlinkKafkaConsumer<T> extends RichParallelSourceFunction<T>
 
 		// create consumer
 		consumer = new KafkaConsumer<byte[], byte[]>(props, null, new ByteArrayDeserializer(), new ByteArrayDeserializer());
+
+		// subscribe
 		consumer.subscribe(partitionsToSub.toArray(new TopicPartition[partitionsToSub.size()]));
+
+		// set up operator state
 		lastOffsets = new long[partitions.size()];
 		Arrays.fill(lastOffsets, -1);
+
+		// prepare Zookeeper
+		zkClient = new ZkClient(props.getProperty("zookeeper.connect"),
+				Integer.valueOf(props.getProperty("zookeeper.session.timeout.ms", "6000")),
+				Integer.valueOf(props.getProperty("zookeeper.connection.timeout.ms", "6000")),
+				new KafkaZKStringSerializer());
+		commitedOffsets = new long[partitions.size()];
+
+
+		// seek to last known pos, from restore request
+		if(restoreToOffset != null) {
+			LOG.info("Found offsets to restore to.");
+			for(int i = 0; i < restoreToOffset.length; i++) {
+				// if this fails because we are not subscribed to the topic, the partition assignment is not deterministic!
+				consumer.seek(new TopicPartition(topic, i), restoreToOffset[i]);
+			}
+		} else {
+			// no restore request. See what we have in ZK for this consumer group
+			for(TopicPartition tp: partitionsToSub) {
+				long offset = getOffset(zkClient, props.getProperty(ConsumerConfig.GROUP_ID_CONFIG), topic, tp.partition());
+				if(offset != -1) {
+					LOG.info("Offset for partition {} was set to {} in ZK. Seeking consumer to that position", tp.partition(), offset);
+					consumer.seek(tp, offset);
+				}
+			}
+		}
+		
 	}
 
 	protected List<TopicPartition> getPartitions() {
@@ -109,11 +155,17 @@ public class FlinkKafkaConsumer<T> extends RichParallelSourceFunction<T>
 			pollTimeout = Long.valueOf(props.getProperty(POLL_TIMEOUT));
 		}
 		while(running) {
-			ConsumerRecords<byte[], byte[]> consumed = consumer.poll(pollTimeout);
-			if(!consumed.isEmpty()) {
-				for(ConsumerRecord<byte[], byte[]> record : consumed) {
-					T value = valueDeserializer.deserialize(record.value());
-
+			synchronized (consumer) {
+				ConsumerRecords<byte[], byte[]> consumed = consumer.poll(pollTimeout);
+				if(!consumed.isEmpty()) {
+					synchronized (sourceContext.getCheckpointLock()) {
+						for(ConsumerRecord<byte[], byte[]> record : consumed) {
+							T value = valueDeserializer.deserialize(record.value());
+							sourceContext.collect(value);
+							lastOffsets[record.partition()] = record.offset();
+							// LOG.info("Consumed " + value);
+						}
+					}
 				}
 			}
 		}
@@ -123,7 +175,9 @@ public class FlinkKafkaConsumer<T> extends RichParallelSourceFunction<T>
 	@Override
 	public void cancel() {
 		running = false;
-		consumer.close();
+		synchronized (consumer) {
+			consumer.close();
+		}
 	}
 
 
@@ -160,6 +214,11 @@ public class FlinkKafkaConsumer<T> extends RichParallelSourceFunction<T>
 			LOG.info("Committing offsets {} to Kafka Consumer", Arrays.toString(checkpointOffsets));
 		}
 
+		setOffsetsInZooKeeper(checkpointOffsets);
+
+		/*
+		TODO: enable for users using kafka brokers with a central coordinator.
+
 		Map<TopicPartition, Long> offsetsToCommit = new HashMap<TopicPartition, Long>();
 		for(int i = 0; i < checkpointOffsets.length; i++) {
 			if(checkpointOffsets[i] != -1) {
@@ -167,7 +226,9 @@ public class FlinkKafkaConsumer<T> extends RichParallelSourceFunction<T>
 			}
 		}
 
-		consumer.commit(offsetsToCommit, CommitType.SYNC);
+		synchronized (consumer) {
+			consumer.commit(offsetsToCommit, CommitType.SYNC);
+		} */
 	}
 
 	@Override
@@ -194,9 +255,79 @@ public class FlinkKafkaConsumer<T> extends RichParallelSourceFunction<T>
 
 	@Override
 	public void restoreState(long[] restoredOffsets) {
-
+		restoreToOffset = restoredOffsets;
 	}
 
+	// ---------- Zookeeper communication ----------------
+
+	private void setOffsetsInZooKeeper(long[] offsets) {
+		for (int partition = 0; partition < offsets.length; partition++) {
+			long offset = offsets[partition];
+			if(offset != -1) {
+				setOffset(partition, offset);
+			}
+		}
+	}
+
+	protected void setOffset(int partition, long offset) {
+		// synchronize because notifyCheckpointComplete is called using asynchronous worker threads (= multiple checkpoints might be confirmed concurrently)
+		synchronized (commitedOffsets) {
+			if(commitedOffsets[partition] < offset) {
+				LOG.info("Committed offsets {}, partition={}, offset={}", Arrays.toString(commitedOffsets), partition, offset);
+				setOffset(zkClient, props.getProperty(ConsumerConfig.GROUP_ID_CONFIG), topic, partition, offset);
+				commitedOffsets[partition] = offset;
+			} else {
+				LOG.debug("Ignoring offset {} for partition {} because it is already committed", offset, partition);
+			}
+		}
+	}
+
+
+
+	// the following two methods are static to allow access from the outside as well (Testcases)
+
+	/**
+	 * This method's code is based on ZookeeperConsumerConnector.commitOffsetToZooKeeper()
+	 */
+	public static void setOffset(ZkClient zkClient, String groupId, String topic, int partition, long offset) {
+		LOG.info("Setting offset for partition {} of topic {} in group {} to offset {}", partition, topic, groupId, offset);
+		TopicAndPartition tap = new TopicAndPartition(topic, partition);
+		ZKGroupTopicDirs topicDirs = new ZKGroupTopicDirs(groupId, tap.topic());
+		ZkUtils.updatePersistentPath(zkClient, topicDirs.consumerOffsetDir() + "/" + tap.partition(), Long.toString(offset));
+	}
+
+	public static long getOffset(ZkClient zkClient, String groupId, String topic, int partition) {
+		TopicAndPartition tap = new TopicAndPartition(topic, partition);
+		ZKGroupTopicDirs topicDirs = new ZKGroupTopicDirs(groupId, tap.topic());
+		scala.Tuple2<String, Stat> data = ZkUtils.readData(zkClient, topicDirs.consumerOffsetDir() + "/" + tap.partition());
+		return Long.valueOf(data._1());
+	}
+
+	// ---------------------- Zookeeper Serializer copied from Kafka (because it has private access there)  -----------------
+	public static class KafkaZKStringSerializer implements ZkSerializer {
+
+		@Override
+		public byte[] serialize(Object data) throws ZkMarshallingError {
+			try {
+				return ((String) data).getBytes("UTF-8");
+			} catch (UnsupportedEncodingException e) {
+				throw new RuntimeException(e);
+			}
+		}
+
+		@Override
+		public Object deserialize(byte[] bytes) throws ZkMarshallingError {
+			if (bytes == null) {
+				return null;
+			} else {
+				try {
+					return new String(bytes, "UTF-8");
+				} catch (UnsupportedEncodingException e) {
+					throw new RuntimeException(e);
+				}
+			}
+		}
+	}
 
 
 }

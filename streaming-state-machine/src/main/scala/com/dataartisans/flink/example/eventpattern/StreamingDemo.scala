@@ -67,7 +67,7 @@ object StreamingDemo {
                                                                 new EventDeSerializer(),
                                                                 new ConsumerConfig(props)))
                                                                 */
-    val stream = env.addSource(new FlinkKafkaConsumer[Event](pt.getRequired("topic"), null ,props))
+    val stream = env.addSource(new FlinkKafkaConsumer[Event](pt.getRequired("topic"), new EventDeSerializer() ,props))
 
     stream
       // partition on the address to make sure equal addresses
@@ -109,7 +109,7 @@ class StateMachineMapper(val pt: ParameterTool) extends FlatMapFunction[Event, S
     val nextState = state.transition(t.event)
     if (nextState == InvalidTransition) {
       val al = Alert(t.sourceAddress, state, t.event).toString
-      LOG.info("Detected invalid state transition {}", al)
+     // LOG.info("Detected invalid state transition {}", al)
       out.collect(al)
     } 
     else if (!nextState.terminal) {

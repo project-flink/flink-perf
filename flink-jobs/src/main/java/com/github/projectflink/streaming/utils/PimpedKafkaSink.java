@@ -2,15 +2,9 @@ package com.github.projectflink.streaming.utils;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.HashMultimap;
-import com.google.common.primitives.Ints;
 import kafka.cluster.Broker;
-import kafka.javaapi.producer.Producer;
-import kafka.producer.KeyedMessage;
-import kafka.producer.ProducerConfig;
-import kafka.serializer.DefaultEncoder;
 import kafka.utils.ZkUtils;
 import org.I0Itec.zkclient.ZkClient;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
@@ -29,7 +23,6 @@ import org.slf4j.LoggerFactory;
 import scala.Option;
 import scala.collection.JavaConversions;
 import scala.collection.mutable.Buffer;
-import scala.collection.mutable.Seq;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -39,7 +32,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Set;
 
 public class PimpedKafkaSink<IN> extends RichSinkFunction<IN>  {
 
