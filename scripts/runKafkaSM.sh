@@ -10,11 +10,12 @@ export HADOOP_CONF_DIR=/etc/hadoop/conf
 start_job() {
 	echo -n "$1;$REPART;$FT;$BUFFERS;$TIMEOUT;" >> $LOG
 	echo "Starting job on YARN with $1 workers and a timeout of $TIMEOUT ms"
-	PARA=`echo $1*4 | bc`
+	PARA=`echo $1*1 | bc`
 	CLASS="com.dataartisans.flink.example.eventpattern.StreamingDemo"
 	$FLINK_DIR/bin/flink run -m yarn-cluster -yn $1 -yst -yD "execution-retries.delay=30 s" -yjm 768 -ytm 3072 -ys 1 -yd -p $PARA -c $CLASS \
-	/home/robert/flink-perf/streaming-state-machine/target/streaming-state-demo-1.0-SNAPSHOT.jar --ft 10000 --group.id new-group-4 \
-         --auto.offset.reset smallest --logFreq 100000 --topic events-v1 --brokerList $BROKERS --error-topic error-topic  \
+	/home/robert/flink-perf/streaming-state-machine/target/streaming-state-demo-1.0-SNAPSHOT.jar --ft 10000 --group.id ex-4-grp-1 \
+	--rebalance.backoff.ms 4000 --rebalance.max.retries 10 \
+         --auto.offset.reset earliest --logFreq 500000 --topic experiment-5 --bootstrap.servers $BROKERS --error-topic error-topic  \
 	--zookeeper.connect robert-streaming-m.c.astral-sorter-757.internal:2181,robert-streaming-w-0.c.astral-sorter-757.internal:2181,robert-streaming-w-1.c.astral-sorter-757.internal:2181 | tee lastJobOutput
 }
 

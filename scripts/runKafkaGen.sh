@@ -13,7 +13,7 @@ start_job() {
 	PARA=`echo $1*4 | bc`
 	CLASS="com.github.projectflink.streaming.KafkaGenerator"
 	$FLINK_DIR/bin/flink run -m yarn-cluster -yn $1 -yst -yjm 768 -ytm 3072 -ys 1 -yd -p $PARA -c $CLASS \
-	/home/robert/flink-perf/flink-jobs/target/flink-jobs-0.1-SNAPSHOT.jar --logfreq 100000 --topic events-v1 --brokerList $BROKERS \
+	/home/robert/flink-perf/flink-jobs/target/flink-jobs-0.1-SNAPSHOT.jar --flink.kafka.producer.enable-local-writes soTrue --logFreq 10000000 --logfreq 500000 --topic experiment-5 --brokerList $BROKERS \
         --zookeeper robert-streaming-m.c.astral-sorter-757.internal:2181,robert-streaming-w-0.c.astral-sorter-757.internal:2181,robert-streaming-w-1.c.astral-sorter-757.internal:2181 | tee lastJobOutput
 }
 
@@ -59,7 +59,6 @@ function experiment() {
 DURATION=3600
 
 experiment 30 $DURATION
-
 
 
 
