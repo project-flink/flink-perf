@@ -91,6 +91,7 @@ public class FlinkKafkaConsumer<T> extends RichParallelSourceFunction<T>
 		// create consumer
 		consumer = new KafkaConsumer<byte[], byte[]>(props, null, new ByteArrayDeserializer(), new ByteArrayDeserializer());
 
+		LOG.info("This instance is going to subscribe to partitions {}", partitionsToSub);
 		// subscribe
 		consumer.subscribe(partitionsToSub.toArray(new TopicPartition[partitionsToSub.size()]));
 
@@ -168,7 +169,7 @@ public class FlinkKafkaConsumer<T> extends RichParallelSourceFunction<T>
 							T value = valueDeserializer.deserialize(record.value());
 							sourceContext.collect(value);
 							lastOffsets[record.partition()] = record.offset();
-							// LOG.info("Consumed " + value);
+							LOG.info("Consumed " + value);
 						}
 					}
 				}
@@ -180,7 +181,7 @@ public class FlinkKafkaConsumer<T> extends RichParallelSourceFunction<T>
 	@Override
 	public void cancel() {
 		running = false;
-		synchronized (consumer) {
+		synchronized (consumer) { // TODO: cancel leads to a deadlock. Seems that poll is not releasing its lock on consumer.
 			consumer.close();
 		}
 	}
