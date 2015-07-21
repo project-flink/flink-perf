@@ -22,9 +22,11 @@ import org.apache.kafka.copied.clients.consumer.KafkaConsumer;
 import org.apache.kafka.copied.common.PartitionInfo;
 import org.apache.kafka.copied.common.TopicPartition;
 import org.apache.kafka.copied.common.serialization.ByteArrayDeserializer;
+import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.Option;
 
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
@@ -64,6 +66,9 @@ public class FlinkKafkaConsumer<T> extends RichParallelSourceFunction<T>
 
 		KafkaConsumer<byte[], byte[]> consumer = new KafkaConsumer<byte[], byte[]>(props, null, new ByteArrayDeserializer(), new ByteArrayDeserializer());
 		List<PartitionInfo> partitionInfos = consumer.partitionsFor(topic);
+		if(partitionInfos == null) {
+			throw new RuntimeException("The topic "+topic+" does not seem to exist");
+		}
 		partitions = new ArrayList<TopicPartition>(partitionInfos.size());
 		for(int i = 0; i < partitionInfos.size(); i++) {
 			partitions.add(convert(partitionInfos.get(i)));
@@ -118,7 +123,7 @@ public class FlinkKafkaConsumer<T> extends RichParallelSourceFunction<T>
 				}
 			}
 		}
-		
+
 	}
 
 	protected List<TopicPartition> getPartitions() {
@@ -299,8 +304,12 @@ public class FlinkKafkaConsumer<T> extends RichParallelSourceFunction<T>
 	public static long getOffset(ZkClient zkClient, String groupId, String topic, int partition) {
 		TopicAndPartition tap = new TopicAndPartition(topic, partition);
 		ZKGroupTopicDirs topicDirs = new ZKGroupTopicDirs(groupId, tap.topic());
-		scala.Tuple2<String, Stat> data = ZkUtils.readData(zkClient, topicDirs.consumerOffsetDir() + "/" + tap.partition());
-		return Long.valueOf(data._1());
+		scala.Tuple2<Option<String>, Stat> data = ZkUtils.readDataMaybeNull(zkClient, topicDirs.consumerOffsetDir() + "/" + tap.partition());
+		if(data._1().isEmpty()) {
+			return -1;
+		} else {
+			return Long.valueOf(data._1().get());
+		}
 	}
 
 	// ---------------------- Zookeeper Serializer copied from Kafka (because it has private access there)  -----------------
