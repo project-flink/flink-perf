@@ -22,7 +22,7 @@
 //import org.apache.flink.api.java.utils.ParameterTool
 //import org.apache.flink.util.Collector
 //import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord}
-//import org.apache.kafka.common.serialization.ByteArraySerializer
+//import org.apache.ByteArraySerializer
 //
 ///**
 // * A generator that pushes the data into Kafka.

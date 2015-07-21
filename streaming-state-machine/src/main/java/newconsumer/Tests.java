@@ -15,6 +15,7 @@ import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.junit.Assert;
 import org.junit.Test;
+import org.mockito.Mockito;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -31,23 +32,58 @@ public class Tests {
 	@Test
 	public void testAssignment() {
 		FlinkKafkaConsumer c = mock(FlinkKafkaConsumer.class);
-		List<PartitionInfo> parts = new ArrayList<PartitionInfo>();
-		for(int i = 0; i < 599; i++) {
-			parts.add(new PartitionInfo("", i, null, null, null));
-		}
-
 		FakeRuntimeCtx ctx = new FakeRuntimeCtx();
 
+		List<PartitionInfo> parts = partitions(600);
 		when(c.getPartitions()).thenReturn(parts);
 		when(c.getRuntimeContext()).thenReturn(ctx);
+		Mockito.doCallRealMethod().when(c).assignPartitions();
 
+		// task 600 doesn't get a partition.
+		ctx.tasks = 601;
 		List<TopicPartition> assignment = c.assignPartitions();
+		for(int i = 0; i < 600; i++) {
+			ctx.index = i;
+			assignment = c.assignPartitions();
+			Assert.assertEquals(1, assignment.size());
+		}
+		ctx.index = 600;
+		assignment = c.assignPartitions();
+		Assert.assertEquals(0, assignment.size());
 
-		Assert.assertEquals(1, assignment.size());
 
+		// one task needs to get 2 partitions
+		ctx.tasks = 599;
+		ctx.index = 0;
+		Assert.assertEquals(2, c.assignPartitions().size());
+		for(int i = 1; i < 599; i++) {
+			ctx.index = i;
+			Assert.assertEquals(1, c.assignPartitions().size());
+		}
+
+
+		// 300 partitions for each of the two tasks
+		ctx.index = 0;
+		ctx.tasks = 2;
+		assignment = c.assignPartitions();
+		Assert.assertEquals(300, assignment.size());
+
+		ctx.index = 1;
+		assignment = c.assignPartitions();
+		Assert.assertEquals(300, assignment.size());
+	}
+	private static List<PartitionInfo> partitions(int num) {
+		List<PartitionInfo> parts = new ArrayList<PartitionInfo>();
+		for(int i = 0; i < num; i++) {
+			parts.add(new PartitionInfo("", i, null, null, null));
+		}
+		return parts;
 	}
 
 	public static class FakeRuntimeCtx implements RuntimeContext {
+
+		public int tasks;
+		public int index;
 
 		@Override
 		public String getTaskName() {
@@ -56,12 +92,12 @@ public class Tests {
 
 		@Override
 		public int getNumberOfParallelSubtasks() {
-			return 600;
+			return tasks;
 		}
 
 		@Override
 		public int getIndexOfThisSubtask() {
-			return 2;
+			return index;
 		}
 
 		@Override
