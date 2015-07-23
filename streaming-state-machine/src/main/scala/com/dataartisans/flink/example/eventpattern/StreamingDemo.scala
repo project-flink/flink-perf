@@ -18,13 +18,15 @@ package com.dataartisans.flink.example.eventpattern
 
 import java.util.{Date, Properties}
 
+import _root_.kafka.consumer.ConsumerConfig
 import com.dataartisans.flink.example.eventpattern.kafka.EventDeSerializer
 
 import org.apache.flink.api.common.functions.FlatMapFunction
 import org.apache.flink.api.java.utils.ParameterTool
 import org.apache.flink.streaming.api.checkpoint.Checkpointed
 import org.apache.flink.streaming.api.scala._
-import org.apache.flink.streaming.connectors.FlinkKafkaConsumer081
+import org.apache.flink.streaming.connectors.kafka.api.persistent.PersistentKafkaSource
+import org.apache.flink.streaming.connectors.{FlinkKafkaConsumer082, FlinkKafkaConsumer081}
 import org.apache.flink.util.Collector
 import org.slf4j.{LoggerFactory, Logger}
 
@@ -63,11 +65,12 @@ object StreamingDemo {
     props.put("auto.commit.enable", "false")
     props.putAll(pt.toMap)
 
- /*   val stream = env.addSource(new PersistentKafkaSource[Event](pt.getRequired("topic"),
+  /*  props.put("auto.offset.reset", "smallest")
+    val stream = env.addSource(new PersistentKafkaSource[Event](pt.getRequired("topic"),
                                                                 new EventDeSerializer(),
-                                                                new ConsumerConfig(props)))
-                                                                */
-    val stream = env.addSource(new FlinkKafkaConsumer081[Event](pt.getRequired("topic"), new EventDeSerializer() ,props))
+                                                                new ConsumerConfig(props))) */
+
+   val stream = env.addSource(new FlinkKafkaConsumer081[Event](pt.getRequired("topic"), new EventDeSerializer() ,props))
 
     stream
       // partition on the address to make sure equal addresses
