@@ -8,7 +8,6 @@ import org.I0Itec.zkclient.ZkClient;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
-import org.apache.flink.streaming.connectors.kafka.api.config.PartitionerWrapper;
 import org.apache.flink.streaming.connectors.kafka.api.persistent.PersistentKafkaSource;
 import org.apache.flink.streaming.connectors.kafka.partitioner.SerializableKafkaPartitioner;
 import org.apache.flink.streaming.util.serialization.SerializationSchema;
@@ -31,13 +30,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 
 public class PimpedKafkaSink<IN> extends RichSinkFunction<IN>  {
 
-	private final static String ENABLE_LOCAL_WRITES_KEY = "flink.kafka.producer.enable-local-writes";
 
 	private final int[] partitions;
 
@@ -56,11 +53,8 @@ public class PimpedKafkaSink<IN> extends RichSinkFunction<IN>  {
 	private String topicId;
 	private String brokerList;
 	private SerializationSchema<IN, byte[]> schema;
-	private SerializableKafkaPartitioner partitioner;
-	private Class<? extends SerializableKafkaPartitioner> partitionerClass = null;
 
-	// partitions to write to
-	private Integer[] toPartitions;
+	private KafkaPartitioner<IN> partitioner;
 
 
 	/**
@@ -104,7 +98,6 @@ public class PimpedKafkaSink<IN> extends RichSinkFunction<IN>  {
 		this.brokerList = brokerList;
 		this.topicId = topicId;
 		this.schema = serializationSchema;
-		this.partitionerClass = null;
 		this.userDefinedProperties = producerConfig;
 
 		Properties properties = new Properties();
@@ -118,6 +111,10 @@ public class PimpedKafkaSink<IN> extends RichSinkFunction<IN>  {
 		this.partitions = new int[partitionsList.size()];
 		for(int i = 0; i < partitions.length; i++) {
 			partitions[i] = partitionsList.get(i).partition();
+		}
+
+		if(partitioner == null) {
+			partitioner = new FixedPartitioning<IN>();
 		}
 	}
 
@@ -134,38 +131,10 @@ public class PimpedKafkaSink<IN> extends RichSinkFunction<IN>  {
 	 * 		User defined partitioner.
 	 */
 	public PimpedKafkaSink(String brokerList, String topicId,
-					 SerializationSchema<IN, byte[]> serializationSchema, SerializableKafkaPartitioner partitioner) {
+					 SerializationSchema<IN, byte[]> serializationSchema, KafkaPartitioner<IN> partitioner) {
 		this(brokerList, topicId, serializationSchema);
 		ClosureCleaner.ensureSerializable(partitioner);
 		this.partitioner = partitioner;
-	}
-
-	public PimpedKafkaSink(String brokerList,
-					 String topicId,
-					 SerializationSchema<IN, byte[]> serializationSchema,
-					 Class<? extends SerializableKafkaPartitioner> partitioner) {
-		this(brokerList, topicId, serializationSchema);
-		this.partitionerClass = partitioner;
-	}
-
-
-	public List<TopicPartition> assignPartitions(int[] parts, String topic) {
-		LOG.info("Assigning partitions from "+ Arrays.toString(parts));
-		List<TopicPartition> partitionsToSub = new ArrayList<TopicPartition>();
-
-		int machine = 0;
-		for(int i = 0; i < parts.length; i++) {
-			if(machine == getRuntimeContext().getIndexOfThisSubtask()) {
-				partitionsToSub.add(new TopicPartition(topic, parts[i]));
-			}
-			machine++;
-
-			if(machine == getRuntimeContext().getNumberOfParallelSubtasks()) {
-				machine = 0;
-			}
-		}
-
-		return partitionsToSub;
 	}
 
 	/**
@@ -184,47 +153,8 @@ public class PimpedKafkaSink<IN> extends RichSinkFunction<IN>  {
 		for (Map.Entry<Object, Object> propertiesEntry : userDefinedProperties.entrySet()) {
 			properties.put(propertiesEntry.getKey(), propertiesEntry.getValue());
 		}
-
-		if (partitioner != null) {
-			properties.put("partitioner.class", PartitionerWrapper.class.getCanonicalName());
-			// java serialization will do the rest.
-			properties.put(PartitionerWrapper.SERIALIZED_WRAPPER_NAME, partitioner);
-		}
-		if (partitionerClass != null) {
-			properties.put("partitioner.class", partitionerClass);
-		}
-
 		producer = new KafkaProducer<byte[], byte[]>(properties);
-
-		// assign partitions:
-		List<TopicPartition> assignedPartitons = assignPartitions(partitions, topicId);
-		toPartitions = new Integer[assignedPartitons.size()];
-		for(int i = 0; i < toPartitions.length; i++) {
-			toPartitions[i] = assignedPartitons.get(i).partition();
-		}
-
-	/*	if(userDefinedProperties.containsKey(ENABLE_LOCAL_WRITES_KEY)) {
-			// this mode will lead to unbalanced partitions
-			String thisHost = NetUtils.getHostnameFromFQDN(InetAddress.getLocalHost().getHostName().toLowerCase(Locale.US));
-			// NOTE: the partition leaders can change! The source does not handle this case
-			List<PartitionInfo> partitions = producer.partitionsFor(topicId);
-			List<Integer> localPartitions = new ArrayList<Integer>();
-			List<Integer> allPartitions = new ArrayList<Integer>(partitions.size());
-			for(PartitionInfo part: partitions) {
-				allPartitions.add(part.partition());
-				if(NetUtils.getHostnameFromFQDN(part.leader().host().toLowerCase(Locale.US)).equals(thisHost)) {
-					localPartitions.add(part.partition());
-				}
-			}
-			if(localPartitions.size() == 0) {
-				LOG.warn("Could not find any local lead broker. This sink is writing to all partitions");
-				localPartitions = allPartitions;
-			}
-			toPartitions = localPartitions.toArray(new Integer[localPartitions.size()]);
-			partitionIndex = 0;
-			LOG.info("Writing to local partitions is enabled. This Sink (host: {}) will write to partitions: {}", thisHost, localPartitions);
-		} */
-
+		partitioner.prepare(getRuntimeContext().getIndexOfThisSubtask(), getRuntimeContext().getNumberOfParallelSubtasks(), partitions);
 	}
 
 	/**
@@ -237,14 +167,7 @@ public class PimpedKafkaSink<IN> extends RichSinkFunction<IN>  {
 	public void invoke(IN next) {
 		byte[] serialized = schema.serialize(next);
 
-		if(toPartitions == null) {
-			producer.send(new ProducerRecord<byte[], byte[]>(topicId, null, null, serialized), new ErrorLoggingCallback(topicId, null, serialized, false));
-		} else {
-			producer.send(new ProducerRecord<byte[], byte[]>(topicId, toPartitions[partitionIndex++], null, serialized), new ErrorLoggingCallback(topicId, null, serialized, false));
-			if(partitionIndex == toPartitions.length) {
-				partitionIndex = 0;
-			}
-		}
+		producer.send(new ProducerRecord<byte[], byte[]>(topicId, partitioner.partition(next ), null, serialized), new ErrorLoggingCallback(topicId, null, serialized, false));
 	}
 
 
