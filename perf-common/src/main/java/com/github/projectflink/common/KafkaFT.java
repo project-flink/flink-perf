@@ -20,8 +20,10 @@ import org.jfree.chart.ChartPanel;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.axis.DateAxis;
 import org.jfree.chart.axis.ValueAxis;
+import org.jfree.chart.plot.SeriesRenderingOrder;
 import org.jfree.chart.plot.ValueMarker;
 import org.jfree.chart.plot.XYPlot;
+import org.jfree.chart.renderer.xy.XYLineAndShapeRenderer;
 import org.jfree.chart.util.RelativeDateFormat;
 import org.jfree.data.time.Millisecond;
 import org.jfree.data.time.Minute;
@@ -67,6 +69,13 @@ public class KafkaFT extends ApplicationFrame {
 		JFreeChart jfreechart = ChartFactory.createTimeSeriesChart("Flink Exactly-Once on Kafka with YARN Chaos Monkey", "Date", "Value", xydataset, true, true, false);
 		XYPlot xyplot = (XYPlot) jfreechart.getPlot();
 
+		XYLineAndShapeRenderer r0 = (XYLineAndShapeRenderer) xyplot.getRenderer(0);
+
+		// draw data points as points
+		r0.setSeriesShapesVisible(2, true);
+		r0.setSeriesLinesVisible(2, true);
+		// order elements as assed
+		xyplot.setSeriesRenderingOrder(SeriesRenderingOrder.FORWARD);
 
 		DateAxis dateaxis = (DateAxis) xyplot.getDomainAxis();
 
@@ -82,6 +91,8 @@ public class KafkaFT extends ApplicationFrame {
 		ValueAxis valueaxis = xyplot.getRangeAxis();
 		valueaxis.setAutoRangeMinimumSize(1.0D);
 		valueaxis.setLabel("Elements/Core");
+
+		xyplot.getRenderer().setSeriesPaint(2, ChartColor.DARK_MAGENTA);
 		return jfreechart;
 	}
 
@@ -138,10 +149,13 @@ public class KafkaFT extends ApplicationFrame {
 		TimeSeriesCollection timeseriescollection = new TimeSeriesCollection();
 		// createPointMovingAverage(TimeSeries source, java.lang.String name, int pointCount)
 
-		timeseriescollection.addSeries(MovingAverage.createPointMovingAverage(generatorTimeseries, "Data Generator (Avg)", 50));
 		timeseriescollection.addSeries(generatorTimeseries);
+		timeseriescollection.addSeries(MovingAverage.createPointMovingAverage(generatorTimeseries, "Data Generator (Avg)", 50));
+
 		//timeseriescollection.addSeries(MovingAverage.createMovingAverage(generatorTimeseries, "whyName?", 20, 20));
-		//timeseriescollection.addSeries(consumerTimeseries);
+		// timeseriescollection.addSeries(consumerTimeseries);
+		timeseriescollection.addSeries(MovingAverage.createMovingAverage(consumerTimeseries, "State Machine (Avg)", 1000,0));
+
 		System.out.println("Generator elements " + generatorTimeseries.getItemCount());
 		System.out.println("Consumer elements " + consumerTimeseries.getItemCount());
 		res.ds = timeseriescollection;
