@@ -42,13 +42,16 @@ public class Throughput {
 		Assert.assertEquals(-1, convertHostnameToInt("robert-streaming-m.c.astral-sorter-757.internal"));
 		Assert.assertEquals(30, convertHostnameToInt("robert-streaming-w-30.c.astral-sorter-757.internal"));
 		Assert.assertEquals(3, convertHostnameToInt("robert-streaming-w-3.c.astral-sorter-757.internal"));
+		Assert.assertEquals(11, convertHostnameToInt("robert-streaming-w-11"));
+		Assert.assertEquals(1, convertHostnameToInt("robert-streaming-w-1"));
+
 	}
 
 	private static int convertHostnameToInt(String host) {
 		// allow me to develop locally
 		if(host.equals("robert-da")) return 0;
 
-		Pattern p = Pattern.compile("robert-streaming-(m|w-([0-9]+)).c.astral-sorter-757.internal");
+		Pattern p = Pattern.compile("robert-streaming-(m|w-([0-9]+))(.c.astral-sorter-757.internal)?");
 		Matcher m = p.matcher(host);
 		if(m.matches()){
 			if(m.group(1).startsWith("m")) {
