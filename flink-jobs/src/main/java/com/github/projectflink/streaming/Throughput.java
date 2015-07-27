@@ -128,7 +128,6 @@ public class Throughput {
 		StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
 		see.getConfig().setGlobalJobParameters(pt);
 		see.setNumberOfExecutionRetries(0);
-		see.setParallelism(4);
 
 		if(pt.has("timeout")) {
 			see.setBufferTimeout(pt.getLong("timeout"));
