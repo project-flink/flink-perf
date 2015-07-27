@@ -11,16 +11,58 @@ import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.util.Collector;
+import org.junit.Assert;
+import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.InetAddress;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class Throughput {
 
 	private static final Logger LOG = LoggerFactory.getLogger(Throughput.class);
 
-	public static class Source extends RichParallelSourceFunction<Tuple4<Long, String, Long, byte[]>> implements Checkpointed<Long> {
+	public static class Type extends Tuple4<Long, // sequence number from generator instance
+			Integer,  // host ID on GCE
+			Long, // timestamp
+			byte[] // some payload
+			> {
+		public Type(Long value0, Integer value1, Long value2, byte[] value3) {
+			super(value0, value1, value2, value3);
+		}
+
+		public Type() {
+		}
+	}
+
+	@Test
+	public void testMaster() {
+		Assert.assertEquals(-1, convertHostnameToInt("robert-streaming-m.c.astral-sorter-757.internal"));
+		Assert.assertEquals(30, convertHostnameToInt("robert-streaming-w-30.c.astral-sorter-757.internal"));
+		Assert.assertEquals(3, convertHostnameToInt("robert-streaming-w-3.c.astral-sorter-757.internal"));
+	}
+
+	private static int convertHostnameToInt(String host) {
+		// allow me to develop locally
+		if(host.equals("robert-da")) return 0;
+
+		Pattern p = Pattern.compile("robert-streaming-(m|w-([0-9]+)).c.astral-sorter-757.internal");
+		Matcher m = p.matcher(host);
+		if(m.matches()){
+			if(m.group(1).startsWith("m")) {
+				return -1; // that's the master machine
+			} else {
+				String id = m.group(2);
+				return Integer.valueOf(id);
+			}
+		} else {
+			throw new RuntimeException("Unable to convert host "+host);
+		}
+	}
+
+	public static class Source extends RichParallelSourceFunction<Type> implements Checkpointed<Long> {
 
 		final ParameterTool pt;
 		byte[] payload;
@@ -34,12 +76,13 @@ public class Throughput {
 		}
 
 		@Override
-		public void run(SourceContext<Tuple4<Long, String, Long, byte[]>> sourceContext) throws Exception {
+		public void run(SourceContext<Type> sourceContext) throws Exception {
 			int delay = pt.getInt("delay");
 			int latFreq = pt.getInt("latencyFreq");
 			int nextlat = 1000;
 			int sleepFreq = pt.getInt("sleepFreq");
-			String host = InetAddress.getLocalHost().getHostName();;
+		//	String host = InetAddress.getLocalHost().getHostName();
+			int host = convertHostnameToInt(InetAddress.getLocalHost().getHostName());
 
 			while(running) {
 				if(delay > 0) {
@@ -48,14 +91,14 @@ public class Throughput {
 					}
 				}
 				// move the ID for the latency so that we distribute it among the machines.
-			/*	if(id % latFreq == nextlat) {
+				if(id % latFreq == nextlat) {
 					time = System.currentTimeMillis();
 					if(--nextlat <= 0) {
 						nextlat = 1000;
 					}
-				} */
+				}
 
-				sourceContext.collect(new Tuple4<Long, String, Long, byte[]>(id++, host, time, payload));
+				sourceContext.collect(new Type(id++, host, time, payload));
 				time = 0;
 			}
 		}
@@ -77,8 +120,6 @@ public class Throughput {
 	}
 
 	public static void main(String[] args) throws Exception {
-
-
 		final ParameterTool pt = ParameterTool.fromArgs(args);
 
 		StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -94,21 +135,21 @@ public class Throughput {
 			see.enableCheckpointing(pt.getLong("ft"));
 		}
 
-		DataStream<Tuple4<Long, String, Long, byte[]>> source = see.addSource(new Source(pt) );
+		DataStream<Type> source = see.addSource(new Source(pt) );
 
-		DataStream<Tuple4<Long, String, Long, byte[]>> repartitioned = source.partitionByHash(0);
+		DataStream<Type> repartitioned = source.partitionByHash(0);
 		for(int i = 0; i < pt.getInt("repartitions", 1) - 1;i++) {
-			repartitioned = repartitioned.map(new MapFunction<Tuple4<Long, String, Long, byte[]>, Tuple4<Long, String, Long, byte[]>>() {
+			repartitioned = repartitioned.map(new MapFunction<Type, Type>() {
 				@Override
-				public Tuple4<Long, String, Long, byte[]> map(Tuple4<Long, String, Long, byte[]> in) throws Exception {
-					Tuple4<Long, String, Long, byte[]> out = in.copy();
+				public Type map(Type in) throws Exception {
+					Type out = (Type) in.copy();
 					out.f0++;
 					return out;
 				}
 			}).partitionByHash(0);
 		}
-		repartitioned.flatMap(new FlatMapFunction<Tuple4<Long, String, Long, byte[]>, Integer>() {
-			public String host;
+		repartitioned.flatMap(new FlatMapFunction<Type, Integer>() {
+			public int host = -2;
 			long received = 0;
 			long start = 0;
 			long logfreq = pt.getInt("logfreq");
@@ -116,13 +157,14 @@ public class Throughput {
 			long lastElements = 0;
 
 			@Override
-			public void flatMap(Tuple4<Long, String, Long, byte[]> element, Collector<Integer> collector) throws Exception {
-				if(host == null) {
-					host = InetAddress.getLocalHost().getHostName();
+			public void flatMap(Type element, Collector<Integer> collector) throws Exception {
+				if(host == -2) {
+					host = convertHostnameToInt(InetAddress.getLocalHost().getHostName());
 				}
 				if (start == 0) {
 					start = System.currentTimeMillis();
 				}
+
 				received++;
 				if (received % logfreq == 0) {
 					// throughput over entire time
@@ -150,13 +192,13 @@ public class Throughput {
 						lastElements = received;
 					}
 				}
-				/*if (element.f2 != 0 && element.f1.equals(host)) {
+				if (element.f2 != 0 && element.f1.equals(host)) {
 					long lat = System.currentTimeMillis() - element.f2;
 					LOG.info("Latency {} ms from machine " + element.f1, lat);
-				} */
+				}
 			}
 		});
 		//System.out.println("plan = "+see.getExecutionPlan());;
-		see.execute();
+		see.execute("Flink Throughput Job with: "+pt.toMap());
 	}
 }

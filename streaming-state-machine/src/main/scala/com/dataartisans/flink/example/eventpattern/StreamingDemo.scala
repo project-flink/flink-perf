@@ -54,13 +54,13 @@ object StreamingDemo {
     }
     
     // this statement enables the checkpointing mechanism with an interval of 1 sec
-    env.enableCheckpointing(pt.getInt("ft", 1000))
+    env.enableCheckpointing(pt.getInt("ft", 100))
 
     
     // data stream from kafka topic.
     val props = new Properties()
-    props.put("group.id", "flink-streaming-demo"+new Date().getTime)
-    props.put("auto.offset.reset", "smallest")
+    props.put("group.id", "flink-streaming-demo-a"/*+new Date().getTime*/)
+    props.put("auto.offset.reset", "latest")
 
     props.put("auto.commit.enable", "false")
     props.putAll(pt.toMap)
