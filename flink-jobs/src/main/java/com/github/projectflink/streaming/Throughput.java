@@ -47,7 +47,7 @@ public class Throughput {
 
 	}
 
-	private static int convertHostnameToInt(String host) {
+	public static int convertHostnameToInt(String host) {
 		// allow me to develop locally
 		if(host.equals("robert-da")) return 0;
 

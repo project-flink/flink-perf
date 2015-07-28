@@ -4,6 +4,8 @@ import com.github.projectflink.generators.Utils;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.Configuration;
@@ -22,6 +24,15 @@ import java.util.regex.Pattern;
 public class ForwardThroughput {
 	private static final Logger LOG = LoggerFactory.getLogger(ForwardThroughput.class);
 
+
+	public static class Type extends Tuple2<String, Long> {
+		public Type(String value0, Long value2) {
+			super(value0, value2);
+		}
+
+		public Type() {
+		}
+	}
 	public static void main(String[] args) throws Exception {
 		StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
 		final ParameterTool pt = ParameterTool.fromArgs(args);
@@ -30,7 +41,15 @@ public class ForwardThroughput {
 
 		// see.setParallelism(1);
 
-		DataStreamSource<String> src = see.addSource(new RichParallelSourceFunction<String>() {
+		if(pt.has("timeout")) {
+			see.setBufferTimeout(pt.getLong("timeout"));
+		}
+
+		if(pt.has("ft")) {
+			see.enableCheckpointing(pt.getLong("ft"));
+		}
+
+		DataStreamSource<Type> src = see.addSource(new RichParallelSourceFunction<Type>() {
 
 			String[] texts;
 			boolean running = true;
@@ -52,13 +71,21 @@ public class ForwardThroughput {
 			}
 
 			@Override
-			public void run(SourceContext<String> ctx) throws Exception {
+			public void run(SourceContext<Type> ctx) throws Exception {
 				int i = 0;
+				long time = 0L;
+				long id = 0;
+				int latFreq = pt.getInt("latencyFreq");
 				while (running) {
-					ctx.collect(texts[i++]);
+					if(id++ % latFreq == 0) {
+						time = System.currentTimeMillis();
+					}
+
+					ctx.collect(new Type(texts[i++], time));
 					if (i == texts.length) {
 						i = 0;
 					}
+					time = 0L;
 				}
 			}
 
@@ -68,17 +95,7 @@ public class ForwardThroughput {
 			}
 		});
 
-		src.map(new MapFunction<String, String>() {
-			@Override
-			public String map(String s) throws Exception {
-				return s;
-			}
-		}).map(new MapFunction<String, String>() {
-			@Override
-			public String map(String s) throws Exception {
-				return s;
-			}
-		}).flatMap(new RichFlatMapFunction<String, Integer>() {
+		src.flatMap(new RichFlatMapFunction<Type, Integer>() {
 			long received = 0;
 			long logfreq = pt.getInt("logfreq");
 			long lastLog = -1;
@@ -92,8 +109,8 @@ public class ForwardThroughput {
 			}
 
 			@Override
-			public void flatMap(String element, Collector<Integer> collector) throws Exception {
-				Matcher m = threeDigitAbbr.matcher(element);
+			public void flatMap(Type element, Collector<Integer> collector) throws Exception {
+				Matcher m = threeDigitAbbr.matcher(element.f0);
 				if (m.matches()) {
 					matches++;
 				}
@@ -118,9 +135,13 @@ public class ForwardThroughput {
 						lastElements = received;
 					}
 				}
+				if(element.f1 != 0L) {
+					long lat = System.currentTimeMillis() - element.f1;
+					LOG.info("Latency {} ms from same machine", lat);
+				}
 			}
 		});
 
-		see.execute();
+		see.execute("Forward Throughout "+pt.toMap());
 	}
 }
