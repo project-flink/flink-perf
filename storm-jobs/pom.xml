@@ -77,6 +77,11 @@
       <version>16.0.1</version>
     </dependency>
       <dependency>
+          <groupId>com.github.project-flink</groupId>
+          <artifactId>flink-jobs</artifactId>
+          <version>0.1-SNAPSHOT</version>
+      </dependency>
+      <dependency>
           <groupId>org.apache.flink</groupId>
           <artifactId>flink-java</artifactId>
           <version>${flink.version}</version>

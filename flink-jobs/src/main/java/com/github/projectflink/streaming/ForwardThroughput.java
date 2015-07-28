@@ -59,6 +59,7 @@ public class ForwardThroughput {
 				super.open(parameters);
 				Random rnd = new Random(1337);
 				texts = new String[pt.getInt("words")];
+				int totLength = 0;
 				for (int i = 0; i < pt.getInt("words"); i++) {
 					String str = "";
 					int sentenceLength = rnd.nextInt(25); // up to 16 words per sentence
@@ -66,8 +67,10 @@ public class ForwardThroughput {
 						str += Utils.getFastZipfRandomWord();
 						str += " ";
 					}
+					totLength += str.length();
 					texts[i] = str;
 				}
+				LOG.info("Average string length "+(totLength/(double)pt.getInt("words")));
 			}
 
 			@Override

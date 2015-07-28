@@ -27,9 +27,7 @@ import storm.trident.tuple.TridentTuple;
 
 import java.util.Map;
 
-/**
- * Created by robert on 6/25/15.
- */
+
 public class TridentThroughput {
 
 	public static Logger LOG = LoggerFactory.getLogger(TridentThroughput.class);
