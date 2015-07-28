@@ -49,6 +49,11 @@ public class KafkaFT extends ApplicationFrame {
 			addKillEvent(jfreechart.getXYPlot(), killEventTime);
 		}
 
+		// add illegal state trans events:
+		for(Long illegalEventTime: res.illegalStates) {
+			addIllegalEvent(jfreechart.getXYPlot(), illegalEventTime);
+		}
+
 
 
 		ChartPanel chartpanel = new ChartPanel(jfreechart);
@@ -64,6 +69,16 @@ public class KafkaFT extends ApplicationFrame {
 		vm.setStroke(new BasicStroke(2));
 		xyplot.addDomainMarker(vm);
 	}
+
+	private static void addIllegalEvent(XYPlot xyplot, long pos) {
+		ValueMarker vm = new ValueMarker(pos);
+		vm.setPaint(ChartColor.LIGHT_YELLOW);
+		vm.setLabelOffset(new RectangleInsets(10.0D, 1.0D, 1.0D, 1.0D));
+		vm.setLabel("Illegal State");
+		vm.setStroke(new BasicStroke(2));
+		xyplot.addDomainMarker(vm);
+	}
+
 
 	private static JFreeChart createChart(XYDataset xydataset) {
 		JFreeChart jfreechart = ChartFactory.createTimeSeriesChart("Flink Exactly-Once on Kafka with YARN Chaos Monkey", "Date", "Value", xydataset, true, true, false);
@@ -99,10 +114,12 @@ public class KafkaFT extends ApplicationFrame {
 	public static class WhyOO {
 		public XYDataset ds;
 		public List<Long> killEventTime;
+		public List<Long> illegalStates;
 	}
 	private static WhyOO createDataset(String generatorLogPath, String stateMachineLogPath) throws Exception {
 		WhyOO res = new WhyOO();
 		res.killEventTime = new ArrayList<Long>();
+		res.illegalStates = new ArrayList<Long>();
 
 		TimeSeries generatorTimeseries = new TimeSeries("Data Generator");
 
@@ -129,6 +146,7 @@ public class KafkaFT extends ApplicationFrame {
 			String l;
 			Pattern throughputPattern = Pattern.compile("([0-9:,]+) INFO.*That's ([0-9.]+) elements\\/second\\/core.*");
 			Pattern failPattern = Pattern.compile("([0-9:,]+) ERROR .* failed.*");
+			Pattern illegalStatePattern = Pattern.compile("([0-9:,]+) INFO .*Detected invalid state transition ALERT.*");
 			SimpleDateFormat dateParser = new SimpleDateFormat("HH:mm:ss,SSS");
 			while (sc.hasNextLine()) {
 				l = sc.nextLine();
@@ -142,6 +160,11 @@ public class KafkaFT extends ApplicationFrame {
 				if(failMatcher.matches()) {
 					String time = failMatcher.group(1);
 					res.killEventTime.add(dateParser.parse(time).getTime());
+				}
+				Matcher illegalMatcher = illegalStatePattern.matcher(l);
+				if(illegalMatcher.matches()) {
+					String time = illegalMatcher.group(1);
+					res.illegalStates.add(dateParser.parse(time).getTime());
 				}
 			}
 		}
