@@ -149,11 +149,6 @@ public class ForwardThroughput {
 
 		@Override
 		public void execute(Tuple input) {
-			try {
-				Thread.sleep(50);
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
 			Matcher m = threeDigitAbbr.matcher(input.getString(0));
 			if (m.matches()) {
 				matches++;
