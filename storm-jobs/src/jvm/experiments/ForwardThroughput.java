@@ -219,7 +219,8 @@ public class ForwardThroughput {
 
 		builder.setSpout("source0", new Generator(pt), pt.getInt("sourceParallelism"));
 
-		builder.setBolt("sink", new Sink(pt), pt.getInt("sinkParallelism")).noneGrouping("source0");
+		//builder.setBolt("sink", new Sink(pt), pt.getInt("sinkParallelism")).noneGrouping("source0");
+		builder.setBolt("sink", new Sink(pt), pt.getInt("sinkParallelism")).localOrShuffleGrouping("source0");
 
 
 		Config conf = new Config();

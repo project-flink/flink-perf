@@ -206,7 +206,7 @@ public class TridentForwardThroughput {
 
 		TridentTopology topology = new TridentTopology();
 		Stream sourceStream = topology.newStream("source", new Generator(pt)).parallelismHint(pt.getInt("sourceParallelism"));
-		sourceStream.each(FIELDS, new Sink(pt), new Fields("dontcare"));
+		sourceStream.localOrShuffle().each(FIELDS, new Sink(pt), new Fields("dontcare"));
 
 		Config conf = new Config();
 		conf.setDebug(false);
