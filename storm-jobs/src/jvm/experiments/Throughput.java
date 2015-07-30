@@ -24,6 +24,9 @@ import java.util.List;
 import java.util.Map;
 
 
+/**
+ *  Commands: --para 4 --sourceParallelism 120 --sinkParallelism 120 --payload 12 --delay 0 --local --latencyFreq 100000 --sleepFreq 0 --logfreq 100000 --repart 2
+ */
 public class Throughput {
 
 	public static Logger LOG = LoggerFactory.getLogger(Throughput.class);
@@ -41,7 +44,7 @@ public class Throughput {
 		private long time = 0;
 		private int nextlat = 1000;
 		private int sleepFreq;
-		private String host;
+		private int host;
 
 		public Generator(ParameterTool pt) {
 			this.payload = new byte[pt.getInt("payload")];
@@ -60,7 +63,7 @@ public class Throughput {
 		public void open(Map map, TopologyContext topologyContext, SpoutOutputCollector spoutOutputCollector) {
 			this.spoutOutputCollector = spoutOutputCollector;
 			try {
-				this.host = InetAddress.getLocalHost().getHostName();
+				this.host = com.github.projectflink.streaming.Throughput.convertHostnameToInt(InetAddress.getLocalHost().getHostName());
 			} catch (UnknownHostException e) {
 				e.printStackTrace();
 			}
@@ -155,7 +158,7 @@ public class Throughput {
 	public static class Sink implements IRichBolt {
 
 		private final boolean withFT;
-		private final String host;
+		private int host = -1;
 		long received = 0;
 		long start = 0;
 		ParameterTool pt;
@@ -168,11 +171,17 @@ public class Throughput {
 			this.pt = pt;
 			this.withFT = pt.has("ft");
 			this.logfreq = pt.getInt("logfreq");
-			this.host = InetAddress.getLocalHost().getHostName();
 		}
 
 		@Override
 		public void execute(Tuple input) {
+			if(host == -1) {
+				try {
+					this.host = com.github.projectflink.streaming.Throughput.convertHostnameToInt(InetAddress.getLocalHost().getHostName());
+				} catch (UnknownHostException e) {
+					e.printStackTrace();
+				}
+			}
 			if(start == 0) {
 				start = System.currentTimeMillis();
 			}
@@ -204,10 +213,10 @@ public class Throughput {
 				}
 			}
 
-		/*	if(input.getLong(2) != 0 && input.getString(1).equals(host)) {
+			if(input.getLong(2) != 0 && input.getInteger(1).equals(host)) {
 				long lat = System.currentTimeMillis() - input.getLong(2);
 				LOG.info("Latency {} ms from machine "+host, lat);
-			} */
+			}
 
 			if(withFT) {
 				collector.ack(input);
@@ -257,6 +266,9 @@ public class Throughput {
 		Config conf = new Config();
 		conf.setDebug(false);
 		//System.exit(1);
+		if(pt.has("ft")) {
+			conf.setMaxSpoutPending(pt.getInt("maxPending", 1000));
+		}
 
 		if (!pt.has("local")) {
 			conf.setNumWorkers(par);

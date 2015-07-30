@@ -53,7 +53,7 @@ public class Throughput {
 
 	public static int convertHostnameToInt(String host) {
 		// allow me to develop locally
-		if(host.equals("robert-da")) return 0;
+		if(host.equals("robert-da") || host.equals("robert-tower")) return 0;
 
 		Pattern p = Pattern.compile("robert-streaming-(m|w-([0-9]+))(.c.astral-sorter-757.internal)?");
 		Matcher m = p.matcher(host);
