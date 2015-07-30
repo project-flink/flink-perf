@@ -25,6 +25,8 @@ import storm.trident.operation.TridentOperationContext;
 import storm.trident.spout.IBatchSpout;
 import storm.trident.tuple.TridentTuple;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.Map;
 
 
@@ -39,9 +41,10 @@ public class TridentThroughput {
 		private final int batchSize;
 		private final int latFreq;
 		private SpoutOutputCollector spoutOutputCollector;
-		private int tid;
 		private byte[] payload;
 		private long time = 0;
+		private int host;
+		private int nextlat = 1000;
 
 		public Generator(ParameterTool pt) {
 			this.payload = new byte[pt.getInt("payload")];
@@ -53,7 +56,12 @@ public class TridentThroughput {
 
 		@Override
 		public void open(Map conf, TopologyContext context) {
-			this.tid = context.getThisTaskId();
+			try {
+				this.host = com.github.projectflink.streaming.Throughput.convertHostnameToInt(InetAddress.getLocalHost().getHostName());
+			} catch (UnknownHostException e) {
+				e.printStackTrace();
+			}
+
 		}
 
 		/**
@@ -66,10 +74,13 @@ public class TridentThroughput {
 		public void emitBatch(long batchId, TridentCollector collector) {
 			long id = (batchId-1) * this.batchSize;
 			for(int i = 0; i < this.batchSize; i++) {
-				if(id % latFreq == 0) {
+				if(id % latFreq == nextlat) {
 					time = System.currentTimeMillis();
+					if(--nextlat <= 0) {
+						nextlat = 1000;
+					}
 				}
-				collector.emit(new Values(id, this.tid, this.time, this.payload));
+				collector.emit(new Values(id, this.host, this.time, this.payload));
 				time = 0;
 				id++;
 			}
@@ -91,7 +102,7 @@ public class TridentThroughput {
 
 		@Override
 		public Fields getOutputFields() {
-			return new Fields("id", "taskId", "time", "payload");
+			return new Fields("id", "host", "time", "payload");
 		}
 	}
 
@@ -99,6 +110,9 @@ public class TridentThroughput {
 
 		@Override
 		public void execute(TridentTuple tridentTuple, TridentCollector tridentCollector) {
+			long id = tridentTuple.getLong(0);
+			id++;
+			tridentTuple.set(0, id);
 			tridentCollector.emit(tridentTuple);
 		}
 		@Override
@@ -112,6 +126,9 @@ public class TridentThroughput {
 		long start = 0;
 		ParameterTool pt;
 		private long logfreq;
+		private int host = -1;
+		private long lastLog = -1L;
+		private long lastElements;
 
 		public Sink(ParameterTool pt) {
 			this.pt = pt;
@@ -133,23 +150,47 @@ public class TridentThroughput {
 		@Override
 		public void execute(TridentTuple tuple, TridentCollector collector) {
 
+			if(host == -1) {
+				try {
+					this.host = com.github.projectflink.streaming.Throughput.convertHostnameToInt(InetAddress.getLocalHost().getHostName());
+				} catch (UnknownHostException e) {
+					e.printStackTrace();
+				}
+			}
 			if(start == 0) {
 				start = System.currentTimeMillis();
 			}
 			received++;
 			if(received % logfreq == 0) {
-				long sinceSec = ((System.currentTimeMillis() - start)/1000);
+				long now = System.currentTimeMillis();
+
+				/*long sinceSec = ((now - start)/1000);
 				if(sinceSec == 0) return;
 				LOG.info("Received {} elements since {}. Elements per second {}, GB received {}",
 						received,
 						sinceSec,
-						received / sinceSec,
-						(received * (8 + 4 + pt.getInt("payload"))) / 1024 / 1024 / 1024);
+						received/sinceSec ,
+						(received * (8 + 8 + 4 + pt.getInt("payload")))/1024/1024/1024 ); */
+
+				// throughput for the last "logfreq" elements
+				if(lastLog == -1) {
+					// init (the first)
+					lastLog = now;
+					lastElements = received;
+				} else {
+					long timeDiff = now - lastLog;
+					long elementDiff = received - lastElements;
+					double ex = (1000/(double)timeDiff);
+					LOG.info("During the last {} ms, we received {} elements. That's {} elements/second/core", timeDiff, elementDiff, elementDiff*ex);
+					// reinit
+					lastLog = now;
+					lastElements = received;
+				}
 			}
 
-			if(tuple.getLong(2) != 0) {
+			if(tuple.getLong(2) != 0 && tuple.getInteger(1).equals(host)) {
 				long lat = System.currentTimeMillis() - tuple.getLong(2);
-				LOG.info("Latency {} ms", lat);
+				LOG.info("Latency {} ms from machine "+host, lat);
 			}
 		}
 	}
@@ -167,9 +208,9 @@ public class TridentThroughput {
 
 		Stream repart = sourceStream.partitionBy(new Fields("id"));
 		for(int i = 0; i < pt.getInt("repartitions", 1) - 1; i++) {
-			repart = repart.each(new IdentityEach(), new Fields("id", "taskId", "time", "payload")).partitionBy(new Fields("id"));
+			repart = repart.each(new IdentityEach(), new Fields("id", "host", "time", "payload")).partitionBy(new Fields("id"));
 		}
-		repart.each(new Fields("id", "taskId", "time", "payload"), new Sink(pt), new Fields("dontcare")).parallelismHint(pt.getInt("sinkParallelism"));
+		repart.each(new Fields("id", "host", "time", "payload"), new Sink(pt), new Fields("dontcare")).parallelismHint(pt.getInt("sinkParallelism"));
 
 		Config conf = new Config();
 		conf.setDebug(false);
