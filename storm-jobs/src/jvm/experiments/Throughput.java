@@ -125,12 +125,12 @@ public class Throughput {
 
 		@Override
 		public void execute(Tuple input) {
+			List<Object> vals = input.getValues();
+			Long v = (Long) vals.get(0);
+			v++;
+			vals.set(0, v);
 			if(withFt) {
 				// anchor the output on the only input element (we pass through)
-				List<Object> vals = input.getValues();
-				Long v = (Long) vals.get(0);
-				v++;
-				vals.set(0, v);
 				collector.emit(input, vals);
 				// acknowledge the element upstream.
 				collector.ack(input);

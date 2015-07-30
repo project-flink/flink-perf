@@ -110,10 +110,10 @@ public class TridentThroughput {
 
 		@Override
 		public void execute(TridentTuple tridentTuple, TridentCollector tridentCollector) {
-			long id = tridentTuple.getLong(0);
+			Long id = tridentTuple.getLong(0);
 			id++;
-			tridentTuple.set(0, id);
-			tridentCollector.emit(tridentTuple);
+			Values v = new Values(id);
+			tridentCollector.emit(v);
 		}
 		@Override
 		public void prepare(Map map, TridentOperationContext tridentOperationContext) {}
@@ -149,7 +149,6 @@ public class TridentThroughput {
 
 		@Override
 		public void execute(TridentTuple tuple, TridentCollector collector) {
-
 			if(host == -1) {
 				try {
 					this.host = com.github.projectflink.streaming.Throughput.convertHostnameToInt(InetAddress.getLocalHost().getHostName());
@@ -208,7 +207,7 @@ public class TridentThroughput {
 
 		Stream repart = sourceStream.partitionBy(new Fields("id"));
 		for(int i = 0; i < pt.getInt("repartitions", 1) - 1; i++) {
-			repart = repart.each(new IdentityEach(), new Fields("id", "host", "time", "payload")).partitionBy(new Fields("id"));
+			repart = repart.each(new Fields("id"), new IdentityEach(), new Fields("id"+i)).partitionBy(new Fields("id"+i));
 		}
 		repart.each(new Fields("id", "host", "time", "payload"), new Sink(pt), new Fields("dontcare")).parallelismHint(pt.getInt("sinkParallelism"));
 
