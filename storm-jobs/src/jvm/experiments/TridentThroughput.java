@@ -217,7 +217,7 @@ public class TridentThroughput {
 		if (!pt.has("local")) {
 			conf.setNumWorkers(par);
 
-			StormSubmitter.submitTopologyWithProgressBar("throughput", conf, topology.build());
+			StormSubmitter.submitTopologyWithProgressBar("throughput-"+pt.get("name", "no_name"), conf, topology.build());
 		}
 		else {
 			conf.setMaxTaskParallelism(par);
