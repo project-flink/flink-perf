@@ -35,6 +35,10 @@ public class Throughput {
 
 		public Type() {
 		}
+
+		public Type copy() {
+			return new Type(this.f0, this.f1, this.f2, this.f3);
+		}
 	}
 
 	@Test
@@ -144,7 +148,7 @@ public class Throughput {
 			repartitioned = repartitioned.map(new MapFunction<Type, Type>() {
 				@Override
 				public Type map(Type in) throws Exception {
-					Type out = (Type) in.copy();
+					Type out = in.copy();
 					out.f0++;
 					return out;
 				}
