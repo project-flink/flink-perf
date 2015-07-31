@@ -198,7 +198,7 @@ public class Throughput {
 						lastElements = received;
 					}
 				}
-				if (element.f2 != 0 && element.f1.equals(host)) {
+				if (element.f2 != 0 /* && element.f1.equals(host) */) {
 					long lat = System.currentTimeMillis() - element.f2;
 					LOG.info("Latency {} ms from machine " + element.f1, lat);
 				}
