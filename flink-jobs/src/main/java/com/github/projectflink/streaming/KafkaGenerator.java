@@ -57,7 +57,16 @@ public class KafkaGenerator {
 				long lastLog = -1;
 				long lastElements = 0;
 
+				int delay = pt.getInt("delay");
+				int sleepFreq = pt.getInt("sleepFreq");
+
 				while (running) {
+					if(delay > 0) {
+						if(generated % sleepFreq == 0) {
+							try { Thread.sleep(delay); } catch (InterruptedException e) { e.printStackTrace();}
+						}
+					}
+
 					Event gen = eg.next(min, max);
 					sourceContext.collect(gen);
 					//	LOG.info("Generated event {}", gen);
@@ -92,7 +101,7 @@ public class KafkaGenerator {
 			}
 		});
 
-		// run the state machine here as well to see illegal transistions
+		// run the state machine here as well to see illegal transitions
 		src.partitionByHash(new KeySelector<Event, Integer>() {
 			@Override
 			public Integer getKey(Event event) throws Exception {
