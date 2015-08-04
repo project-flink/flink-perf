@@ -266,7 +266,7 @@ public class Throughput {
 		Config conf = new Config();
 		conf.setDebug(false);
 		//System.exit(1);
-		if(pt.has("ft")) {
+		if(pt.has("ft") || pt.has("maxPending")) {
 			conf.setMaxSpoutPending(pt.getInt("maxPending", 1000));
 		}
 
