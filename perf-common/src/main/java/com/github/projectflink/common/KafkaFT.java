@@ -172,7 +172,7 @@ public class KafkaFT extends ApplicationFrame {
 		TimeSeriesCollection timeseriescollection = new TimeSeriesCollection();
 		// createPointMovingAverage(TimeSeries source, java.lang.String name, int pointCount)
 
-		timeseriescollection.addSeries(generatorTimeseries);
+	//	timeseriescollection.addSeries(generatorTimeseries);
 		timeseriescollection.addSeries(MovingAverage.createPointMovingAverage(generatorTimeseries, "Data Generator (Avg)", 50));
 
 		//timeseriescollection.addSeries(MovingAverage.createMovingAverage(generatorTimeseries, "whyName?", 20, 20));
