@@ -9,7 +9,7 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <flink.version>0.10-SNAPSHOT</flink.version>
+    <flink.version>0.9.1</flink.version>
     <storm.version>0.9.3</storm.version>
   </properties>
 
@@ -27,12 +27,12 @@
     <repository>
       <id>apache.snapshots</id>
       <name>Apache Development Snapshot Repository</name>
-      <url>https://repository.apache.org/content/repositories/snapshots/</url>
+      <url>https://repository.apache.org/content/repositories/orgapacheflink-1044</url>
       <releases>
-        <enabled>false</enabled>
+        <enabled>true</enabled>
       </releases>
       <snapshots>
-        <enabled>true</enabled>
+        <enabled>false</enabled>
       </snapshots>
     </repository>
   </repositories>

@@ -25,7 +25,6 @@
     <relativePath>..</relativePath>
   </parent>
 
-  <groupId>com.github.project-flink</groupId>
   <artifactId>storm-jobs</artifactId>
   <packaging>jar</packaging>
 

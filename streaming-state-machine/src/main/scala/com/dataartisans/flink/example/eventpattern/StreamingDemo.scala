@@ -25,8 +25,8 @@ import org.apache.flink.api.common.functions.FlatMapFunction
 import org.apache.flink.api.java.utils.ParameterTool
 import org.apache.flink.streaming.api.checkpoint.Checkpointed
 import org.apache.flink.streaming.api.scala._
+import org.apache.flink.streaming.connectors.kafka.{FlinkKafkaConsumer082, FlinkKafkaConsumer}
 import org.apache.flink.streaming.connectors.kafka.api.persistent.PersistentKafkaSource
-import org.apache.flink.streaming.connectors.{FlinkKafkaConsumer082, FlinkKafkaConsumer081}
 import org.apache.flink.util.Collector
 import org.slf4j.{LoggerFactory, Logger}
 
@@ -70,7 +70,7 @@ object StreamingDemo {
                                                                 new EventDeSerializer(),
                                                                 new ConsumerConfig(props))) */
 
-   val stream = env.addSource(new FlinkKafkaConsumer081[Event](pt.getRequired("topic"), new EventDeSerializer() ,props))
+   val stream = env.addSource(new FlinkKafkaConsumer082[Event](pt.getRequired("topic"), new EventDeSerializer() ,props))
 
     stream
       // partition on the address to make sure equal addresses
