@@ -205,7 +205,7 @@ object CoCoA{
 
     val env = ExecutionEnvironment.getExecutionEnvironment
 
-    env.setDegreeOfParallelism(numBlocks)
+    env.setParallelism(numBlocks)
 
     val toyDataDS = env.fromCollection(toyData)
     val initialWDS = env.fromElements(initialW)

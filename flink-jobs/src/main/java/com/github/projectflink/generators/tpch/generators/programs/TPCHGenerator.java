@@ -43,7 +43,7 @@ public class TPCHGenerator {
             System.exit(1);
         }
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setDegreeOfParallelism(ns.getInt("parallelism"));
+		env.setParallelism(ns.getInt("parallelism"));
 		DistributedTPCH gen = new DistributedTPCH(env);
 		gen.setScale(ns.getDouble("scale"));
 

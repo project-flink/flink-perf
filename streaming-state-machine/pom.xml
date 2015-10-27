@@ -118,15 +118,7 @@ under the License.
 			<version>0.3</version>
 			<scope>compile</scope>
 		</dependency> -->
-
-
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-kafka-083</artifactId>
-			<version>${flink.version}</version>
-		</dependency>
-
+	
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-connector-kafka</artifactId>
@@ -278,13 +270,13 @@ under the License.
 				<dependency>
 					<groupId>org.apache.flink</groupId>
 					<artifactId>flink-scala</artifactId>
-					<version>0.9-SNAPSHOT</version>
+					<version>${flink.version}</version>
 					<scope>provided</scope>
 				</dependency>
 				<dependency>
 					<groupId>org.apache.flink</groupId>
-					<artifactId>flink-streaming-core</artifactId>
-					<version>0.9-SNAPSHOT</version>
+					<artifactId>flink-streaming-java</artifactId>
+					<version>${flink.version}</version>
 					<scope>provided</scope>
 				</dependency>
 				<dependency>

@@ -58,7 +58,7 @@ public class Text {
             }
         }).setParallelism(numberOfFiles);
         logLine.writeAsText(outPath, FileSystem.WriteMode.OVERWRITE);
-        env.setDegreeOfParallelism(numberOfFiles);
+        env.setParallelism(numberOfFiles);
         env.execute("Flink Distributed Text Data Generator");
     }
 }

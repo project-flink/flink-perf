@@ -114,7 +114,7 @@ public class KMeansArbitraryDimension {
 		//clusteredPoints.writeAsCsv(outputPath, "\n", " ", FileSystem.WriteMode.OVERWRITE);
 		clusteredPoints.writeAsText(outputPath, FileSystem.WriteMode.OVERWRITE);
 		// execute program
-		env.setDegreeOfParallelism(dop);
+		env.setParallelism(dop);
 		env.execute("KMeans Multi-Dimension");
 
 	}
