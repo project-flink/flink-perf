@@ -109,7 +109,7 @@ object GroupReduceBenchmarkGenerateData {
 
     // set up the execution environment
     val env = ExecutionEnvironment.getExecutionEnvironment
-    env.setDegreeOfParallelism(dop)
+    env.setParallelism(dop)
 
     val countryIds = env.generateSequence(0, numCountries - 1)
     val bookIds = env.generateSequence(0, numBooks - 1)
@@ -170,7 +170,7 @@ object GroupReduceBenchmarkFlink {
 
     // set up the execution environment
     val env = ExecutionEnvironment.getExecutionEnvironment
-    env.setDegreeOfParallelism(dop)
+    env.setParallelism(dop)
 
     val readsWithCountryAndBook = env.readCsvFile[(String, String)](inputPath)
 
@@ -221,7 +221,7 @@ object GroupReduceBenchmarkFlinkHashCombine {
 
     // set up the execution environment
     val env = ExecutionEnvironment.getExecutionEnvironment
-    env.setDegreeOfParallelism(dop)
+    env.setParallelism(dop)
 
     val readsWithCountryAndBook = env.readCsvFile[(String, String)](inputPath)
 
@@ -274,7 +274,7 @@ object GroupReduceBenchmarkFlinkHash {
 
     // set up the execution environment
     val env = ExecutionEnvironment.getExecutionEnvironment
-    env.setDegreeOfParallelism(dop)
+    env.setParallelism(dop)
 
     val readsWithCountryAndBook = env.readCsvFile[(String, String)](inputPath)
 //    val readsWithCountryAndBook = env.fromElements(

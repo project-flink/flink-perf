@@ -83,7 +83,7 @@ public class Logdata {
 			}
 		}).setParallelism(dop);
 		logLine.writeAsText(outPath, WriteMode.OVERWRITE);
-		env.setDegreeOfParallelism(dop);
+		env.setParallelism(dop);
 		env.execute("Flink Distributed Log Data Generator");
 	}
 }

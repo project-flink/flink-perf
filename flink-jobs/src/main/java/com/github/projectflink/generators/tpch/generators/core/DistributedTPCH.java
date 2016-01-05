@@ -69,7 +69,7 @@ public class DistributedTPCH {
 	}
 
 	public <T> DataSet<T> getGenerator(Class<? extends Iterable<T>> generatorClass, Class<T> type) {
-		SplittableIterator<T> si = new TPCHGeneratorSplittableIterator(scale, env.getDegreeOfParallelism(), generatorClass);
+		SplittableIterator<T> si = new TPCHGeneratorSplittableIterator(scale, env.getParallelism(), generatorClass);
 		return env.fromParallelCollection(si, type).name("Generator: "+generatorClass);
 	}
 }

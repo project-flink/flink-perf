@@ -16,17 +16,15 @@
 
 package com.dataartisans.flink.example.eventpattern
 
-import java.util.{Date, Properties}
+import java.util.Properties
 
-import _root_.kafka.consumer.ConsumerConfig
 import com.dataartisans.flink.example.eventpattern.kafka.EventDeSerializer
 
 import org.apache.flink.api.common.functions.FlatMapFunction
 import org.apache.flink.api.java.utils.ParameterTool
 import org.apache.flink.streaming.api.checkpoint.Checkpointed
 import org.apache.flink.streaming.api.scala._
-import org.apache.flink.streaming.connectors.kafka.api.persistent.PersistentKafkaSource
-import org.apache.flink.streaming.connectors.{FlinkKafkaConsumer082, FlinkKafkaConsumer081}
+import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer081
 import org.apache.flink.util.Collector
 import org.slf4j.{LoggerFactory, Logger}
 

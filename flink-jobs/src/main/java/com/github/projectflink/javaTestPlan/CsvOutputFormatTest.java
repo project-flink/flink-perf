@@ -22,7 +22,7 @@ public class CsvOutputFormatTest{
 		DataSet<Tuple1<String>> src = env.readCsvFile(input).fieldDelimiter(';').types(String.class);
 		src.writeAsCsv(output, "\n", ";");
 
-		env.setDegreeOfParallelism(dop);
+		env.setParallelism(dop);
 		env.execute();
 	}
 
