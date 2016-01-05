@@ -2,12 +2,11 @@ package com.github.projectflink.streaming;
 
 import com.dataartisans.flink.example.eventpattern.Event;
 import com.dataartisans.flink.example.eventpattern.kafka.EventDeSerializer;
-import kafka.consumer.ConsumerConfig;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.connectors.kafka.api.persistent.PersistentKafkaSource;
+import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
 import org.apache.flink.util.Collector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,9 +21,8 @@ public class FlinkKafkaReader {
 	public static void main(String[] args) throws Exception {
 		StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
 		final ParameterTool pt = ParameterTool.fromArgs(args);
-		ConsumerConfig consumerConfig = new ConsumerConfig(pt.getProperties());
 
-		DataStreamSource<Event> src = see.addSource(new PersistentKafkaSource<Event>(pt.getRequired("topic"), new EventDeSerializer(), consumerConfig));
+		DataStreamSource<Event> src = see.addSource(new FlinkKafkaConsumer<Event>(pt.getRequired("topic"), new EventDeSerializer(), pt.getProperties()));
 
 		src.flatMap(new FlatMapFunction<Event, Integer>() {
 			long received = 0;

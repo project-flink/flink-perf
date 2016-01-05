@@ -4,14 +4,13 @@ import com.dataartisans.flink.example.eventpattern.Event;
 import com.dataartisans.flink.example.eventpattern.EventsGenerator;
 import com.dataartisans.flink.example.eventpattern.StateMachineMapper;
 import com.dataartisans.flink.example.eventpattern.kafka.EventDeSerializer;
-//import com.github.projectflink.streaming.utils.PimpedKafkaSink;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
-import org.apache.flink.streaming.connectors.kafka.internals.PartitionerWrapper;
+import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -124,7 +123,7 @@ public class KafkaGenerator {
 //			props.put(PartitionerWrapper.SERIALIZED_WRAPPER_NAME, part);
 //		}
 //
-//		src.addSink(new PimpedKafkaSink<Event>(pt.getRequired("brokerList"), pt.getRequired("topic"), props, new EventDeSerializer()));
+		src.addSink(new FlinkKafkaProducer<Event>(pt.getRequired("topic"), new EventDeSerializer(), pt.getProperties()));
 
 
 		see.execute();
