@@ -159,6 +159,7 @@ public class TridentThroughput {
 			if(start == 0) {
 				start = System.currentTimeMillis();
 			}
+
 			received++;
 			if(received % logfreq == 0) {
 				long now = System.currentTimeMillis();

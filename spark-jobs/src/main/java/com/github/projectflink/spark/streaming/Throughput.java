@@ -39,7 +39,7 @@ public class Throughput {
 
 		@Override
 		public StorageLevel storageLevel() {
-			return StorageLevel.MEMORY_AND_DISK_2();
+			return StorageLevel.MEMORY_ONLY();
 		}
 
 		@Override
@@ -50,8 +50,20 @@ public class Throughput {
 				@Override
 				public void run() {
 					long id = 0;
+					long time = 0;
 					while(running) {
-						store(new Tuple4<>(id++, streamId(), 0L, payload));
+						if(id % 500 == 0) {
+							try {
+								Thread.sleep(1);
+							} catch (InterruptedException e) {
+								e.printStackTrace();
+							}
+						}
+						if(id % 10000 == 0) {
+							time = System.currentTimeMillis();
+						}
+						store(new Tuple4<>(id++, streamId(), time, payload));
+						time = 0;
 					}
 					System.out.println("Generated "+id+" records");
 				}
@@ -73,10 +85,10 @@ public class Throughput {
 	}
 
 	public static void main(String[] args) {
-		SparkConf conf = new SparkConf().setAppName("throughput").setMaster("local[16]");
-		JavaStreamingContext ssc = new JavaStreamingContext(conf, new Duration(1000));
+		SparkConf conf = new SparkConf().setAppName("throughput").setMaster("local[8]");
+		JavaStreamingContext ssc = new JavaStreamingContext(conf, new Duration(2000));
 
-		JavaReceiverInputDStream<Tuple4<Long, Integer, Long, byte[]>> source = ssc.receiverStream(new Source(StorageLevel.MEMORY_AND_DISK_2()));
+		JavaReceiverInputDStream<Tuple4<Long, Integer, Long, byte[]>> source = ssc.receiverStream(new Source(StorageLevel.MEMORY_ONLY()));
 		JavaPairDStream<Long, Tuple3<Integer, Long, byte[]>> kvsource = source.mapToPair(new PairFunction<Tuple4<Long, Integer, Long, byte[]>, Long, Tuple3<Integer, Long, byte[]>>() {
 			@Override
 			public Tuple2<Long, Tuple3<Integer, Long, byte[]>> call(Tuple4<Long, Integer, Long, byte[]> longIntegerLongTuple4) throws Exception {
