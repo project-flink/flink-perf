@@ -17,8 +17,6 @@
  */
 package com.github.projectflink.avro;
 
-import com.github.projectflink.generators.tpch.generators.core.DistributedTPCH;
-import com.github.projectflink.generators.tpch.generators.core.TpchEntityFormatter;
 import net.sourceforge.argparse4j.ArgumentParsers;
 import net.sourceforge.argparse4j.inf.ArgumentParser;
 import net.sourceforge.argparse4j.inf.ArgumentParserException;
@@ -26,7 +24,7 @@ import net.sourceforge.argparse4j.inf.Namespace;
 import org.apache.flink.api.java.ExecutionEnvironment;
 
 public class GenerateLineitems {
-	public static void main(String[] args) throws Exception {
+/*	public static void main(String[] args) throws Exception {
 		// Parse and handle arguments
 		ArgumentParser ap = ArgumentParsers.newArgumentParser("Distributed TPCH");
 		ap.defaultHelp(true);
@@ -52,6 +50,6 @@ public class GenerateLineitems {
 		gen.generateLineItems().writeAsFormattedText(base + "lineitems" + ext, new TpchEntityFormatter());
 
 		env.execute("Generate Lineitems, Scale = "+gen.getScale());
-	}
+	} */
 
 }
