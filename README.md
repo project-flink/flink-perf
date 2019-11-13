@@ -1,3 +1,8 @@
+# THIS REPOSITORY IS NOT MAINTAINED ANYMORE
+
+# Please go here: https://github.com/dataArtisans/performance
+
+
 Apache Flink: Performance and Testing
 =======
 
